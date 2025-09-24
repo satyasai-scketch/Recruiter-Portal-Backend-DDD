@@ -1,3 +1,15 @@
-# Events related to JobDescription (placeholders)
+from dataclasses import dataclass
 
-JDFINALIZED = "JDFinalizedEvent"
+
+@dataclass
+class JDCreatedEvent:
+	id: str
+	title: str
+	role: str
+	company_id: str | None
+
+
+@dataclass
+class JDFinalizedEvent:
+	id: str
+	selected_text: str

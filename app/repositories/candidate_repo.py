@@ -1,17 +1,44 @@
-from typing import Optional
+from __future__ import annotations
 
-from app.db.session import get_session
+from typing import Optional, Sequence
+from sqlalchemy.orm import Session
+
 from app.db.models.candidate import CandidateModel
 
 
 class CandidateRepository:
-	"""Data access for candidates (placeholder)."""
+	"""Repository interface for Candidate aggregates."""
 
-	def __init__(self):
-		self.session = get_session()
+	def get(self, db: Session, candidate_id: str) -> Optional[CandidateModel]:
+		raise NotImplementedError
 
-	def get(self, candidate_id: str) -> Optional[CandidateModel]:
-		return None
+	def create(self, db: Session, candidate: CandidateModel) -> CandidateModel:
+		raise NotImplementedError
 
-	def create(self, candidate: CandidateModel) -> CandidateModel:
+	def update(self, db: Session, candidate: CandidateModel) -> CandidateModel:
+		raise NotImplementedError
+
+	def list_all(self, db: Session) -> Sequence[CandidateModel]:
+		raise NotImplementedError
+
+
+class SQLAlchemyCandidateRepository(CandidateRepository):
+	"""SQLAlchemy-backed implementation of CandidateRepository."""
+
+	def get(self, db: Session, candidate_id: str) -> Optional[CandidateModel]:
+		return db.get(CandidateModel, candidate_id)
+
+	def create(self, db: Session, candidate: CandidateModel) -> CandidateModel:
+		db.add(candidate)
+		db.commit()
+		db.refresh(candidate)
 		return candidate
+
+	def update(self, db: Session, candidate: CandidateModel) -> CandidateModel:
+		db.add(candidate)
+		db.commit()
+		db.refresh(candidate)
+		return candidate
+
+	def list_all(self, db: Session) -> Sequence[CandidateModel]:
+		return db.query(CandidateModel).order_by(CandidateModel.name.asc()).all()

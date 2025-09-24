@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, Text
+from sqlalchemy.dialects.sqlite import JSON
 
 from app.db.base import Base
 
@@ -8,6 +9,9 @@ class JobDescriptionModel(Base):
 
 	id = Column(String, primary_key=True)
 	title = Column(String, nullable=False)
+	role = Column(String, nullable=False)
 	original_text = Column(Text, nullable=False)
 	refined_text = Column(Text, nullable=True)
 	company_id = Column(String, nullable=True)
+	notes = Column(Text, nullable=True)
+	tags = Column(JSON, nullable=False, default=list)

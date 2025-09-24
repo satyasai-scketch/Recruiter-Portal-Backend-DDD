@@ -1,4 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+
+from app.api.deps import db_session
+from app.cqrs.handlers import Recommendations, handle_query
 
 router = APIRouter()
 
@@ -9,5 +13,5 @@ async def score_candidates():
 
 
 @router.get("/recommendations", summary="Top recommendations (query)")
-async def recommendations():
-	return {"message": "stub: recommendations"}
+async def recommendations(persona_id: str, top_k: int = 10, db: Session = Depends(db_session)):
+	return handle_query(db, Recommendations(persona_id, top_k))

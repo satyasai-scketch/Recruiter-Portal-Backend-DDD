@@ -11,7 +11,7 @@ class PersonaCreate(BaseModel):
 	job_description_id: str
 	name: str
 	weights: Dict[str, float]
-	intervals: Dict[str, WeightIntervalSchema]
+	intervals: Dict[str, WeightIntervalSchema] = {}
 
 
 class PersonaRead(BaseModel):

@@ -1,4 +1,5 @@
-from sqlalchemy import Column, String, JSON
+from sqlalchemy import Column, String
+from sqlalchemy.dialects.sqlite import JSON
 
 from app.db.base import Base
 
@@ -10,4 +11,4 @@ class PersonaModel(Base):
 	job_description_id = Column(String, nullable=False, index=True)
 	name = Column(String, nullable=False)
 	weights = Column(JSON, nullable=False)
-	intervals = Column(JSON, nullable=False)
+	intervals = Column(JSON, nullable=False, default=dict)

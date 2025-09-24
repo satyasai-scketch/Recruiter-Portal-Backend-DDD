@@ -1,17 +1,49 @@
-from typing import Optional
+from __future__ import annotations
 
-from app.db.session import get_session
+from typing import Optional, Sequence
+from sqlalchemy.orm import Session
+
 from app.db.models.job_description import JobDescriptionModel
 
 
 class JobDescriptionRepository:
-	"""Data access for job descriptions (placeholder)."""
+	"""Repository interface for JobDescription aggregates."""
 
-	def __init__(self):
-		self.session = get_session()
+	def get(self, db: Session, jd_id: str) -> Optional[JobDescriptionModel]:
+		raise NotImplementedError
 
-	def get(self, jd_id: str) -> Optional[JobDescriptionModel]:
-		return None
+	def create(self, db: Session, jd: JobDescriptionModel) -> JobDescriptionModel:
+		raise NotImplementedError
 
-	def create(self, jd: JobDescriptionModel) -> JobDescriptionModel:
+	def update(self, db: Session, jd: JobDescriptionModel) -> JobDescriptionModel:
+		raise NotImplementedError
+
+	def list_by_company(self, db: Session, company_id: str) -> Sequence[JobDescriptionModel]:
+		raise NotImplementedError
+
+
+class SQLAlchemyJobDescriptionRepository(JobDescriptionRepository):
+	"""SQLAlchemy-backed implementation of JobDescriptionRepository."""
+
+	def get(self, db: Session, jd_id: str) -> Optional[JobDescriptionModel]:
+		return db.get(JobDescriptionModel, jd_id)
+
+	def create(self, db: Session, jd: JobDescriptionModel) -> JobDescriptionModel:
+		db.add(jd)
+		db.commit()
+		db.refresh(jd)
 		return jd
+
+	def update(self, db: Session, jd: JobDescriptionModel) -> JobDescriptionModel:
+		db.add(jd)
+		db.commit()
+		db.refresh(jd)
+		return jd
+
+	def list_by_company(self, db: Session, company_id: str) -> Sequence[JobDescriptionModel]:
+		return (
+			db.query(JobDescriptionModel)
+			.filter(JobDescriptionModel.company_id == company_id)
+			.order_by(JobDescriptionModel.title.asc())
+			.all()
+		)

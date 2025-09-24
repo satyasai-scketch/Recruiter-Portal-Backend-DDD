@@ -1,3 +1,15 @@
-# Events related to Persona (placeholders)
+from dataclasses import dataclass
 
-PERSONA_CREATED = "PersonaCreatedEvent"
+
+@dataclass
+class PersonaCreatedEvent:
+	id: str
+	job_description_id: str
+	name: str
+
+
+@dataclass
+class PersonaUpdatedEvent:
+	id: str
+	job_description_id: str
+	name: str
