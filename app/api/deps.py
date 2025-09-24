@@ -2,13 +2,14 @@ from typing import Generator, Optional
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from sqlalchemy.orm import Session
 
 from app.db.session import get_session
 from app.core.security import decode_token
 from app.repositories.user_repo import SQLAlchemyUserRepository
 
 
-def db_session() -> Generator:
+def db_session() -> Generator[Session, None, None]:
 	"""Yield a database session (placeholder)."""
 	session = get_session()
 	try:
@@ -17,12 +18,16 @@ def db_session() -> Generator:
 		session.close()
 
 
+# Alias preferred FastAPI convention
+get_db = db_session
+
+
 security = HTTPBearer(auto_error=False)
 
 
 def get_current_user(
 	credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-	db=Depends(db_session),
+	db: Session = Depends(get_db),
 ):
 	if credentials is None or credentials.scheme.lower() != "bearer":
 		raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")

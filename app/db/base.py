@@ -2,5 +2,9 @@ from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
 
-# Import models here so Alembic can discover them (placeholder)
-# from app.db.models import job_description, persona, candidate, score  # noqa
+# Import *modules*, not classes
+import app.db.models.user  # noqa
+import app.db.models.job_description  # noqa
+import app.db.models.persona  # noqa
+import app.db.models.candidate  # noqa
+import app.db.models.score  # noqa

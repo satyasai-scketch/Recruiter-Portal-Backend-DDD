@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 
 @dataclass(frozen=True)
@@ -22,39 +22,45 @@ class WeightInterval:
 
 
 @dataclass
+class PersonaSubcategory:
+	id: Optional[str]
+	category_id: Optional[str]
+	name: str
+	weight_percentage: int
+	level: Optional[str] = None
+
+
+@dataclass
+class PersonaCategory:
+	id: Optional[str]
+	persona_id: Optional[str]
+	name: str
+	weight_percentage: int
+	subcategories: List[PersonaSubcategory]
+
+
+@dataclass
 class Persona:
 	"""Aggregate root representing a scoring persona.
 
-	A persona defines category weights that should generally sum to 1.0, and
-	optional acceptable intervals per category to guide recruiter edits.
+	Supports both classic weights/intervals and hierarchical categories.
 	"""
 
 	id: Optional[str]
 	job_description_id: str
 	name: str
-	weights: Dict[str, float]
-	intervals: Dict[str, WeightInterval]
+	weights: Dict[str, float] | None
+	intervals: Dict[str, WeightInterval] | None
+	categories: List[PersonaCategory]
 
 	def total_weight(self) -> float:
-		"""Return the sum of all category weights."""
+		if not self.weights:
+			return float(sum(cat.weight_percentage for cat in self.categories) / 100.0)
 		return float(sum(self.weights.values()))
 
-	def get_interval(self, category: str) -> Optional[WeightInterval]:
-		"""Return the interval for a category if defined."""
-		return self.intervals.get(category)
-
-	def is_within_interval(self, category: str, value: float) -> bool:
-		"""Check whether a weight value is within the category's interval if any.
-
-		If no interval is defined for the category, returns True.
-		"""
-		interval = self.get_interval(category)
-		if interval is None:
-			return True
-		return interval.min <= value <= interval.max
-
 	def with_updated_weight(self, category: str, new_weight: float) -> Persona:
-		"""Return a new persona with the specified category weight updated."""
+		if not self.weights:
+			return self
 		new_weights = dict(self.weights)
 		new_weights[category] = float(new_weight)
 		return replace(self, weights=new_weights)

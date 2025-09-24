@@ -9,7 +9,7 @@ class Settings(BaseSettings):
 	api_prefix: str = "/api/v1"
 
 	# Database
-	database_url: str = "sqlite+aiosqlite:///./app.db"
+	database_url: str = "sqlite:///./app.db"
 
 	# Security
 	jwt_secret_key: str = "change-me"

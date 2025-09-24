@@ -21,6 +21,9 @@ class JobDescriptionRepository:
 	def list_by_company(self, db: Session, company_id: str) -> Sequence[JobDescriptionModel]:
 		raise NotImplementedError
 
+	def list_all(self, db: Session) -> Sequence[JobDescriptionModel]:
+		raise NotImplementedError
+
 
 class SQLAlchemyJobDescriptionRepository(JobDescriptionRepository):
 	"""SQLAlchemy-backed implementation of JobDescriptionRepository."""
@@ -47,3 +50,6 @@ class SQLAlchemyJobDescriptionRepository(JobDescriptionRepository):
 			.order_by(JobDescriptionModel.title.asc())
 			.all()
 		)
+
+	def list_all(self, db: Session) -> Sequence[JobDescriptionModel]:
+		return db.query(JobDescriptionModel).order_by(JobDescriptionModel.title.asc()).all()

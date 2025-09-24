@@ -9,6 +9,7 @@ class JDCreate(BaseModel):
 	company_id: Optional[str] = None
 	notes: Optional[str] = None
 	tags: List[str] = []
+	final_text: Optional[str] = None
 
 
 class JDRead(BaseModel):
@@ -20,3 +21,4 @@ class JDRead(BaseModel):
 	company_id: Optional[str] = None
 	notes: Optional[str] = None
 	tags: List[str] = []
+	final_text: Optional[str] = None

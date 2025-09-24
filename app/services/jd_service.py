@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Sequence
 from uuid import uuid4
 from sqlalchemy.orm import Session
 
@@ -16,6 +16,12 @@ class JDService:
 
 	def __init__(self, repo: Optional[SQLAlchemyJobDescriptionRepository] = None):
 		self.repo = repo or SQLAlchemyJobDescriptionRepository()
+
+	def get_by_id(self, db: Session, jd_id: str) -> Optional[JobDescriptionModel]:
+		return self.repo.get(db, jd_id)
+
+	def list_all(self, db: Session) -> Sequence[JobDescriptionModel]:
+		return self.repo.list_all(db)
 
 	def create(self, db: Session, data: dict) -> JobDescriptionModel:
 		"""Create a JD record after validating via the domain factory."""
@@ -34,6 +40,7 @@ class JDService:
 			role=jd_agg.role.name,
 			original_text=jd_agg.original_text,
 			refined_text=jd_agg.refined_text,
+			final_text=None,
 			company_id=jd_agg.company.company_id if jd_agg.company else None,
 			notes=jd_agg.notes.text if jd_agg.notes else None,
 			tags=jd_agg.tags,
@@ -77,3 +84,17 @@ class JDService:
 		updated = self.repo.update(db, model)
 		event_bus.publish_event(JDFinalizedEvent(id=updated.id, selected_text=updated.refined_text or updated.original_text))
 		return updated
+
+	def update_partial(self, db: Session, jd_id: str, fields: dict) -> JobDescriptionModel:
+		model = self.repo.get(db, jd_id)
+		if not model:
+			raise ValueError("Job description not found")
+		if "final_text" in fields:
+			model.final_text = fields["final_text"]
+		if "title" in fields and fields["title"]:
+			model.title = fields["title"].strip()
+		if "notes" in fields:
+			model.notes = fields["notes"]
+		if "tags" in fields and isinstance(fields["tags"], list):
+			model.tags = fields["tags"]
+		return self.repo.update(db, model)

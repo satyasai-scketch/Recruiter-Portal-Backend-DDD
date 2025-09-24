@@ -1,13 +1,28 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.v1 import jd as jd_router
 from app.api.v1 import persona as persona_router
 from app.api.v1 import candidate as candidate_router
 from app.api.v1 import match as match_router
 from app.api.v1 import auth as auth_router
+from app.core.logger import logger
 
 
 app = FastAPI(title="Recruiter AI Backend", version="0.1.0")
+
+
+@app.exception_handler(ValueError)
+async def value_error_handler(request: Request, exc: ValueError):
+	logger.error(f"ValueError on {request.url.path}: {exc}")
+	return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+
+@app.exception_handler(SQLAlchemyError)
+async def sqlalchemy_error_handler(request: Request, exc: SQLAlchemyError):
+	logger.error(f"SQLAlchemyError on {request.url.path}: {exc}")
+	return JSONResponse(status_code=500, content={"detail": "Database error"})
 
 
 # Mount API routers
