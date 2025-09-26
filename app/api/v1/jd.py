@@ -4,12 +4,16 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.deps import get_db, get_current_user
 from app.schemas.jd import JDCreate, JDRead
-from app.cqrs.handlers import (
+from app.cqrs.handlers import handle_command, handle_query
+from app.cqrs.commands.jd_commands import (
 	CreateJobDescription,
 	ApplyJDRefinement,
-	handle_command,
+	UpdateJobDescription,
 )
-from app.services.jd_service import JDService
+from app.cqrs.queries.jd_queries import (
+	ListJobDescriptions,
+	GetJobDescription,
+)
 from app.utils.error_handlers import handle_service_errors, rollback_on_error
 
 router = APIRouter()
@@ -18,7 +22,7 @@ router = APIRouter()
 @router.get("/", response_model=list[JDRead], summary="List all Job Descriptions (query)")
 async def list_all_jds(db: Session = Depends(get_db), user=Depends(get_current_user)):
 	try:
-		models = JDService().list_by_creator(db, user.id)
+		models = handle_query(db, ListJobDescriptions(user.id))
 		return [JDRead.model_validate(m) for m in models]
 	except (ValueError, SQLAlchemyError) as e:
 		if isinstance(e, SQLAlchemyError):
@@ -31,7 +35,7 @@ async def create_jd(payload: JDCreate, db: Session = Depends(get_db), user=Depen
 	try:
 		data = payload.model_dump()
 		data["created_by"] = user.id
-		model = JDService().create(db, data)
+		model = handle_command(db, CreateJobDescription(data))
 		return JDRead.model_validate(model)
 	except (ValueError, SQLAlchemyError) as e:
 		if isinstance(e, SQLAlchemyError):
@@ -60,7 +64,7 @@ async def refine_jd(jd_id: str, body: dict, db: Session = Depends(get_db), user=
 @router.get("/{jd_id}", response_model=JDRead, summary="Retrieve full Job Description (query)")
 async def get_jd(jd_id: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
 	try:
-		model = JDService().get_by_id(db, jd_id)
+		model = handle_query(db, GetJobDescription(jd_id))
 		if not model or model.created_by != user.id:
 			raise HTTPException(status_code=404, detail="JD not found")
 		return JDRead.model_validate(model)
@@ -73,11 +77,12 @@ async def get_jd(jd_id: str, db: Session = Depends(get_db), user=Depends(get_cur
 @router.patch("/{jd_id}", response_model=JDRead, summary="Update Job Description (selected_version, selected_text, selected_version, selected_edited.)")
 async def update_jd(jd_id: str, body: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
 	try:
-		service = JDService()
-		model = service.get_by_id(db, jd_id)
+		# First check if JD exists and belongs to user
+		model = handle_query(db, GetJobDescription(jd_id))
 		if not model or model.created_by != user.id:
 			raise HTTPException(status_code=404, detail="JD not found")
-		updated = service.update_partial(db, jd_id, body)
+		# Then update using command handler
+		updated = handle_command(db, UpdateJobDescription(jd_id, body))
 		return JDRead.model_validate(updated)
 	except (ValueError, SQLAlchemyError) as e:
 		if isinstance(e, SQLAlchemyError):

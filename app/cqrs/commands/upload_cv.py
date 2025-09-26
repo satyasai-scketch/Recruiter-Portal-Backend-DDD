@@ -1,5 +1,10 @@
-# Command: UploadCV (placeholder)
+# Command: UploadCVs
 
-class UploadCV:
-	def __init__(self, payload: dict):
-		self.payload = payload
+from .base import Command
+
+
+class UploadCVs(Command):
+	"""Command to upload and process multiple CVs."""
+	
+	def __init__(self, payloads: list[dict]):
+		self.payloads = payloads
