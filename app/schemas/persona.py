@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Dict, List, Optional
 
 
@@ -6,8 +6,7 @@ class WeightIntervalSchema(BaseModel):
 	min: float
 	max: float
 
-	class Config:
-		from_attributes = True
+	model_config = ConfigDict(from_attributes=True)
 
 
 class PersonaSubcategorySchema(BaseModel):
@@ -16,8 +15,7 @@ class PersonaSubcategorySchema(BaseModel):
 	weight_percentage: int
 	level: Optional[str] = None
 
-	class Config:
-		from_attributes = True
+	model_config = ConfigDict(from_attributes=True)
 
 
 class PersonaCategorySchema(BaseModel):
@@ -26,8 +24,7 @@ class PersonaCategorySchema(BaseModel):
 	weight_percentage: int
 	subcategories: List[PersonaSubcategorySchema] = []
 
-	class Config:
-		from_attributes = True
+	model_config = ConfigDict(from_attributes=True)
 
 
 class PersonaCreate(BaseModel):
@@ -49,8 +46,7 @@ class PersonaCreate(BaseModel):
 		}]],
 	)
 
-	class Config:
-		from_attributes = True
+	model_config = ConfigDict(from_attributes=True)
 
 
 class PersonaRead(BaseModel):
@@ -61,5 +57,4 @@ class PersonaRead(BaseModel):
 	intervals: Optional[Dict[str, WeightIntervalSchema]] = None
 	categories: List[PersonaCategorySchema] = []
 
-	class Config:
-		from_attributes = True
+	model_config = ConfigDict(from_attributes=True)

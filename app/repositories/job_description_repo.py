@@ -24,6 +24,9 @@ class JobDescriptionRepository:
 	def list_all(self, db: Session) -> Sequence[JobDescriptionModel]:
 		raise NotImplementedError
 
+	def list_by_creator(self, db: Session, user_id: str) -> Sequence[JobDescriptionModel]:
+		raise NotImplementedError
+
 
 class SQLAlchemyJobDescriptionRepository(JobDescriptionRepository):
 	"""SQLAlchemy-backed implementation of JobDescriptionRepository."""
@@ -47,9 +50,17 @@ class SQLAlchemyJobDescriptionRepository(JobDescriptionRepository):
 		return (
 			db.query(JobDescriptionModel)
 			.filter(JobDescriptionModel.company_id == company_id)
-			.order_by(JobDescriptionModel.title.asc())
+			.order_by(JobDescriptionModel.created_at.desc())
 			.all()
 		)
 
 	def list_all(self, db: Session) -> Sequence[JobDescriptionModel]:
-		return db.query(JobDescriptionModel).order_by(JobDescriptionModel.title.asc()).all()
+		return db.query(JobDescriptionModel).order_by(JobDescriptionModel.created_at.desc()).all()
+
+	def list_by_creator(self, db: Session, user_id: str) -> Sequence[JobDescriptionModel]:
+		return (
+			db.query(JobDescriptionModel)
+			.filter(JobDescriptionModel.created_by == user_id)
+			.order_by(JobDescriptionModel.created_at.desc())
+			.all()
+		)

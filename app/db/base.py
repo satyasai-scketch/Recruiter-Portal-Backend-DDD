@@ -8,3 +8,4 @@ import app.db.models.job_description  # noqa
 import app.db.models.persona  # noqa
 import app.db.models.candidate  # noqa
 import app.db.models.score  # noqa
+import app.db.models.role

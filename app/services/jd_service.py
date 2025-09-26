@@ -23,8 +23,10 @@ class JDService:
 	def list_all(self, db: Session) -> Sequence[JobDescriptionModel]:
 		return self.repo.list_all(db)
 
+	def list_by_creator(self, db: Session, user_id: str) -> Sequence[JobDescriptionModel]:
+		return self.repo.list_by_creator(db, user_id)
+
 	def create(self, db: Session, data: dict) -> JobDescriptionModel:
-		"""Create a JD record after validating via the domain factory."""
 		jd_agg = jd_domain_services.create_job_description(
 			id=str(uuid4()),
 			title=data["title"],
@@ -40,10 +42,13 @@ class JDService:
 			role=jd_agg.role.name,
 			original_text=jd_agg.original_text,
 			refined_text=jd_agg.refined_text,
-			final_text=None,
+			selected_version=data.get("selected_version"),
+			selected_text=data.get("selected_text"),
+			selected_edited=bool(data.get("selected_edited")) if data.get("selected_edited") is not None else False,
 			company_id=jd_agg.company.company_id if jd_agg.company else None,
 			notes=jd_agg.notes.text if jd_agg.notes else None,
 			tags=jd_agg.tags,
+			created_by=data.get("created_by") or data.get("user_id") or data.get("owner_id") or "",
 		)
 		created = self.repo.create(db, model)
 		event_bus.publish_event(JDCreatedEvent(id=created.id, title=created.title, role=created.role, company_id=created.company_id))
@@ -89,8 +94,13 @@ class JDService:
 		model = self.repo.get(db, jd_id)
 		if not model:
 			raise ValueError("Job description not found")
-		if "final_text" in fields:
-			model.final_text = fields["final_text"]
+		# Directly assign values provided by frontend without inference
+		if "selected_text" in fields:
+			model.selected_text = fields["selected_text"]
+		if "selected_version" in fields:
+			model.selected_version = fields["selected_version"]
+		if "selected_edited" in fields:
+			model.selected_edited = bool(fields["selected_edited"]) if fields["selected_edited"] is not None else model.selected_edited
 		if "title" in fields and fields["title"]:
 			model.title = fields["title"].strip()
 		if "notes" in fields:

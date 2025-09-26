@@ -1,8 +1,8 @@
-"""initial tables
+"""initial schema
 
-Revision ID: 3ef60fda6ce0
+Revision ID: 1f5db8adfc82
 Revises: 
-Create Date: 2025-09-24 15:43:30.353869
+Create Date: 2025-09-26 14:41:44.069616
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import sqlite
 
 # revision identifiers, used by Alembic.
-revision: str = '3ef60fda6ce0'
+revision: str = '1f5db8adfc82'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -33,17 +33,11 @@ def upgrade() -> None:
     sa.Column('scores', sqlite.JSON(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_table('job_descriptions',
+    op.create_table('roles',
     sa.Column('id', sa.String(), nullable=False),
-    sa.Column('title', sa.String(), nullable=False),
-    sa.Column('role', sa.String(), nullable=False),
-    sa.Column('original_text', sa.Text(), nullable=False),
-    sa.Column('refined_text', sa.Text(), nullable=True),
-    sa.Column('final_text', sa.Text(), nullable=True),
-    sa.Column('company_id', sa.String(), nullable=True),
-    sa.Column('notes', sa.Text(), nullable=True),
-    sa.Column('tags', sqlite.JSON(), nullable=False),
-    sa.PrimaryKeyConstraint('id')
+    sa.Column('name', sa.String(), nullable=False),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('name')
     )
     op.create_table('scores',
     sa.Column('id', sa.String(), nullable=False),
@@ -60,10 +54,28 @@ def upgrade() -> None:
     sa.Column('email', sa.String(), nullable=False),
     sa.Column('hashed_password', sa.String(), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False),
-    sa.Column('roles', sqlite.JSON(), nullable=False),
+    sa.Column('role_id', sa.String(), nullable=False),
+    sa.ForeignKeyConstraint(['role_id'], ['roles.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
+    op.create_table('job_descriptions',
+    sa.Column('id', sa.String(), nullable=False),
+    sa.Column('title', sa.String(), nullable=False),
+    sa.Column('role', sa.String(), nullable=False),
+    sa.Column('original_text', sa.Text(), nullable=False),
+    sa.Column('refined_text', sa.Text(), nullable=True),
+    sa.Column('company_id', sa.String(), nullable=True),
+    sa.Column('notes', sa.Text(), nullable=True),
+    sa.Column('tags', sqlite.JSON(), nullable=False),
+    sa.Column('selected_version', sa.String(), nullable=True),
+    sa.Column('selected_text', sa.Text(), nullable=True),
+    sa.Column('selected_edited', sa.Boolean(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('created_by', sa.String(), nullable=False),
+    sa.ForeignKeyConstraint(['created_by'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('personas',
     sa.Column('id', sa.String(), nullable=False),
     sa.Column('job_description_id', sa.String(), nullable=False),
@@ -108,11 +120,12 @@ def downgrade() -> None:
     op.drop_table('persona_categories')
     op.drop_index(op.f('ix_personas_job_description_id'), table_name='personas')
     op.drop_table('personas')
+    op.drop_table('job_descriptions')
     op.drop_index(op.f('ix_users_email'), table_name='users')
     op.drop_table('users')
     op.drop_index(op.f('ix_scores_persona_id'), table_name='scores')
     op.drop_index(op.f('ix_scores_candidate_id'), table_name='scores')
     op.drop_table('scores')
-    op.drop_table('job_descriptions')
+    op.drop_table('roles')
     op.drop_table('candidates')
     # ### end Alembic commands ###

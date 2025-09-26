@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api.deps import db_session, get_db
+from app.api.deps import get_db, get_current_user
 from app.schemas.jd import JDCreate, JDRead
 from app.cqrs.handlers import (
 	CreateJobDescription,
@@ -16,23 +16,10 @@ router = APIRouter()
 
 
 @router.get("/", response_model=list[JDRead], summary="List all Job Descriptions (query)")
-async def list_all_jds(db: Session = Depends(get_db)):
+async def list_all_jds(db: Session = Depends(get_db), user=Depends(get_current_user)):
 	try:
-		models = JDService().list_all(db)
-		return [
-			JDRead(
-				id=m.id,
-				title=m.title,
-				role=m.role,
-				original_text=m.original_text,
-				refined_text=m.refined_text,
-				company_id=m.company_id,
-				notes=m.notes,
-				tags=m.tags or [],
-				final_text=m.final_text,
-			)
-			for m in models
-		]
+		models = JDService().list_by_creator(db, user.id)
+		return [JDRead.model_validate(m) for m in models]
 	except (ValueError, SQLAlchemyError) as e:
 		if isinstance(e, SQLAlchemyError):
 			rollback_on_error(db)
@@ -40,20 +27,12 @@ async def list_all_jds(db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=JDRead, summary="Create job description (command)")
-async def create_jd(payload: JDCreate, db: Session = Depends(get_db)):
+async def create_jd(payload: JDCreate, db: Session = Depends(get_db), user=Depends(get_current_user)):
 	try:
-		model = handle_command(db, CreateJobDescription(payload.dict()))
-		return JDRead(
-			id=model.id,
-			title=model.title,
-			role=model.role,
-			original_text=model.original_text,
-			refined_text=model.refined_text,
-			company_id=model.company_id,
-			notes=model.notes,
-			tags=model.tags or [],
-			final_text=None,
-		)
+		data = payload.model_dump()
+		data["created_by"] = user.id
+		model = JDService().create(db, data)
+		return JDRead.model_validate(model)
 	except (ValueError, SQLAlchemyError) as e:
 		if isinstance(e, SQLAlchemyError):
 			rollback_on_error(db)
@@ -65,7 +44,7 @@ class JDRefinementRequest(JDCreate):
 
 
 @router.post("/{jd_id}/refine", summary="Apply refined JD (command)")
-async def refine_jd(jd_id: str, body: dict, db: Session = Depends(get_db)):
+async def refine_jd(jd_id: str, body: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
 	try:
 		refined_text = body.get("refined_text")
 		if not refined_text:
@@ -79,51 +58,27 @@ async def refine_jd(jd_id: str, body: dict, db: Session = Depends(get_db)):
 
 
 @router.get("/{jd_id}", response_model=JDRead, summary="Retrieve full Job Description (query)")
-async def get_jd(jd_id: str, db: Session = Depends(get_db)):
+async def get_jd(jd_id: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
 	try:
 		model = JDService().get_by_id(db, jd_id)
-		if not model:
+		if not model or model.created_by != user.id:
 			raise HTTPException(status_code=404, detail="JD not found")
-		return JDRead(
-			id=model.id,
-			title=model.title,
-			role=model.role,
-			original_text=model.original_text,
-			refined_text=model.refined_text,
-			company_id=model.company_id,
-			notes=model.notes,
-			tags=model.tags or [],
-			final_text=model.final_text,
-		)
+		return JDRead.model_validate(model)
 	except (ValueError, SQLAlchemyError) as e:
 		if isinstance(e, SQLAlchemyError):
 			rollback_on_error(db)
 		raise handle_service_errors(e)
 
 
-@router.patch("/{jd_id}", response_model=JDRead, summary="Update Job Description (final_text, notes, tags, etc.)")
-async def update_jd(jd_id: str, body: dict, db: Session = Depends(get_db)):
+@router.patch("/{jd_id}", response_model=JDRead, summary="Update Job Description (selected_version, selected_text, selected_version, selected_edited.)")
+async def update_jd(jd_id: str, body: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
 	try:
 		service = JDService()
 		model = service.get_by_id(db, jd_id)
-		if not model:
+		if not model or model.created_by != user.id:
 			raise HTTPException(status_code=404, detail="JD not found")
-		final_text = body.get("final_text", model.final_text)
-		title = body.get("title", model.title)
-		notes = body.get("notes", model.notes)
-		tags = body.get("tags", model.tags)
-		updated = service.update_partial(db, jd_id, {"final_text": final_text, "title": title, "notes": notes, "tags": tags})
-		return JDRead(
-			id=updated.id,
-			title=updated.title,
-			role=updated.role,
-			original_text=updated.original_text,
-			refined_text=updated.refined_text,
-			company_id=updated.company_id,
-			notes=updated.notes,
-			tags=updated.tags or [],
-			final_text=updated.final_text,
-		)
+		updated = service.update_partial(db, jd_id, body)
+		return JDRead.model_validate(updated)
 	except (ValueError, SQLAlchemyError) as e:
 		if isinstance(e, SQLAlchemyError):
 			rollback_on_error(db)
