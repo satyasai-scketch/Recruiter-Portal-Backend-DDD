@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Optional, Sequence
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.db.models.job_description import JobDescriptionModel
 
@@ -32,7 +32,7 @@ class SQLAlchemyJobDescriptionRepository(JobDescriptionRepository):
 	"""SQLAlchemy-backed implementation of JobDescriptionRepository."""
 
 	def get(self, db: Session, jd_id: str) -> Optional[JobDescriptionModel]:
-		return db.get(JobDescriptionModel, jd_id)
+		return db.query(JobDescriptionModel).options(joinedload(JobDescriptionModel.job_role)).filter(JobDescriptionModel.id == jd_id).first()
 
 	def create(self, db: Session, jd: JobDescriptionModel) -> JobDescriptionModel:
 		db.add(jd)
@@ -55,11 +55,12 @@ class SQLAlchemyJobDescriptionRepository(JobDescriptionRepository):
 		)
 
 	def list_all(self, db: Session) -> Sequence[JobDescriptionModel]:
-		return db.query(JobDescriptionModel).order_by(JobDescriptionModel.created_at.desc()).all()
+		return db.query(JobDescriptionModel).options(joinedload(JobDescriptionModel.job_role)).order_by(JobDescriptionModel.created_at.desc()).all()
 
 	def list_by_creator(self, db: Session, user_id: str) -> Sequence[JobDescriptionModel]:
 		return (
 			db.query(JobDescriptionModel)
+			.options(joinedload(JobDescriptionModel.job_role))
 			.filter(JobDescriptionModel.created_by == user_id)
 			.order_by(JobDescriptionModel.created_at.desc())
 			.all()

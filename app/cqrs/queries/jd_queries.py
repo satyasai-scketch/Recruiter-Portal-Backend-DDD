@@ -10,6 +10,13 @@ class ListJobDescriptions(Query):
 		self.user_id = user_id
 
 
+class ListAllJobDescriptions(Query):
+	"""Query to list all job descriptions (no user filter)."""
+	
+	def __init__(self):
+		pass
+
+
 class GetJobDescription(Query):
 	"""Query to retrieve a specific job description by ID."""
 	

@@ -1,8 +1,8 @@
 """Initial Schema
 
-Revision ID: 989ae7a309bc
+Revision ID: cb97eb7251c3
 Revises: 
-Create Date: 2025-09-29 14:07:59.785127
+Create Date: 2025-09-29 17:34:56.206751
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import sqlite
 
 # revision identifiers, used by Alembic.
-revision: str = '989ae7a309bc'
+revision: str = 'cb97eb7251c3'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -90,10 +90,25 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_companies_name'), 'companies', ['name'], unique=False)
+    op.create_table('job_roles',
+    sa.Column('id', sa.String(), nullable=False),
+    sa.Column('name', sa.String(), nullable=False),
+    sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('category', sa.String(), nullable=True),
+    sa.Column('is_active', sa.String(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('created_by', sa.String(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('updated_by', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['created_by'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['updated_by'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_job_roles_name'), 'job_roles', ['name'], unique=True)
     op.create_table('job_descriptions',
     sa.Column('id', sa.String(), nullable=False),
     sa.Column('title', sa.String(), nullable=False),
-    sa.Column('role', sa.String(), nullable=False),
+    sa.Column('role_id', sa.String(), nullable=False),
     sa.Column('original_text', sa.Text(), nullable=False),
     sa.Column('refined_text', sa.Text(), nullable=True),
     sa.Column('company_id', sa.String(), nullable=True),
@@ -113,6 +128,7 @@ def upgrade() -> None:
     sa.Column('updated_by', sa.String(), nullable=True),
     sa.ForeignKeyConstraint(['company_id'], ['companies.id'], ),
     sa.ForeignKeyConstraint(['created_by'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['role_id'], ['job_roles.id'], ),
     sa.ForeignKeyConstraint(['updated_by'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -161,6 +177,8 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_personas_job_description_id'), table_name='personas')
     op.drop_table('personas')
     op.drop_table('job_descriptions')
+    op.drop_index(op.f('ix_job_roles_name'), table_name='job_roles')
+    op.drop_table('job_roles')
     op.drop_index(op.f('ix_companies_name'), table_name='companies')
     op.drop_table('companies')
     op.drop_index(op.f('ix_users_email'), table_name='users')

@@ -16,7 +16,7 @@ class JobDescriptionModel(Base):
 
     id = Column(String, primary_key=True)
     title = Column(String, nullable=False)
-    role = Column(String, nullable=False)
+    role_id = Column(String, ForeignKey("job_roles.id"), nullable=False)
     original_text = Column(Text, nullable=False)
     refined_text = Column(Text, nullable=True)
     company_id = Column(String, ForeignKey("companies.id"), nullable=True)
@@ -54,3 +54,6 @@ class JobDescriptionModel(Base):
     
     # Company relationship
     company = relationship("CompanyModel", back_populates="job_descriptions")
+    
+    # Job role relationship
+    job_role = relationship("JobRoleModel", back_populates="job_descriptions")

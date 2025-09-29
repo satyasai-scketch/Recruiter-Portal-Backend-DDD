@@ -4,7 +4,7 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from app.db.models.job_description import JobDescriptionModel
-from app.repositories.job_description_repo import SQLAlchemyJobDescriptionRepository
+from app.repositories.job_description_repo import JobDescriptionRepository
 from app.domain.job_description import services as jd_domain_services
 from app.domain.job_description.entities import DocumentMetadata
 from app.utils.document_parser import extract_job_description_text
@@ -15,13 +15,10 @@ class JDService:
     """Application service for Job Description operations."""
 
     def __init__(self):
-        self.repo = SQLAlchemyJobDescriptionRepository()
+        self.repo = JobDescriptionRepository()
 
     def list_by_creator(self, db: Session, user_id: str) -> Sequence[JobDescriptionModel]:
         return self.repo.list_by_creator(db, user_id)
-    
-    def list_all(self, db: Session) -> Sequence[JobDescriptionModel]:
-        return self.repo.list_all(db)
 
     def create(self, db: Session, data: dict) -> JobDescriptionModel:
         """Create a new job description with role_id."""
@@ -47,9 +44,7 @@ class JDService:
     def create_from_document(self, db: Session, data: dict, file_content: bytes, filename: str) -> JobDescriptionModel:
         """Create a job description from uploaded document."""
         # Extract text and metadata from document
-        extraction_result = extract_job_description_text(filename, file_content)
-        extracted_text = extraction_result['extracted_text']
-        metadata = extraction_result
+        extracted_text, metadata = extract_job_description_text(file_content, filename)
         
         # Create job description model
         model = JobDescriptionModel(
@@ -64,11 +59,11 @@ class JDService:
             created_by=data.get("created_by") or data.get("user_id") or data.get("owner_id") or "",
             updated_by=data.get("created_by") or data.get("user_id") or data.get("owner_id") or "",
             # Document metadata
-            original_document_filename=metadata.get("original_filename"),
-            original_document_size=str(metadata.get("file_size")),
-            original_document_extension=metadata.get("file_extension"),
-            document_word_count=str(metadata.get("word_count")),
-            document_character_count=str(metadata.get("character_count")),
+            original_document_filename=metadata.get("filename"),
+            original_document_size=metadata.get("size"),
+            original_document_extension=metadata.get("extension"),
+            document_word_count=metadata.get("word_count"),
+            document_character_count=metadata.get("character_count"),
         )
         
         created = self.repo.create(db, model)
@@ -76,7 +71,7 @@ class JDService:
         return created
 
     def get_by_id(self, db: Session, jd_id: str) -> Optional[JobDescriptionModel]:
-        return self.repo.get(db, jd_id)
+        return self.repo.get_by_id(db, jd_id)
 
     def prepare_refinement_brief(self, db: Session, jd_id: str, required_sections: list[str], template_text: Optional[str] = None) -> dict:
         """Prepare AI refinement brief for job description."""

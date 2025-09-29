@@ -8,6 +8,8 @@ from app.api.v1 import candidate as candidate_router
 from app.api.v1 import match as match_router
 from app.api.v1 import auth as auth_router
 from app.api.v1 import company as company_router
+from app.api.v1 import job_role as job_role_router
+from app.api.v1 import role as role_router
 from app.core.logger import logger
 
 
@@ -33,6 +35,8 @@ app.include_router(persona_router.router, prefix="/api/v1/persona", tags=["perso
 app.include_router(candidate_router.router, prefix="/api/v1/candidate", tags=["candidate"])
 app.include_router(match_router.router, prefix="/api/v1/match", tags=["match"])
 app.include_router(company_router.router, prefix="/api/v1/company", tags=["company"])
+app.include_router(job_role_router.router, prefix="/api/v1/job-role", tags=["job-role"])
+app.include_router(role_router.router, prefix="/api/v1/role", tags=["role"])
 
 
 @app.get("/health")

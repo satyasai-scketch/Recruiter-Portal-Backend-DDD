@@ -5,7 +5,7 @@ from datetime import datetime
 
 class JDCreate(BaseModel):
 	title: str
-	role: str
+	role_id: str
 	original_text: str
 	company_id: Optional[str] = None
 	notes: Optional[str] = None
@@ -22,7 +22,8 @@ class JDCreate(BaseModel):
 class JDRead(BaseModel):
 	id: str
 	title: str
-	role: str
+	role_id: str
+	role_name: str
 	original_text: str
 	refined_text: Optional[str] = None
 	company_id: Optional[str] = None
@@ -49,7 +50,7 @@ class JDRead(BaseModel):
 class JDDocumentUpload(BaseModel):
 	"""Schema for job description document upload."""
 	title: str = Field(..., min_length=1, max_length=200, description="Job title")
-	role: str = Field(..., min_length=1, max_length=100, description="Job role/position")
+	role_id: str = Field(..., description="Job role ID")
 	notes: Optional[str] = Field(None, max_length=1000, description="Additional notes from recruiter")
 	company_id: Optional[str] = Field(None, description="Company identifier")
 	tags: List[str] = Field(default_factory=list, description="Job description tags")
@@ -61,7 +62,8 @@ class JDDocumentUploadResponse(BaseModel):
 	"""Response schema for document upload with extracted text."""
 	id: str
 	title: str
-	role: str
+	role_id: str
+	role_name: str
 	original_text: str
 	extracted_metadata: dict
 	message: str

@@ -30,11 +30,23 @@ class AuthService:
 		return role
 
 	def signup(self, db: Session, email: str, password: str, first_name: str, last_name: str, 
-	            phone: Optional[str] = None, role_name: Optional[str] = None) -> UserModel:
+	            phone: Optional[str] = None, role_id: Optional[str] = None) -> UserModel:
 		existing = self.users.get_by_email(db, email)
 		if existing:
 			raise ValueError("Email already registered")
-		role = self._get_or_create_default_role(db, role_name or "recruiter")
+		
+		# Validate role_id if provided
+		if role_id:
+			from app.repositories.role_repo import RoleRepository
+			role_repo = RoleRepository()
+			role = role_repo.get_by_id(db, role_id)
+			if not role:
+				raise ValueError("Invalid role_id provided")
+		else:
+			# Use default role if no role_id provided
+			role = self._get_or_create_default_role(db, "recruiter")
+			role_id = role.id
+		
 		user = UserModel(
 			id=str(uuid4()),
 			email=email,
@@ -43,7 +55,7 @@ class AuthService:
 			last_name=last_name,
 			phone=phone,
 			is_active=True,
-			role_id=role.id,
+			role_id=role_id,
 		)
 		created_user = self.users.create(db, user)
 		

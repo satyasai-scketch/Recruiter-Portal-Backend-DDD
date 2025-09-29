@@ -9,7 +9,7 @@ class UserSignup(BaseModel):
 	first_name: str = Field(min_length=1, max_length=50)
 	last_name: str = Field(min_length=1, max_length=50)
 	phone: Optional[str] = Field(None, max_length=20)
-	role_name: Optional[str] = None
+	role_id: str = Field(description="ID of the user role")
 
 
 class UserLogin(BaseModel):
@@ -33,7 +33,8 @@ class UserRead(BaseModel):
 	last_name: str
 	phone: Optional[str] = None
 	is_active: bool
-	role: Optional[str] = None
+	role_id: Optional[str] = None
+	role_name: Optional[str] = None
 	created_at: datetime
 	updated_at: datetime
 

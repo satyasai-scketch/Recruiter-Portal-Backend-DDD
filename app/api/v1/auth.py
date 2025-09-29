@@ -21,7 +21,7 @@ async def signup(payload: UserSignup, db: Session = Depends(get_db)):
 			payload.first_name,
 			payload.last_name,
 			payload.phone,
-			payload.role_name
+			payload.role_id
 		)
 		return UserRead(
 			id=user.id, 
@@ -30,7 +30,8 @@ async def signup(payload: UserSignup, db: Session = Depends(get_db)):
 			last_name=user.last_name,
 			phone=user.phone,
 			is_active=user.is_active, 
-			role=(user.role.name if user.role else None),
+			role_id=user.role_id,
+			role_name=(user.role.name if user.role else None),
 			created_at=user.created_at,
 			updated_at=user.updated_at
 		)
@@ -53,7 +54,8 @@ async def login(payload: UserLogin, db: Session = Depends(get_db)):
 			last_name=user.last_name,
 			phone=user.phone,
 			is_active=user.is_active,
-			role=(user.role.name if user.role else None),
+			role_id=user.role_id,
+			role_name=(user.role.name if user.role else None),
 			created_at=user.created_at,
 			updated_at=user.updated_at
 		)
