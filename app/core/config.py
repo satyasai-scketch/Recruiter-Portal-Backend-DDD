@@ -22,6 +22,26 @@ class Settings(BaseSettings):
 	# Embeddings / Models (placeholders)
 	embedding_model_name: str = "all-MiniLM-L6-v2"
 
+	OPENAI_API_KEY: str = ""
+	PINECONE_API_KEY: str = ""
+
+	# Vector Database Configuration
+	VECTOR_INDEX_NAME: str = "jd-templates-v1"
+	EMBEDDING_MODEL: str = "text-embedding-3-small"
+	EMBEDDING_DIMENSION: int = 1536
+
+	# Storage Configuration
+	JD_STORAGE_FILE: str = "data\jd_storage.json"
+	TEMPLATE_DATA_DIR: str = "data\jd_templates"
+
+	# Search Configuratio
+	DEFAULT_MIN_SIMILARITY: float = 0.5
+	MAX_SEARCH_RESULTS: int = 10
+
+	# Pinecone Configuration
+	PINECONE_CLOUD: str = "aws"
+	PINECONE_REGION: str = "us-east-1"
+
 	class Config:
 		env_file = ".env"
 		env_file_encoding = "utf-8"
