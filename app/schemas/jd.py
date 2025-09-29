@@ -33,6 +33,8 @@ class JDRead(BaseModel):
 	selected_edited: Optional[bool] = None
 	created_at: datetime
 	created_by: str
+	updated_at: datetime
+	updated_by: Optional[str] = None
 	
 	# Document metadata
 	original_document_filename: Optional[str] = None

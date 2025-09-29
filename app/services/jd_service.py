@@ -39,19 +39,20 @@ class JDService:
 			tags=data.get("tags") or [],
 		)
 		model = JobDescriptionModel(
-			id=jd_agg.id,
-			title=jd_agg.title,
-			role=jd_agg.role.name,
-			original_text=jd_agg.original_text,
-			refined_text=jd_agg.refined_text,
-			selected_version=data.get("selected_version"),
-			selected_text=data.get("selected_text"),
-			selected_edited=bool(data.get("selected_edited")) if data.get("selected_edited") is not None else False,
-			company_id=jd_agg.company.company_id if jd_agg.company else None,
-			notes=jd_agg.notes.text if jd_agg.notes else None,
-			tags=jd_agg.tags,
-			created_by=data.get("created_by") or data.get("user_id") or data.get("owner_id") or "",
-		)
+				id=jd_agg.id,
+				title=jd_agg.title,
+				role=jd_agg.role.name,
+				original_text=jd_agg.original_text,
+				refined_text=jd_agg.refined_text,
+				selected_version=data.get("selected_version"),
+				selected_text=data.get("selected_text"),
+				selected_edited=bool(data.get("selected_edited")) if data.get("selected_edited") is not None else False,
+				company_id=jd_agg.company.company_id if jd_agg.company else None,
+				notes=jd_agg.notes.text if jd_agg.notes else None,
+				tags=jd_agg.tags,
+				created_by=data.get("created_by") or data.get("user_id") or data.get("owner_id") or "",
+				updated_by=data.get("created_by") or data.get("user_id") or data.get("owner_id") or "",
+			)
 		created = self.repo.create(db, model)
 		event_bus.publish_event(JDCreatedEvent(id=created.id, title=created.title, role=created.role, company_id=created.company_id))
 		return created
@@ -92,7 +93,7 @@ class JDService:
 		event_bus.publish_event(JDFinalizedEvent(id=updated.id, selected_text=updated.refined_text or updated.original_text))
 		return updated
 
-	def update_partial(self, db: Session, jd_id: str, fields: dict) -> JobDescriptionModel:
+	def update_partial(self, db: Session, jd_id: str, fields: dict, updated_by: str = None) -> JobDescriptionModel:
 		model = self.repo.get(db, jd_id)
 		if not model:
 			raise ValueError("Job description not found")
@@ -109,6 +110,9 @@ class JDService:
 			model.notes = fields["notes"]
 		if "tags" in fields and isinstance(fields["tags"], list):
 			model.tags = fields["tags"]
+		# Update audit fields
+		if updated_by:
+			model.updated_by = updated_by
 		return self.repo.update(db, model)
 
 	def create_from_document(self, db: Session, data: dict, file_content: bytes, filename: str) -> JobDescriptionModel:
@@ -152,6 +156,7 @@ class JDService:
 				notes=jd_agg.notes.text if jd_agg.notes else None,
 				tags=jd_agg.tags,
 				created_by=data.get("created_by") or data.get("user_id") or data.get("owner_id") or "",
+				updated_by=data.get("created_by") or data.get("user_id") or data.get("owner_id") or "",
 				# Document metadata
 				original_document_filename=doc_metadata.filename,
 				original_document_size=str(doc_metadata.file_size),

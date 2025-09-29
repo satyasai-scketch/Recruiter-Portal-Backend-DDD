@@ -1,8 +1,8 @@
 """initial schema
 
-Revision ID: 1f5db8adfc82
+Revision ID: 648bbe70da4f
 Revises: 
-Create Date: 2025-09-26 14:41:44.069616
+Create Date: 2025-09-29 11:41:47.630751
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import sqlite
 
 # revision identifiers, used by Alembic.
-revision: str = '1f5db8adfc82'
+revision: str = '648bbe70da4f'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -68,12 +68,20 @@ def upgrade() -> None:
     sa.Column('company_id', sa.String(), nullable=True),
     sa.Column('notes', sa.Text(), nullable=True),
     sa.Column('tags', sqlite.JSON(), nullable=False),
+    sa.Column('original_document_filename', sa.String(), nullable=True),
+    sa.Column('original_document_size', sa.String(), nullable=True),
+    sa.Column('original_document_extension', sa.String(), nullable=True),
+    sa.Column('document_word_count', sa.String(), nullable=True),
+    sa.Column('document_character_count', sa.String(), nullable=True),
     sa.Column('selected_version', sa.String(), nullable=True),
     sa.Column('selected_text', sa.Text(), nullable=True),
     sa.Column('selected_edited', sa.Boolean(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('created_by', sa.String(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('updated_by', sa.String(), nullable=True),
     sa.ForeignKeyConstraint(['created_by'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['updated_by'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('personas',

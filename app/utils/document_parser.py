@@ -1,5 +1,5 @@
 """
-Document parsing utilities for extracting text from PDF and DOCX files.
+Document parsing utilities for extracting text from PDF, DOCX, and DOC files.
 """
 
 import io
@@ -73,7 +73,7 @@ class DocumentParser:
     
     @classmethod
     def extract_text_from_docx(cls, file_content: bytes) -> str:
-        """Extract text from DOCX file content."""
+        """Extract text from DOCX or DOC file content."""
         if not docx:
             raise DocumentParseError("python-docx is not installed. Install with: pip install python-docx")
         
@@ -97,12 +97,12 @@ class DocumentParser:
                         text_content.append(" | ".join(row_text))
             
             if not text_content:
-                raise DocumentParseError("No text content found in DOCX")
+                raise DocumentParseError("No text content found in DOCX/DOC")
             
             return "\n".join(text_content)
             
         except Exception as e:
-            raise DocumentParseError(f"Failed to parse DOCX: {str(e)}")
+            raise DocumentParseError(f"Failed to parse DOCX/DOC: {str(e)}")
     
     @classmethod
     def extract_text(cls, filename: str, file_content: bytes) -> Dict[str, Any]:

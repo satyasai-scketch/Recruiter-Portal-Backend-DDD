@@ -21,6 +21,7 @@ class ApplyJDRefinement(Command):
 class UpdateJobDescription(Command):
 	"""Command to update job description fields."""
 	
-	def __init__(self, jd_id: str, fields: dict):
+	def __init__(self, jd_id: str, fields: dict, updated_by: str = None):
 		self.jd_id = jd_id
 		self.fields = fields
+		self.updated_by = updated_by

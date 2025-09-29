@@ -42,7 +42,7 @@ def handle_command(db: Session, command: Command) -> Any:
 	if isinstance(command, ApplyJDRefinement):
 		return JDService().apply_refinement(db, command.jd_id, command.refined_text)
 	if isinstance(command, UpdateJobDescription):
-		return JDService().update_partial(db, command.jd_id, command.fields)
+		return JDService().update_partial(db, command.jd_id, command.fields, command.updated_by)
 	if isinstance(command, UploadJobDescriptionDocument):
 		return JDService().create_from_document(db, command.payload, command.file_content, command.filename)
 	if isinstance(command, CreatePersona):

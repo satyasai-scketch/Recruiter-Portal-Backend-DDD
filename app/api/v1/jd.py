@@ -56,7 +56,7 @@ async def upload_jd_document(
 	user=Depends(get_current_user)
 ):
 	"""
-	Upload a job description document (PDF/DOCX) and extract text.
+	Upload a job description document (PDF/DOCX/DOC) and extract text.
 	
 	The endpoint accepts:
 	- title: Job title (required)
@@ -64,7 +64,7 @@ async def upload_jd_document(
 	- notes: Additional notes (optional)
 	- company_id: Company identifier (optional)
 	- tags: JSON array of tags (optional, defaults to empty array)
-	- file: Document file (PDF or DOCX, max 10MB)
+	- file: Document file (PDF, DOCX, or DOC, max 10MB)
 	"""
 	try:
 		# Validate file
@@ -166,7 +166,7 @@ async def update_jd(jd_id: str, body: dict, db: Session = Depends(get_db), user=
 		if not model or model.created_by != user.id:
 			raise HTTPException(status_code=404, detail="JD not found")
 		# Then update using command handler
-		updated = handle_command(db, UpdateJobDescription(jd_id, body))
+		updated = handle_command(db, UpdateJobDescription(jd_id, body, user.id))
 		return JDRead.model_validate(updated)
 	except (ValueError, SQLAlchemyError) as e:
 		if isinstance(e, SQLAlchemyError):
