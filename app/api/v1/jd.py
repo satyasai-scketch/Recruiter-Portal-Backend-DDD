@@ -1,15 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.deps import get_db, get_current_user
-from app.schemas.jd import JDCreate, JDRead
+from app.schemas.jd import JDCreate, JDRead, JDDocumentUpload, JDDocumentUploadResponse
 from app.cqrs.handlers import handle_command, handle_query
 from app.cqrs.commands.jd_commands import (
 	CreateJobDescription,
 	ApplyJDRefinement,
 	UpdateJobDescription,
 )
+from app.cqrs.commands.upload_jd_document import UploadJobDescriptionDocument
 from app.cqrs.queries.jd_queries import (
 	ListJobDescriptions,
 	GetJobDescription,
@@ -41,6 +42,89 @@ async def create_jd(payload: JDCreate, db: Session = Depends(get_db), user=Depen
 		if isinstance(e, SQLAlchemyError):
 			rollback_on_error(db)
 		raise handle_service_errors(e)
+
+
+@router.post("/upload-document", response_model=JDDocumentUploadResponse, summary="Upload job description document (command)")
+async def upload_jd_document(
+	title: str = Form(..., min_length=1, max_length=200),
+	role: str = Form(..., min_length=1, max_length=100),
+	notes: str = Form(None),
+	company_id: str = Form(None),
+	tags: str = Form("[]"),  # JSON string
+	file: UploadFile = File(...),
+	db: Session = Depends(get_db),
+	user=Depends(get_current_user)
+):
+	"""
+	Upload a job description document (PDF/DOCX) and extract text.
+	
+	The endpoint accepts:
+	- title: Job title (required)
+	- role: Job role/position (required) 
+	- notes: Additional notes (optional)
+	- company_id: Company identifier (optional)
+	- tags: JSON array of tags (optional, defaults to empty array)
+	- file: Document file (PDF or DOCX, max 10MB)
+	"""
+	try:
+		# Validate file
+		if not file.filename:
+			raise HTTPException(status_code=400, detail="No file provided")
+		
+		# Check file size (10MB limit)
+		file_content = await file.read()
+		if len(file_content) > 10 * 1024 * 1024:
+			raise HTTPException(status_code=400, detail="File size exceeds 10MB limit")
+		
+		# Parse tags from JSON string
+		import json
+		try:
+			tags_list = json.loads(tags) if tags else []
+			if not isinstance(tags_list, list):
+				raise ValueError("Tags must be a list")
+		except (json.JSONDecodeError, ValueError):
+			raise HTTPException(status_code=400, detail="Invalid tags format. Must be a JSON array.")
+		
+		# Prepare payload
+		payload = {
+			"title": title.strip(),
+			"role": role.strip(),
+			"notes": notes.strip() if notes else None,
+			"company_id": company_id.strip() if company_id else None,
+			"tags": tags_list,
+			"created_by": user.id
+		}
+		
+		# Process document upload
+		model = handle_command(db, UploadJobDescriptionDocument(payload, file_content, file.filename))
+		
+		# Prepare response
+		extracted_metadata = {
+			"original_filename": model.original_document_filename,
+			"file_size": model.original_document_size,
+			"file_extension": model.original_document_extension,
+			"word_count": model.document_word_count,
+			"character_count": model.document_character_count
+		}
+		
+		return JDDocumentUploadResponse(
+			id=model.id,
+			title=model.title,
+			role=model.role,
+			original_text=model.original_text,
+			extracted_metadata=extracted_metadata,
+			message=f"Successfully uploaded and processed {file.filename}"
+		)
+		
+	except HTTPException:
+		raise
+	except (ValueError, SQLAlchemyError) as e:
+		if isinstance(e, SQLAlchemyError):
+			rollback_on_error(db)
+		raise handle_service_errors(e)
+	except Exception as e:
+		rollback_on_error(db)
+		raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 
 
 class JDRefinementRequest(JDCreate):

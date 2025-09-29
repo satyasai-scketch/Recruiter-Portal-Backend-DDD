@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session
 from app.db.models.job_description import JobDescriptionModel
 from app.repositories.job_description_repo import SQLAlchemyJobDescriptionRepository
 from app.domain.job_description import services as jd_domain_services
+from app.domain.job_description.entities import DocumentMetadata
 from app.events.event_bus import event_bus
 from app.events.jd_events import JDCreatedEvent, JDFinalizedEvent
+from app.utils.document_parser import extract_job_description_text, DocumentParseError
 
 
 class JDService:
@@ -108,3 +110,67 @@ class JDService:
 		if "tags" in fields and isinstance(fields["tags"], list):
 			model.tags = fields["tags"]
 		return self.repo.update(db, model)
+
+	def create_from_document(self, db: Session, data: dict, file_content: bytes, filename: str) -> JobDescriptionModel:
+		"""Create a job description from an uploaded document."""
+		try:
+			# Extract text from document
+			extraction_result = extract_job_description_text(filename, file_content)
+			
+			# Create document metadata
+			doc_metadata = DocumentMetadata(
+				filename=extraction_result['original_filename'],
+				file_size=extraction_result['file_size'],
+				file_extension=extraction_result['file_extension'],
+				word_count=extraction_result['word_count'],
+				character_count=extraction_result['character_count']
+			)
+			
+			# Create domain aggregate
+			jd_agg = jd_domain_services.create_job_description(
+				id=str(uuid4()),
+				title=data["title"],
+				role_name=data["role"],
+				original_text=extraction_result['extracted_text'],
+				company_id=data.get("company_id"),
+				notes_text=data.get("notes"),
+				tags=data.get("tags") or [],
+				document_metadata=doc_metadata
+			)
+			
+			# Create model
+			model = JobDescriptionModel(
+				id=jd_agg.id,
+				title=jd_agg.title,
+				role=jd_agg.role.name,
+				original_text=jd_agg.original_text,
+				refined_text=jd_agg.refined_text,
+				selected_version=data.get("selected_version"),
+				selected_text=data.get("selected_text"),
+				selected_edited=bool(data.get("selected_edited")) if data.get("selected_edited") is not None else False,
+				company_id=jd_agg.company.company_id if jd_agg.company else None,
+				notes=jd_agg.notes.text if jd_agg.notes else None,
+				tags=jd_agg.tags,
+				created_by=data.get("created_by") or data.get("user_id") or data.get("owner_id") or "",
+				# Document metadata
+				original_document_filename=doc_metadata.filename,
+				original_document_size=str(doc_metadata.file_size),
+				original_document_extension=doc_metadata.file_extension,
+				document_word_count=str(doc_metadata.word_count),
+				document_character_count=str(doc_metadata.character_count)
+			)
+			
+			created = self.repo.create(db, model)
+			event_bus.publish_event(JDCreatedEvent(
+				id=created.id, 
+				title=created.title, 
+				role=created.role, 
+				company_id=created.company_id
+			))
+			
+			return created
+			
+		except DocumentParseError as e:
+			raise ValueError(f"Document parsing failed: {str(e)}")
+		except Exception as e:
+			raise ValueError(f"Failed to create job description from document: {str(e)}")

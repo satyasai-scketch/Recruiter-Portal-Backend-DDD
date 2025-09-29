@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Iterable, Optional
 
-from app.domain.job_description.entities import JobDescription, JobRole, RefinementNotes
+from app.domain.job_description.entities import JobDescription, JobRole, RefinementNotes, DocumentMetadata
 from app.domain.job_description import rules as jd_rules
 
 
@@ -16,6 +16,7 @@ def create_job_description(
 	company_id: Optional[str] = None,
 	notes_text: Optional[str] = None,
 	tags: Iterable[str] | None = None,
+	document_metadata: Optional[DocumentMetadata] = None,
 ) -> JobDescription:
 	"""Factory for `JobDescription` aggregate with basic validation.
 
@@ -46,6 +47,7 @@ def create_job_description(
 		company=company,
 		notes=notes,
 		tags=list(tags or []),
+		document_metadata=document_metadata,
 	)
 
 

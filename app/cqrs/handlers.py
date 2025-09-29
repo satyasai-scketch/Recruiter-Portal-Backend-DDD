@@ -18,6 +18,7 @@ from app.cqrs.commands.jd_commands import (
 	ApplyJDRefinement,
 	UpdateJobDescription,
 )
+from app.cqrs.commands.upload_jd_document import UploadJobDescriptionDocument
 from app.cqrs.commands.create_persona import CreatePersona
 from app.cqrs.commands.upload_cv import UploadCVs
 from app.cqrs.commands.score_candidates import ScoreCandidates
@@ -42,6 +43,8 @@ def handle_command(db: Session, command: Command) -> Any:
 		return JDService().apply_refinement(db, command.jd_id, command.refined_text)
 	if isinstance(command, UpdateJobDescription):
 		return JDService().update_partial(db, command.jd_id, command.fields)
+	if isinstance(command, UploadJobDescriptionDocument):
+		return JDService().create_from_document(db, command.payload, command.file_content, command.filename)
 	if isinstance(command, CreatePersona):
 		return PersonaService().create(db, command.payload)
 	if isinstance(command, UploadCVs):

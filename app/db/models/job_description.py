@@ -22,6 +22,13 @@ class JobDescriptionModel(Base):
     company_id = Column(String, nullable=True)
     notes = Column(Text, nullable=True)
     tags = Column(JSON, nullable=False, default=list)
+    
+    # Document metadata fields
+    original_document_filename = Column(String, nullable=True)
+    original_document_size = Column(String, nullable=True)  # Store as string to avoid int overflow
+    original_document_extension = Column(String, nullable=True)
+    document_word_count = Column(String, nullable=True)
+    document_character_count = Column(String, nullable=True)
 
     # New tracking fields
     selected_version = Column(String, nullable=True)  # 'original' or 'refined'
