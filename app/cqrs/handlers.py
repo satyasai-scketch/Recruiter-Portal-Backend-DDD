@@ -7,6 +7,7 @@ from app.services.jd_service import JDService
 from app.services.persona_service import PersonaService
 from app.services.candidate_service import CandidateService
 from app.services.match_service import MatchService
+from app.services.company_service import CompanyService
 
 # Import base classes
 from app.cqrs.commands.base import Command
@@ -19,6 +20,11 @@ from app.cqrs.commands.jd_commands import (
 	UpdateJobDescription,
 )
 from app.cqrs.commands.upload_jd_document import UploadJobDescriptionDocument
+from app.cqrs.commands.company_commands import (
+    CreateCompany,
+    UpdateCompany,
+    DeleteCompany
+)
 from app.cqrs.commands.create_persona import CreatePersona
 from app.cqrs.commands.upload_cv import UploadCVs
 from app.cqrs.commands.score_candidates import ScoreCandidates
@@ -32,6 +38,14 @@ from app.cqrs.queries.jd_queries import (
 from app.cqrs.queries.get_persona import GetPersona
 from app.cqrs.queries.list_candidates import ListCandidates
 from app.cqrs.queries.recommendations import Recommendations
+from app.cqrs.queries.company_queries import (
+    GetCompany,
+    GetCompanyByName,
+    ListCompanies,
+    SearchCompanies,
+    CountCompanies,
+    CountSearchCompanies
+)
 
 
 # Handlers
@@ -57,6 +71,12 @@ def handle_command(db: Session, command: Command) -> Any:
 			command.persona_weights,
 			command.per_candidate_scores,
 		)
+	if isinstance(command, CreateCompany):
+		return CompanyService().create(db, command.payload)
+	if isinstance(command, UpdateCompany):
+		return CompanyService().update(db, command.company_id, command.payload)
+	if isinstance(command, DeleteCompany):
+		return CompanyService().delete(db, command.company_id)
 	raise NotImplementedError(f"No handler for command {type(command).__name__}")
 
 
@@ -69,4 +89,16 @@ def handle_query(db: Session, query: Query) -> Any:
 		return JDService().prepare_refinement_brief(db, query.jd_id, query.required_sections, query.template_text)
 	if isinstance(query, Recommendations):
 		return MatchService().recommendations(db, query.persona_id, query.top_k)
+	if isinstance(query, GetCompany):
+		return CompanyService().get_by_id(db, query.company_id)
+	if isinstance(query, GetCompanyByName):
+		return CompanyService().get_by_name(db, query.name)
+	if isinstance(query, ListCompanies):
+		return CompanyService().get_all(db, query.skip, query.limit)
+	if isinstance(query, SearchCompanies):
+		return CompanyService().search(db, query.search_criteria, query.skip, query.limit)
+	if isinstance(query, CountCompanies):
+		return CompanyService().count(db)
+	if isinstance(query, CountSearchCompanies):
+		return CompanyService().count_search(db, query.search_criteria)
 	raise NotImplementedError(f"No handler for query {type(query).__name__}")

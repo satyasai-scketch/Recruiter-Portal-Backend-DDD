@@ -19,7 +19,7 @@ class JobDescriptionModel(Base):
     role = Column(String, nullable=False)
     original_text = Column(Text, nullable=False)
     refined_text = Column(Text, nullable=True)
-    company_id = Column(String, nullable=True)
+    company_id = Column(String, ForeignKey("companies.id"), nullable=True)
     notes = Column(Text, nullable=True)
     tags = Column(JSON, nullable=False, default=list)
     
@@ -51,3 +51,6 @@ class JobDescriptionModel(Base):
     )
 
     creator = relationship("UserModel", foreign_keys=[created_by])  # specify which foreign key to use
+    
+    # Company relationship
+    company = relationship("CompanyModel", back_populates="job_descriptions")

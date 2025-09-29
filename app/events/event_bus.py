@@ -18,7 +18,13 @@ class EventBus:
 			handler(payload)
 
 	def publish_event(self, event_obj: Any) -> None:
-		self.publish(event_obj.__class__.__name__, event_obj.__dict__)
+		"""Publish an event object with error handling."""
+		try:
+			self.publish(event_obj.__class__.__name__, event_obj.__dict__)
+		except Exception as e:
+			# Log the error but don't raise it to avoid breaking the main operation
+			print(f"EventBus: Failed to publish event {event_obj.__class__.__name__}: {e}")
+			# Optionally, you could implement event retry logic or dead letter queue here
 
 
 event_bus = EventBus()

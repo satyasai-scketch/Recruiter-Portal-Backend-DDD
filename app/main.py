@@ -7,6 +7,7 @@ from app.api.v1 import persona as persona_router
 from app.api.v1 import candidate as candidate_router
 from app.api.v1 import match as match_router
 from app.api.v1 import auth as auth_router
+from app.api.v1 import company as company_router
 from app.core.logger import logger
 
 
@@ -31,6 +32,7 @@ app.include_router(jd_router.router, prefix="/api/v1/jd", tags=["jd"])
 app.include_router(persona_router.router, prefix="/api/v1/persona", tags=["persona"])
 app.include_router(candidate_router.router, prefix="/api/v1/candidate", tags=["candidate"])
 app.include_router(match_router.router, prefix="/api/v1/match", tags=["match"])
+app.include_router(company_router.router, prefix="/api/v1/company", tags=["company"])
 
 
 @app.get("/health")

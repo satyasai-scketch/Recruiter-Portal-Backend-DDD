@@ -1,8 +1,8 @@
-"""initial schema
+"""Initial Schema
 
-Revision ID: 771a500b8bad
+Revision ID: 989ae7a309bc
 Revises: 
-Create Date: 2025-09-29 13:03:27.886653
+Create Date: 2025-09-29 14:07:59.785127
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import sqlite
 
 # revision identifiers, used by Alembic.
-revision: str = '771a500b8bad'
+revision: str = '989ae7a309bc'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -66,6 +66,30 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
+    op.create_table('companies',
+    sa.Column('id', sa.String(), nullable=False),
+    sa.Column('name', sa.String(), nullable=False),
+    sa.Column('website_url', sa.String(), nullable=True),
+    sa.Column('contact_number', sa.String(), nullable=True),
+    sa.Column('email_address', sa.String(), nullable=True),
+    sa.Column('street', sa.String(), nullable=True),
+    sa.Column('city', sa.String(), nullable=True),
+    sa.Column('state', sa.String(), nullable=True),
+    sa.Column('country', sa.String(), nullable=True),
+    sa.Column('pincode', sa.String(), nullable=True),
+    sa.Column('twitter_link', sa.String(), nullable=True),
+    sa.Column('instagram_link', sa.String(), nullable=True),
+    sa.Column('facebook_link', sa.String(), nullable=True),
+    sa.Column('about_company', sa.Text(), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('created_by', sa.String(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('updated_by', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['created_by'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['updated_by'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_companies_name'), 'companies', ['name'], unique=False)
     op.create_table('job_descriptions',
     sa.Column('id', sa.String(), nullable=False),
     sa.Column('title', sa.String(), nullable=False),
@@ -87,6 +111,7 @@ def upgrade() -> None:
     sa.Column('created_by', sa.String(), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
     sa.Column('updated_by', sa.String(), nullable=True),
+    sa.ForeignKeyConstraint(['company_id'], ['companies.id'], ),
     sa.ForeignKeyConstraint(['created_by'], ['users.id'], ),
     sa.ForeignKeyConstraint(['updated_by'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
@@ -136,6 +161,8 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_personas_job_description_id'), table_name='personas')
     op.drop_table('personas')
     op.drop_table('job_descriptions')
+    op.drop_index(op.f('ix_companies_name'), table_name='companies')
+    op.drop_table('companies')
     op.drop_index(op.f('ix_users_email'), table_name='users')
     op.drop_table('users')
     op.drop_index(op.f('ix_scores_persona_id'), table_name='scores')
