@@ -18,3 +18,4 @@ passlib[bcrypt]>=1.7.4
 pydantic[email]>=2.9.2
 PyPDF2>=3.0.0
 python-docx>=0.8.11
+sendgrid>=6.10.0

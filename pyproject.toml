@@ -24,4 +24,5 @@ dependencies = [
     "uvicorn[standard]==0.30.6",
     "pypdf2>=3.0.0",
     "python-docx>=0.8.11",
+    "sendgrid>=6.10.0",
 ]

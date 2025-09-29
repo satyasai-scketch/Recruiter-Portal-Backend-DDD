@@ -21,6 +21,29 @@ class Settings(BaseSettings):
 
 	# Embeddings / Models (placeholders)
 	embedding_model_name: str = "all-MiniLM-L6-v2"
+	
+	# Email Configuration
+	email_provider: str = "smtp"  # 'smtp', 'sendgrid', or 'aws_ses'
+	
+	# SMTP Configuration
+	smtp_server: str = "smtp.gmail.com"
+	smtp_port: int = 587
+	smtp_username: str = ""
+	smtp_password: str = ""
+	smtp_use_tls: bool = True
+	
+	# SendGrid Configuration
+	sendgrid_api_key: str = ""
+	
+	# AWS SES Configuration
+	aws_access_key_id: str = ""
+	aws_secret_access_key: str = ""
+	aws_region: str = "us-east-1"
+	
+	# Common Email Settings
+	from_email: str = "noreply@recruiterai.com"
+	from_name: str = "Recruiter AI"
+	frontend_url: str = "http://localhost:3000"
 
 	class Config:
 		env_file = ".env"
