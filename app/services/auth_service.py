@@ -69,6 +69,7 @@ class AuthService:
 		user = self.users.get_by_email(db, email)
 		if not user:
 			# Don't reveal if email exists or not for security
+			# Always return True to prevent email enumeration
 			return True
 		
 		# Generate secure reset token
@@ -82,18 +83,32 @@ class AuthService:
 		
 		# Send reset email
 		try:
-			email_service.send_password_reset_email(
+			email_sent = email_service.send_password_reset_email(
 				email, 
 				reset_token, 
 				f"{user.first_name} {user.last_name}"
 			)
+			
+			if not email_sent:
+				# Clear token if email sending failed
+				user.reset_token = None
+				user.reset_token_expires = None
+				db.commit()
+				# Log the error but don't reveal it to the user for security
+				print(f"Failed to send password reset email to {email}")
+				# Still return True to prevent email enumeration
+				return True
+			
 			return True
 		except Exception as e:
 			# Clear token if email fails
 			user.reset_token = None
 			user.reset_token_expires = None
 			db.commit()
-			raise ValueError(f"Failed to send reset email: {str(e)}")
+			# Log the error but don't reveal it to the user for security
+			print(f"Failed to send password reset email to {email}: {str(e)}")
+			# Still return True to prevent email enumeration
+			return True
 	
 	def reset_password(self, db: Session, token: str, new_password: str) -> bool:
 		"""Reset password using token."""

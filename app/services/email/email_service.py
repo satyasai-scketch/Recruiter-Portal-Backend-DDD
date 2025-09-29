@@ -93,15 +93,23 @@ class EmailService:
             html_content = template.get_html_content(**template_kwargs)
             text_content = template.get_text_content(**template_kwargs)
             
-            return self.provider.send_email(
+            logger.info(f"Attempting to send {template_name} email to {to_email}")
+            result = self.provider.send_email(
                 to_email=to_email,
                 subject=subject,
                 html_content=html_content,
                 text_content=text_content
             )
             
+            if result:
+                logger.info(f"Successfully sent {template_name} email to {to_email}")
+            else:
+                logger.error(f"Failed to send {template_name} email to {to_email}")
+            
+            return result
+            
         except Exception as e:
-            logger.error(f"Failed to send template email '{template_name}': {e}")
+            logger.error(f"Failed to send template email '{template_name}' to {to_email}: {e}")
             return False
     
     def send_custom_email(

@@ -50,4 +50,4 @@ class JobDescriptionModel(Base):
         cascade="all, delete-orphan",
     )
 
-    creator = relationship("UserModel")  # optional convenience relationship
+    creator = relationship("UserModel", foreign_keys=[created_by])  # specify which foreign key to use
