@@ -69,3 +69,36 @@ class JDDocumentUploadResponse(BaseModel):
 	message: str
 	
 	model_config = ConfigDict(from_attributes=True)
+
+from typing import Optional, List, Dict, Any
+from pydantic import Field
+
+class JDRefinementRequest(BaseModel):
+    """Request for AI-powered JD refinement"""
+    role: str = Field(..., description="Job role/title")
+    company_id: Optional[str] = Field(None, description="Company ID (optional if JD has company_id)")
+    methodology: str = Field(
+        default="direct",
+        description="'direct' or 'template_based'"
+    )
+    min_similarity: Optional[float] = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Minimum similarity for template matching"
+    )
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class JDRefinementResponse(BaseModel):
+    """Response after AI refinement"""
+    jd_id: str
+    original_text: str
+    refined_text: str
+    improvements: List[str]
+    methodology: str
+    template_used: Optional[Dict[str, Any]] = None
+    template_similarity: Optional[float] = None
+    
+    model_config = ConfigDict(from_attributes=True)
