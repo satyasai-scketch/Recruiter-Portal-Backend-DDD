@@ -42,8 +42,8 @@ def get_current_user(
 
 def require_roles(*required_roles: str):
 	def _inner(user=Depends(get_current_user)):
-		roles = set(user.roles or [])
-		if not set(required_roles).issubset(roles):
+		user_role_name = (user.role.name if getattr(user, "role", None) else None)
+		if user_role_name is None or user_role_name not in set(required_roles):
 			raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient privileges")
 		return user
 	return _inner

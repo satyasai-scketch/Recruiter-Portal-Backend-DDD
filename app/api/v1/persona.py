@@ -18,10 +18,10 @@ async def create_persona(payload: PersonaCreate, db: Session = Depends(db_sessio
 		model = handle_command(db, CreatePersona(payload.model_dump()))
 	# Fetch eagerly to return nested
 	model = PersonaService().repo.get(db, model.id)
-	return PersonaRead.from_orm(model)
+	return PersonaRead.model_validate(model)
 
 
 @router.get("/by-jd/{jd_id}", response_model=list[PersonaRead], summary="List personas for a Job Description")
 async def list_personas_by_jd(jd_id: str, db: Session = Depends(db_session)):
 	models = PersonaService().repo.get_by_job_description(db, jd_id)
-	return [PersonaRead.from_orm(m) for m in models]
+	return [PersonaRead.model_validate(m) for m in models]

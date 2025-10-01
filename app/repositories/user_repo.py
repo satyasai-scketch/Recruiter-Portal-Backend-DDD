@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Optional
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.db.models.user import UserModel
 
@@ -23,10 +23,20 @@ class SQLAlchemyUserRepository(UserRepository):
 	"""SQLAlchemy-backed user repository."""
 
 	def get_by_id(self, db: Session, user_id: str) -> Optional[UserModel]:
-		return db.get(UserModel, user_id)
+		return (
+			db.query(UserModel)
+			.options(joinedload(UserModel.role))
+			.filter(UserModel.id == user_id)
+			.first()
+		)
 
 	def get_by_email(self, db: Session, email: str) -> Optional[UserModel]:
-		return db.query(UserModel).filter(UserModel.email == email).first()
+		return (
+			db.query(UserModel)
+			.options(joinedload(UserModel.role))
+			.filter(UserModel.email == email)
+			.first()
+		)
 
 	def create(self, db: Session, user: UserModel) -> UserModel:
 		db.add(user)

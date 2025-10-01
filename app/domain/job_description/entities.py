@@ -44,6 +44,29 @@ class RefinementNotes:
 			raise ValueError("RefinementNotes.text cannot be None")
 
 
+@dataclass(frozen=True)
+class DocumentMetadata:
+	"""Metadata about the original document uploaded."""
+	
+	filename: str
+	file_size: int
+	file_extension: str
+	word_count: int
+	character_count: int
+	
+	def __post_init__(self) -> None:
+		if not self.filename or not self.filename.strip():
+			raise ValueError("DocumentMetadata.filename must be a non-empty string")
+		if self.file_size < 0:
+			raise ValueError("DocumentMetadata.file_size must be non-negative")
+		if not self.file_extension or not self.file_extension.strip():
+			raise ValueError("DocumentMetadata.file_extension must be a non-empty string")
+		if self.word_count < 0:
+			raise ValueError("DocumentMetadata.word_count must be non-negative")
+		if self.character_count < 0:
+			raise ValueError("DocumentMetadata.character_count must be non-negative")
+
+
 @dataclass
 class JobDescription:
 	"""Aggregate root for a Job Description within the domain.
@@ -60,6 +83,7 @@ class JobDescription:
 	company: Optional[CompanyProfileRef] = None
 	notes: Optional[RefinementNotes] = None
 	tags: List[str] = field(default_factory=list)
+	document_metadata: Optional[DocumentMetadata] = None
 
 	def has_refined(self) -> bool:
 		"""Return True if a refined version currently exists on this aggregate."""
