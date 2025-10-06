@@ -1,8 +1,8 @@
-"""Initial Schema
+"""Persona Data Modeling
 
-Revision ID: cb97eb7251c3
+Revision ID: df1a9faecb7e
 Revises: 
-Create Date: 2025-09-29 17:34:56.206751
+Create Date: 2025-10-06 17:22:44.453768
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import sqlite
 
 # revision identifiers, used by Alembic.
-revision: str = 'cb97eb7251c3'
+revision: str = 'df1a9faecb7e'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -33,6 +33,73 @@ def upgrade() -> None:
     sa.Column('scores', sqlite.JSON(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_table('persona_categories',
+    sa.Column('id', sa.String(), nullable=False),
+    sa.Column('persona_id', sa.String(), nullable=False),
+    sa.Column('name', sa.String(), nullable=False),
+    sa.Column('weight_percentage', sa.Integer(), nullable=False),
+    sa.Column('range_min', sa.Float(), nullable=True),
+    sa.Column('range_max', sa.Float(), nullable=True),
+    sa.Column('position', sa.Integer(), nullable=True),
+    sa.Column('notes_id', sa.String(), nullable=True),
+    sa.CheckConstraint('range_min <= range_max', name='ck_range_min_max'),
+    sa.CheckConstraint('weight_percentage BETWEEN 0 AND 100', name='ck_weight_pct_range'),
+    sa.ForeignKeyConstraint(['notes_id'], ['persona_notes.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['persona_id'], ['personas.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('persona_id', 'name', name='uq_persona_category_name')
+    )
+    op.create_index(op.f('ix_persona_categories_persona_id'), 'persona_categories', ['persona_id'], unique=False)
+    op.create_table('persona_levels',
+    sa.Column('id', sa.String(), nullable=False),
+    sa.Column('name', sa.String(), nullable=False),
+    sa.Column('position', sa.Integer(), nullable=True),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('persona_notes',
+    sa.Column('id', sa.String(), nullable=False),
+    sa.Column('persona_id', sa.String(), nullable=False),
+    sa.Column('category_id', sa.String(), nullable=True),
+    sa.Column('custom_notes', sa.Text(), nullable=True),
+    sa.ForeignKeyConstraint(['category_id'], ['persona_categories.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['persona_id'], ['personas.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_persona_notes_category_id'), 'persona_notes', ['category_id'], unique=False)
+    op.create_index(op.f('ix_persona_notes_persona_id'), 'persona_notes', ['persona_id'], unique=False)
+    op.create_table('persona_skillsets',
+    sa.Column('id', sa.String(), nullable=False),
+    sa.Column('persona_id', sa.String(), nullable=False),
+    sa.Column('persona_category_id', sa.String(), nullable=True),
+    sa.Column('persona_subcategory_id', sa.String(), nullable=True),
+    sa.Column('technologies', sqlite.JSON(), nullable=True),
+    sa.ForeignKeyConstraint(['persona_category_id'], ['persona_categories.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['persona_id'], ['personas.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['persona_subcategory_id'], ['persona_subcategories.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_persona_skillsets_persona_category_id'), 'persona_skillsets', ['persona_category_id'], unique=False)
+    op.create_index(op.f('ix_persona_skillsets_persona_id'), 'persona_skillsets', ['persona_id'], unique=False)
+    op.create_index(op.f('ix_persona_skillsets_persona_subcategory_id'), 'persona_skillsets', ['persona_subcategory_id'], unique=False)
+    op.create_table('persona_subcategories',
+    sa.Column('id', sa.String(), nullable=False),
+    sa.Column('category_id', sa.String(), nullable=False),
+    sa.Column('name', sa.String(), nullable=False),
+    sa.Column('weight_percentage', sa.Integer(), nullable=False),
+    sa.Column('range_min', sa.Float(), nullable=True),
+    sa.Column('range_max', sa.Float(), nullable=True),
+    sa.Column('level_id', sa.String(), nullable=True),
+    sa.Column('skillset_id', sa.String(), nullable=True),
+    sa.Column('position', sa.Integer(), nullable=True),
+    sa.CheckConstraint('range_min <= range_max', name='ck_range_min_max'),
+    sa.CheckConstraint('weight_percentage BETWEEN 0 AND 100', name='ck_weight_pct_range'),
+    sa.ForeignKeyConstraint(['category_id'], ['persona_categories.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['level_id'], ['persona_levels.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['skillset_id'], ['persona_skillsets.id'], ondelete='SET NULL'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('category_id', 'name', name='uq_persona_subcategory_name')
+    )
+    op.create_index(op.f('ix_persona_subcategories_category_id'), 'persona_subcategories', ['category_id'], unique=False)
     op.create_table('roles',
     sa.Column('id', sa.String(), nullable=False),
     sa.Column('name', sa.String(), nullable=False),
@@ -136,44 +203,38 @@ def upgrade() -> None:
     sa.Column('id', sa.String(), nullable=False),
     sa.Column('job_description_id', sa.String(), nullable=False),
     sa.Column('name', sa.String(), nullable=False),
+    sa.Column('role_name', sa.String(), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.Column('created_by', sa.String(), nullable=True),
     sa.Column('weights', sqlite.JSON(), nullable=True),
     sa.Column('intervals', sqlite.JSON(), nullable=True),
+    sa.ForeignKeyConstraint(['created_by'], ['users.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['job_description_id'], ['job_descriptions.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_personas_job_description_id'), 'personas', ['job_description_id'], unique=False)
-    op.create_table('persona_categories',
+    op.create_table('persona_change_logs',
     sa.Column('id', sa.String(), nullable=False),
     sa.Column('persona_id', sa.String(), nullable=False),
-    sa.Column('name', sa.String(), nullable=False),
-    sa.Column('weight_percentage', sa.Integer(), nullable=False),
-    sa.CheckConstraint('weight_percentage BETWEEN 0 AND 100', name='ck_weight_pct_range'),
+    sa.Column('entity_type', sa.String(), nullable=False),
+    sa.Column('entity_id', sa.String(), nullable=False),
+    sa.Column('field_name', sa.String(), nullable=False),
+    sa.Column('old_value', sa.Text(), nullable=True),
+    sa.Column('new_value', sa.Text(), nullable=True),
+    sa.Column('changed_by', sa.String(), nullable=True),
+    sa.Column('changed_at', sa.DateTime(timezone=True), server_default=sa.text('(CURRENT_TIMESTAMP)'), nullable=False),
+    sa.ForeignKeyConstraint(['changed_by'], ['users.id'], ondelete='SET NULL'),
     sa.ForeignKeyConstraint(['persona_id'], ['personas.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('persona_id', 'name', name='uq_persona_category_name')
+    sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_persona_categories_persona_id'), 'persona_categories', ['persona_id'], unique=False)
-    op.create_table('persona_subcategories',
-    sa.Column('id', sa.String(), nullable=False),
-    sa.Column('category_id', sa.String(), nullable=False),
-    sa.Column('name', sa.String(), nullable=False),
-    sa.Column('weight_percentage', sa.Integer(), nullable=False),
-    sa.Column('level', sa.Enum('L1', 'L2', 'L3', 'L4', 'L5', name='level_enum', native_enum=False), nullable=True),
-    sa.CheckConstraint('weight_percentage BETWEEN 0 AND 100', name='ck_weight_pct_range'),
-    sa.ForeignKeyConstraint(['category_id'], ['persona_categories.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('category_id', 'name', name='uq_persona_subcategory_name')
-    )
-    op.create_index(op.f('ix_persona_subcategories_category_id'), 'persona_subcategories', ['category_id'], unique=False)
+    op.create_index(op.f('ix_persona_change_logs_persona_id'), 'persona_change_logs', ['persona_id'], unique=False)
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     # ### commands auto generated by Alembic - please adjust! ###
-    op.drop_index(op.f('ix_persona_subcategories_category_id'), table_name='persona_subcategories')
-    op.drop_table('persona_subcategories')
-    op.drop_index(op.f('ix_persona_categories_persona_id'), table_name='persona_categories')
-    op.drop_table('persona_categories')
+    op.drop_index(op.f('ix_persona_change_logs_persona_id'), table_name='persona_change_logs')
+    op.drop_table('persona_change_logs')
     op.drop_index(op.f('ix_personas_job_description_id'), table_name='personas')
     op.drop_table('personas')
     op.drop_table('job_descriptions')
@@ -187,5 +248,17 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_scores_candidate_id'), table_name='scores')
     op.drop_table('scores')
     op.drop_table('roles')
+    op.drop_index(op.f('ix_persona_subcategories_category_id'), table_name='persona_subcategories')
+    op.drop_table('persona_subcategories')
+    op.drop_index(op.f('ix_persona_skillsets_persona_subcategory_id'), table_name='persona_skillsets')
+    op.drop_index(op.f('ix_persona_skillsets_persona_id'), table_name='persona_skillsets')
+    op.drop_index(op.f('ix_persona_skillsets_persona_category_id'), table_name='persona_skillsets')
+    op.drop_table('persona_skillsets')
+    op.drop_index(op.f('ix_persona_notes_persona_id'), table_name='persona_notes')
+    op.drop_index(op.f('ix_persona_notes_category_id'), table_name='persona_notes')
+    op.drop_table('persona_notes')
+    op.drop_table('persona_levels')
+    op.drop_index(op.f('ix_persona_categories_persona_id'), table_name='persona_categories')
+    op.drop_table('persona_categories')
     op.drop_table('candidates')
     # ### end Alembic commands ###

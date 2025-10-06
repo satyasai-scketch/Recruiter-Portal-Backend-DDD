@@ -58,3 +58,26 @@ class PersonaRead(BaseModel):
 	categories: List[PersonaCategorySchema] = []
 
 	model_config = ConfigDict(from_attributes=True)
+
+
+# Persona Level Schemas
+class PersonaLevelCreate(BaseModel):
+	name: str = Field(..., examples=["Junior", "Mid-level", "Senior", "Lead"])
+	position: Optional[int] = Field(None, examples=[1, 2, 3, 4])
+
+	model_config = ConfigDict(from_attributes=True)
+
+
+class PersonaLevelUpdate(BaseModel):
+	name: Optional[str] = Field(None, examples=["Junior", "Mid-level", "Senior", "Lead"])
+	position: Optional[int] = Field(None, examples=[1, 2, 3, 4])
+
+	model_config = ConfigDict(from_attributes=True)
+
+
+class PersonaLevelRead(BaseModel):
+	id: str
+	name: str
+	position: Optional[int] = None
+
+	model_config = ConfigDict(from_attributes=True)
