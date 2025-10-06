@@ -24,7 +24,7 @@ async def example_add_from_file():
     service = JDTemplateService()
     
     # Load from file
-    templates = JDFileLoader.load_from_json_file("data/jd_templates/backend_roles.json")
+    templates = JDFileLoader.load_from_json_file("data/jd_templates/jd_templates2.json")
     
     # Add each template
     for template in templates:
@@ -65,4 +65,4 @@ async def example_find_top_matches():
 
 if __name__ == "__main__":
     # Run examples
-    asyncio.run(example_find_best_match())
+    asyncio.run(example_add_from_file())
