@@ -102,3 +102,16 @@ class JDRefinementResponse(BaseModel):
     template_similarity: Optional[float] = None
     
     model_config = ConfigDict(from_attributes=True)
+
+
+
+# Add this new schema
+class JDDiffResponse(BaseModel):
+    """Response with HTML diff between original and refined JD"""
+    jd_id: str
+    original_text: str
+    refined_text: str
+    diff_html: str
+    stats: Dict[str, Any]  # Change from Dict[str, int] to Dict[str, Any]
+    
+    model_config = ConfigDict(from_attributes=True)

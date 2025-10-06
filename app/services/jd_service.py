@@ -12,6 +12,7 @@ from app.events.jd_events import JDCreatedEvent, JDUpdatedEvent
 from app.events.event_bus import event_bus
 from app.services.jd_refinement.refinement_service import JDRefinementService
 from app.repositories.company_repo import CompanyRepository
+from app.utils.jd_diff import JDDiffGenerator
 class JDService:
     """Application service for Job Description operations."""
 
@@ -225,3 +226,42 @@ class JDService:
         updated = self.repo.update(db, jd)
         event_bus.publish_event(JDUpdatedEvent(id=updated.id, title=updated.title, role=updated.role_id))
         return updated
+    
+    def get_jd_diff(self, db: Session, jd_id: str, diff_format: str = "table") -> dict:
+        """
+        Get diff between original and refined JD.
+        
+        Args:
+            db: Database session
+            jd_id: Job description ID
+            diff_format: "table" (default), "inline", or "simple"
+            
+        Returns:
+            Dict with diff HTML and statistics
+        """
+        jd = self.get_by_id(db, jd_id)
+        if not jd:
+            raise ValueError("Job description not found")
+        
+        if not jd.refined_text:
+            raise ValueError("JD has not been refined yet")
+        
+        original = jd.original_text or ""
+        refined = jd.refined_text or ""
+        
+        # Generate diff based on format
+        if diff_format == "inline":
+            diff_html, stats = JDDiffGenerator.generate_inline_diff(original, refined)
+        elif diff_format == "simple":
+            diff_html = JDDiffGenerator.generate_simple_diff(original, refined)
+            stats = JDDiffGenerator._calculate_stats(original, refined)
+        else:  # table (default)
+            diff_html, stats = JDDiffGenerator.generate_diff(original, refined)
+        
+        return {
+            'jd_id': jd_id,
+            'original_text': original,
+            'refined_text': refined,
+            'diff_html': diff_html,
+            'stats': stats
+        }

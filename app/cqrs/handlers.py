@@ -69,7 +69,7 @@ from app.cqrs.queries.job_role_queries import (
 import asyncio
 import concurrent.futures
 from app.cqrs.commands.refine_jd_with_ai import RefineJDWithAI
-
+from app.cqrs.queries.jd_queries import GetJDDiff
 # Add this handler function before handle_command
 def handle_refine_jd_with_ai(db: Session, command: RefineJDWithAI):
     """Handle JD refinement with AI (sync wrapper for async service)"""
@@ -189,4 +189,6 @@ def handle_query(db: Session, query: Query) -> Any:
 		return JobRoleService().count_search(db, query.search_criteria)
 	if isinstance(query, GetJobRoleCategories):
 		return JobRoleService().get_categories(db)
+	if isinstance(query, GetJDDiff):
+		return JDService().get_jd_diff(db, query.jd_id, query.diff_format)
 	raise NotImplementedError(f"No handler for query {type(query).__name__}")
