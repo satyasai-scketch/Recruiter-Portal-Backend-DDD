@@ -66,7 +66,46 @@ from app.cqrs.queries.job_role_queries import (
     GetJobRoleCategories
 )
 
+import asyncio
+import concurrent.futures
+from app.cqrs.commands.refine_jd_with_ai import RefineJDWithAI
 
+# Add this handler function before handle_command
+def handle_refine_jd_with_ai(db: Session, command: RefineJDWithAI):
+    """Handle JD refinement with AI (sync wrapper for async service)"""
+    
+    try:
+        # Try to get running loop
+        try:
+            loop = asyncio.get_running_loop()
+            # Loop exists (FastAPI context), use thread pool
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(
+                    asyncio.run,
+                    JDService().apply_refinement_with_ai(
+                        db=db,
+                        jd_id=command.jd_id,
+                        role=command.role,
+                        company_id=command.company_id,
+                        methodology=command.methodology,
+                        min_similarity=command.min_similarity
+                    )
+                )
+                return future.result()
+        except RuntimeError:
+            # No running loop, create and run
+            return asyncio.run(
+                JDService().apply_refinement_with_ai(
+                    db=db,
+                    jd_id=command.jd_id,
+                    role=command.role,
+                    company_id=command.company_id,
+                    methodology=command.methodology,
+                    min_similarity=command.min_similarity
+                )
+            )
+    except Exception as e:
+        raise ValueError(f"Error in AI refinement: {str(e)}")
 # Handlers
 
 def handle_command(db: Session, command: Command) -> Any:
@@ -74,6 +113,8 @@ def handle_command(db: Session, command: Command) -> Any:
 		return JDService().create(db, command.payload)
 	if isinstance(command, ApplyJDRefinement):
 		return JDService().apply_refinement(db, command.jd_id, command.refined_text)
+	if isinstance(command, RefineJDWithAI):
+		return handle_refine_jd_with_ai(db, command)
 	if isinstance(command, UpdateJobDescription):
 		return JDService().update_partial(db, command.jd_id, command.fields, command.updated_by)
 	if isinstance(command, UploadJobDescriptionDocument):

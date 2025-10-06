@@ -1,0 +1,2025 @@
+{
+  "jd_software_backend_mid_001": {
+    "content": {
+      "id": "jd_software_backend_mid_001",
+      "title": "Backend Engineer",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "backend",
+      "level": "mid",
+      "skills": {
+        "technical": [
+          "Python",
+          "FastAPI",
+          "SQL",
+          "Docker",
+          "AWS",
+          "REST APIs",
+          "Microservices"
+        ],
+        "cognitive": [
+          "System design",
+          "Problem-solving",
+          "API optimization"
+        ],
+        "values": [
+          "Collaboration",
+          "Ownership",
+          "Quality-driven"
+        ],
+        "leadership": [
+          "Mentoring junior engineers"
+        ]
+      },
+      "education": {
+        "required": [
+          "Bachelor's in Computer Science or related field"
+        ],
+        "preferred": [
+          "Master's in Computer Science"
+        ]
+      },
+      "experience": {
+        "min_years": 3,
+        "max_years": 5,
+        "description": "3–5 years of backend software development experience"
+      },
+      "responsibilities": [
+        "Design, build, and maintain scalable backend APIs",
+        "Optimize database queries and application performance",
+        "Implement microservices and RESTful APIs",
+        "Collaborate with frontend engineers, product managers, and DevOps teams",
+        "Participate in code reviews and maintain coding standards"
+      ],
+      "requirements": [
+        "Strong proficiency in Python and FastAPI",
+        "Experience with relational and NoSQL databases",
+        "Familiarity with Docker, Kubernetes, and cloud platforms (AWS preferred)",
+        "Solid understanding of data structures, algorithms, and design patterns",
+        "Ability to troubleshoot, debug, and optimize existing systems"
+      ],
+      "template_text": "We are seeking a Mid-Level Backend Engineer skilled in Python and FastAPI to build scalable, high-quality APIs, manage databases, and implement microservices. The ideal candidate is collaborative, ownership-driven, and experienced in cloud deployment.",
+      "metadata": {
+        "source": "standard_library",
+        "version": 1.0,
+        "created_at": "2025-09-26T16:00:00Z"
+      }
+    },
+    "stored_at": "2025-09-28T15:36:01.723923"
+  },
+  "jd_software_frontend_mid_001": {
+    "content": {
+      "id": "jd_software_frontend_mid_001",
+      "title": "Frontend Engineer",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "frontend",
+      "level": "mid",
+      "skills": {
+        "technical": [
+          "JavaScript",
+          "TypeScript",
+          "React",
+          "HTML5",
+          "CSS3",
+          "REST APIs",
+          "Testing frameworks (Jest, Cypress)"
+        ],
+        "cognitive": [
+          "UI/UX design understanding",
+          "Problem-solving",
+          "Performance optimization"
+        ],
+        "values": [
+          "Collaboration",
+          "Attention to detail",
+          "User-focused mindset"
+        ],
+        "leadership": [
+          "Mentoring junior engineers"
+        ]
+      },
+      "education": {
+        "required": [
+          "Bachelor's in Computer Science or related field"
+        ],
+        "preferred": [
+          "Master's in Computer Science or related field"
+        ]
+      },
+      "experience": {
+        "min_years": 3,
+        "max_years": 5,
+        "description": "3–5 years of frontend development experience"
+      },
+      "responsibilities": [
+        "Develop responsive and dynamic user interfaces using React and TypeScript",
+        "Optimize application performance and load times",
+        "Integrate frontend with backend APIs",
+        "Ensure cross-browser compatibility and accessibility standards",
+        "Collaborate with designers, backend engineers, and product managers"
+      ],
+      "requirements": [
+        "Strong proficiency in React and TypeScript",
+        "Experience with modern CSS frameworks and preprocessors",
+        "Familiarity with RESTful APIs and JSON",
+        "Knowledge of testing frameworks (Jest, Cypress) and CI/CD pipelines",
+        "Ability to write clean, maintainable, and well-documented code"
+      ],
+      "template_text": "We are seeking a Mid-Level Frontend Engineer with expertise in React and TypeScript to build responsive, performant, and user-friendly interfaces. The ideal candidate collaborates effectively and prioritizes user experience.",
+      "metadata": {
+        "source": "standard_library",
+        "version": 1.0,
+        "created_at": "2025-09-26T16:05:00Z"
+      }
+    },
+    "stored_at": "2025-09-28T15:36:06.677366"
+  },
+  "jd_software_fullstack_mid_001": {
+    "content": {
+      "id": "jd_software_fullstack_mid_001",
+      "title": "Fullstack Engineer",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "mid",
+      "skills": {
+        "technical": [
+          "Python",
+          "FastAPI",
+          "React",
+          "JavaScript",
+          "SQL",
+          "Docker",
+          "REST APIs",
+          "AWS"
+        ],
+        "cognitive": [
+          "System design",
+          "End-to-end problem solving",
+          "API integration"
+        ],
+        "values": [
+          "Collaboration",
+          "Adaptability",
+          "Ownership"
+        ],
+        "leadership": [
+          "Mentoring and code reviews"
+        ]
+      },
+      "education": {
+        "required": [
+          "Bachelor's in Computer Science or related field"
+        ],
+        "preferred": [
+          "Master's in Computer Science or related field"
+        ]
+      },
+      "experience": {
+        "min_years": 3,
+        "max_years": 6,
+        "description": "3–6 years of fullstack development experience"
+      },
+      "responsibilities": [
+        "Design and develop scalable frontend and backend systems",
+        "Integrate APIs and microservices end-to-end",
+        "Collaborate with designers, product managers, and engineers across the stack",
+        "Maintain high code quality, testing, and CI/CD practices",
+        "Troubleshoot and optimize application performance"
+      ],
+      "requirements": [
+        "Proficiency in Python, FastAPI, JavaScript, and React",
+        "Experience with relational databases and cloud platforms",
+        "Strong understanding of web architecture, REST APIs, and microservices",
+        "Familiarity with Docker, CI/CD, and testing frameworks",
+        "Ability to take ownership and deliver end-to-end solutions"
+      ],
+      "template_text": "We are seeking a Mid-Level Fullstack Engineer skilled in Python, FastAPI, and React to build robust, end-to-end applications. The ideal candidate is collaborative, adaptable, and experienced in scalable software development.",
+      "metadata": {
+        "source": "standard_library",
+        "version": 1.0,
+        "created_at": "2025-09-26T16:10:00Z"
+      }
+    },
+    "stored_at": "2025-09-28T15:36:07.974070"
+  },
+  "jd_software_backend_mid_002": {
+    "content": {
+      "id": "jd_software_backend_mid_002",
+      "title": "Backend Engineer",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "backend",
+      "level": "mid",
+      "skills": {
+        "technical": [
+          "Java",
+          "Spring Boot",
+          "SQL",
+          "REST APIs",
+          "Docker",
+          "AWS"
+        ],
+        "cognitive": [
+          "System design",
+          "Problem-solving"
+        ],
+        "values": [
+          "Collaboration",
+          "Ownership"
+        ],
+        "leadership": []
+      },
+      "education": {
+        "required": [
+          "Bachelor's in Computer Science or related field"
+        ]
+      },
+      "experience": {
+        "min_years": 3,
+        "max_years": 5
+      },
+      "responsibilities": [
+        "Develop and maintain backend services using Java and Spring Boot",
+        "Design database schemas and optimize queries",
+        "Implement RESTful APIs and microservices",
+        "Collaborate with frontend engineers and DevOps teams"
+      ],
+      "requirements": [
+        "Strong knowledge of Java and Spring Boot",
+        "Experience with SQL and NoSQL databases",
+        "Familiarity with cloud platforms and containerization"
+      ],
+      "template_text": "We are seeking a Mid-Level Backend Engineer with expertise in Java and Spring Boot to build scalable backend services and APIs.",
+      "metadata": {
+        "source": "standard_library",
+        "version": 1.0,
+        "created_at": "2025-09-26T16:20:00Z"
+      }
+    },
+    "stored_at": "2025-09-28T15:36:11.180711"
+  },
+  "jd_software_frontend_mid_002": {
+    "content": {
+      "id": "jd_software_frontend_mid_002",
+      "title": "Frontend Engineer",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "frontend",
+      "level": "mid",
+      "skills": {
+        "technical": [
+          "React",
+          "TypeScript",
+          "HTML5",
+          "CSS3",
+          "REST APIs",
+          "Jest",
+          "Cypress"
+        ],
+        "cognitive": [
+          "UI/UX understanding",
+          "Problem-solving"
+        ],
+        "values": [
+          "Collaboration",
+          "Attention to detail"
+        ],
+        "leadership": []
+      },
+      "education": {
+        "required": [
+          "Bachelor's in Computer Science or related field"
+        ]
+      },
+      "experience": {
+        "min_years": 3,
+        "max_years": 5
+      },
+      "responsibilities": [
+        "Develop responsive web applications using React and TypeScript",
+        "Implement UI components and optimize performance",
+        "Collaborate with backend engineers to integrate APIs",
+        "Ensure cross-browser and accessibility compliance"
+      ],
+      "requirements": [
+        "Strong proficiency in React and TypeScript",
+        "Experience with CSS frameworks and testing tools",
+        "Knowledge of REST APIs and frontend architecture"
+      ],
+      "template_text": "We are seeking a Mid-Level Frontend Engineer skilled in React and TypeScript to build high-quality, responsive interfaces.",
+      "metadata": {
+        "source": "standard_library",
+        "version": 1.0,
+        "created_at": "2025-09-26T16:25:00Z"
+      }
+    },
+    "stored_at": "2025-09-28T15:36:15.451387"
+  },
+  "jd_software_fullstack_mid_002": {
+    "content": {
+      "id": "jd_software_fullstack_mid_002",
+      "title": "Fullstack Engineer",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "mid",
+      "skills": {
+        "technical": [
+          "Python",
+          "FastAPI",
+          "React",
+          "SQL",
+          "Docker",
+          "AWS"
+        ],
+        "cognitive": [
+          "System design",
+          "End-to-end problem solving"
+        ],
+        "values": [
+          "Collaboration",
+          "Ownership"
+        ],
+        "leadership": []
+      },
+      "education": {
+        "required": [
+          "Bachelor's in Computer Science or related field"
+        ]
+      },
+      "experience": {
+        "min_years": 3,
+        "max_years": 6
+      },
+      "responsibilities": [
+        "Build scalable frontend and backend systems",
+        "Integrate APIs and services across the stack",
+        "Maintain high code quality and CI/CD practices",
+        "Collaborate across teams to deliver features end-to-end"
+      ],
+      "requirements": [
+        "Proficiency in Python, FastAPI, and React",
+        "Experience with relational databases and cloud platforms",
+        "Strong understanding of web architecture and microservices"
+      ],
+      "template_text": "We are seeking a Mid-Level Fullstack Engineer skilled in Python, FastAPI, and React to develop robust end-to-end applications.",
+      "metadata": {
+        "source": "standard_library",
+        "version": 1.0,
+        "created_at": "2025-09-26T16:30:00Z"
+      }
+    },
+    "stored_at": "2025-09-28T15:36:22.087318"
+  },
+  "jd_software_fullstack_mid_003": {
+    "content": {
+      "id": "jd_software_fullstack_mid_003",
+      "title": "Fullstack Engineer",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "mid",
+      "skills": {
+        "technical": [
+          "Java",
+          "Spring Boot",
+          "Angular",
+          "SQL",
+          "REST APIs",
+          "Docker"
+        ],
+        "cognitive": [
+          "System integration",
+          "Problem-solving"
+        ],
+        "values": [
+          "Collaboration",
+          "Adaptability"
+        ],
+        "leadership": []
+      },
+      "education": {
+        "required": [
+          "Bachelor's in Computer Science or related field"
+        ]
+      },
+      "experience": {
+        "min_years": 3,
+        "max_years": 6
+      },
+      "responsibilities": [
+        "Develop and maintain fullstack applications using Java/Spring Boot and Angular",
+        "Integrate frontend with backend APIs",
+        "Design scalable services and optimize performance",
+        "Participate in code reviews and ensure best practices"
+      ],
+      "requirements": [
+        "Strong knowledge of Java, Spring Boot, Angular",
+        "Experience with SQL databases",
+        "Understanding of RESTful services and microservices architecture"
+      ],
+      "template_text": "We are seeking a Mid-Level Fullstack Engineer skilled in Java, Spring Boot, and Angular to deliver end-to-end solutions.",
+      "metadata": {
+        "source": "standard_library",
+        "version": 1.0,
+        "created_at": "2025-09-26T16:35:00Z"
+      }
+    },
+    "stored_at": "2025-09-28T15:36:25.189126"
+  },
+  "jd_software_devops_mid_001": {
+    "content": {
+      "id": "jd_software_devops_mid_001",
+      "title": "DevOps Engineer",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "devops",
+      "level": "mid",
+      "skills": {
+        "technical": [
+          "AWS",
+          "Docker",
+          "Kubernetes",
+          "Terraform",
+          "CI/CD pipelines",
+          "Linux"
+        ],
+        "cognitive": [
+          "Problem-solving",
+          "Automation design"
+        ],
+        "values": [
+          "Reliability",
+          "Collaboration"
+        ],
+        "leadership": []
+      },
+      "education": {
+        "required": [
+          "Bachelor's in Computer Science or related field"
+        ]
+      },
+      "experience": {
+        "min_years": 3,
+        "max_years": 5
+      },
+      "responsibilities": [
+        "Design, implement, and maintain CI/CD pipelines",
+        "Automate deployment and infrastructure provisioning",
+        "Monitor and optimize system performance and reliability",
+        "Collaborate with developers to support application lifecycle"
+      ],
+      "requirements": [
+        "Hands-on experience with AWS, Docker, and Kubernetes",
+        "Knowledge of infrastructure-as-code tools (Terraform/Ansible)",
+        "Strong scripting skills (Python/Bash)"
+      ],
+      "template_text": "We are seeking a Mid-Level DevOps Engineer to design CI/CD pipelines, automate deployments, and ensure system reliability.",
+      "metadata": {
+        "source": "standard_library",
+        "version": 1.0,
+        "created_at": "2025-09-26T16:40:00Z"
+      }
+    },
+    "stored_at": "2025-09-28T15:36:29.099190"
+  },
+  "jd_software_ml_mid_001": {
+    "content": {
+      "id": "jd_software_ml_mid_001",
+      "title": "Machine Learning Engineer",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "ml_engineer",
+      "level": "mid",
+      "skills": {
+        "technical": [
+          "Python",
+          "PyTorch",
+          "TensorFlow",
+          "SQL",
+          "Data pipelines",
+          "Model deployment"
+        ],
+        "cognitive": [
+          "Problem-solving",
+          "Data modeling",
+          "Algorithm design"
+        ],
+        "values": [
+          "Collaboration",
+          "Ownership"
+        ],
+        "leadership": []
+      },
+      "education": {
+        "required": [
+          "Bachelor's in Computer Science, Statistics, or related field"
+        ]
+      },
+      "experience": {
+        "min_years": 3,
+        "max_years": 5
+      },
+      "responsibilities": [
+        "Design, train, and deploy ML models",
+        "Develop data pipelines and preprocessing scripts",
+        "Collaborate with engineers and product teams for model integration",
+        "Monitor and optimize model performance"
+      ],
+      "requirements": [
+        "Proficiency in Python and ML frameworks (PyTorch/TensorFlow)",
+        "Experience with SQL and data processing pipelines",
+        "Knowledge of model deployment best practices"
+      ],
+      "template_text": "We are seeking a Mid-Level Machine Learning Engineer skilled in Python and ML frameworks to design, deploy, and optimize ML models.",
+      "metadata": {
+        "source": "standard_library",
+        "version": 1.0,
+        "created_at": "2025-09-26T16:45:00Z"
+      }
+    },
+    "stored_at": "2025-09-28T15:36:33.331242"
+  },
+  "jd_software_data_mid_001": {
+    "content": {
+      "id": "jd_software_data_mid_001",
+      "title": "Data Engineer",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "data_engineer",
+      "level": "mid",
+      "skills": {
+        "technical": [
+          "Python",
+          "SQL",
+          "ETL pipelines",
+          "Airflow",
+          "AWS",
+          "BigQuery"
+        ],
+        "cognitive": [
+          "Data modeling",
+          "Problem-solving",
+          "System design"
+        ],
+        "values": [
+          "Collaboration",
+          "Accuracy"
+        ],
+        "leadership": []
+      },
+      "education": {
+        "required": [
+          "Bachelor's in Computer Science, Data Science, or related field"
+        ]
+      },
+      "experience": {
+        "min_years": 3,
+        "max_years": 5
+      },
+      "responsibilities": [
+        "Design and maintain data pipelines and ETL processes",
+        "Ensure data quality and consistency across sources",
+        "Collaborate with ML engineers and analysts",
+        "Optimize queries and storage for performance"
+      ],
+      "requirements": [
+        "Strong SQL and Python skills",
+        "Experience with ETL frameworks and cloud data warehouses",
+        "Understanding of data modeling and data governance"
+      ],
+      "template_text": "We are seeking a Mid-Level Data Engineer skilled in Python and SQL to design and maintain scalable data pipelines.",
+      "metadata": {
+        "source": "standard_library",
+        "version": 1.0,
+        "created_at": "2025-09-26T16:50:00Z"
+      }
+    },
+    "stored_at": "2025-09-28T15:36:36.857128"
+  },
+  "jd_software_mobile_mid_001": {
+    "content": {
+      "id": "jd_software_mobile_mid_001",
+      "title": "Mobile Engineer (iOS)",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "mobile",
+      "level": "mid",
+      "skills": {
+        "technical": [
+          "Swift",
+          "Xcode",
+          "iOS SDK",
+          "REST APIs",
+          "Unit testing"
+        ],
+        "cognitive": [
+          "Problem-solving",
+          "UI/UX understanding"
+        ],
+        "values": [
+          "Collaboration",
+          "Attention to detail"
+        ],
+        "leadership": []
+      },
+      "education": {
+        "required": [
+          "Bachelor's in Computer Science or related field"
+        ]
+      },
+      "experience": {
+        "min_years": 3,
+        "max_years": 5
+      },
+      "responsibilities": [
+        "Develop and maintain iOS applications",
+        "Implement new features based on requirements",
+        "Collaborate with backend engineers for API integration",
+        "Ensure app performance, security, and responsiveness"
+      ],
+      "requirements": [
+        "Proficiency in Swift and iOS development tools",
+        "Experience with REST APIs and mobile UI frameworks",
+        "Strong debugging and testing skills"
+      ],
+      "template_text": "We are seeking a Mid-Level iOS Engineer skilled in Swift to develop and maintain high-quality mobile applications.",
+      "metadata": {
+        "source": "standard_library",
+        "version": 1.0,
+        "created_at": "2025-09-26T16:55:00Z"
+      }
+    },
+    "stored_at": "2025-09-28T15:36:39.377487"
+  },
+  "jd_software_mobile_mid_002": {
+    "content": {
+      "id": "jd_software_mobile_mid_002",
+      "title": "Mobile Engineer (Android)",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "mobile",
+      "level": "mid",
+      "skills": {
+        "technical": [
+          "Kotlin",
+          "Android SDK",
+          "REST APIs",
+          "Unit testing"
+        ],
+        "cognitive": [
+          "Problem-solving",
+          "UI/UX understanding"
+        ],
+        "values": [
+          "Collaboration",
+          "Attention to detail"
+        ],
+        "leadership": []
+      },
+      "education": {
+        "required": [
+          "Bachelor's in Computer Science or related field"
+        ]
+      },
+      "experience": {
+        "min_years": 3,
+        "max_years": 5
+      },
+      "responsibilities": [
+        "Develop and maintain Android applications",
+        "Implement features based on product requirements",
+        "Collaborate with backend engineers for API integration",
+        "Ensure app performance, security, and responsiveness"
+      ],
+      "requirements": [
+        "Proficiency in Kotlin and Android development tools",
+        "Experience with REST APIs and mobile UI frameworks",
+        "Strong debugging and testing skills"
+      ],
+      "template_text": "We are seeking a Mid-Level Android Engineer skilled in Kotlin to develop and maintain high-quality mobile applications.",
+      "metadata": {
+        "source": "standard_library",
+        "version": 1.0,
+        "created_at": "2025-09-26T17:00:00Z"
+      }
+    },
+    "stored_at": "2025-09-28T15:36:41.674175"
+  },
+  "jd_software_sre_mid_001": {
+    "content": {
+      "id": "jd_software_sre_mid_001",
+      "title": "Site Reliability Engineer",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "sre",
+      "level": "mid",
+      "skills": {
+        "technical": [
+          "Linux",
+          "Kubernetes",
+          "Terraform",
+          "AWS",
+          "Monitoring/Logging tools",
+          "CI/CD pipelines"
+        ],
+        "cognitive": [
+          "Problem-solving",
+          "System design",
+          "Incident response"
+        ],
+        "values": [
+          "Reliability",
+          "Collaboration"
+        ],
+        "leadership": []
+      },
+      "education": {
+        "required": [
+          "Bachelor's in Computer Science or related field"
+        ]
+      },
+      "experience": {
+        "min_years": 3,
+        "max_years": 6
+      },
+      "responsibilities": [
+        "Ensure availability, reliability, and performance of production systems",
+        "Design monitoring, alerting, and automated remediation tools",
+        "Collaborate with engineering teams for deployment and scaling",
+        "Participate in on-call rotation and incident response"
+      ],
+      "requirements": [
+        "Hands-on experience with cloud infrastructure and container orchestration",
+        "Knowledge of CI/CD pipelines and automation",
+        "Strong scripting and troubleshooting skills"
+      ],
+      "template_text": "We are seeking a Mid-Level Site Reliability Engineer to maintain high availability, scalability, and performance of production systems.",
+      "metadata": {
+        "source": "standard_library",
+        "version": 1.0,
+        "created_at": "2025-09-26T17:05:00Z"
+      }
+    },
+    "stored_at": "2025-09-28T15:36:43.700892"
+  },
+  "jd_d47fc96b4ff0": {
+    "content": {
+      "jd_id": "jd_software_fullstack_junior_001",
+      "title": "Junior Software Engineer – Full-Stack (E-Commerce)",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "junior",
+      "skills": [
+        "React",
+        "Next.js",
+        "Node.js",
+        "SQL",
+        "MongoDB",
+        "REST APIs",
+        "Payment gateway integration",
+        "Testing",
+        "Collaboration",
+        "Problem-solving"
+      ],
+      "experience": {
+        "min_years": 0,
+        "max_years": 2,
+        "description": "0–2 years of full-stack web development experience, ideally in e-commerce"
+      },
+      "responsibilities": [
+        "Implement web pages using Next.js/React with reusable components",
+        "Build secure APIs for product, order, and payment flows",
+        "Collaborate with QA to ensure test coverage and reliability",
+        "Troubleshoot customer-facing issues and improve site performance",
+        "Document technical designs and workflows"
+      ],
+      "requirements": [
+        "Knowledge of React or Next.js and Node.js",
+        "Understanding of databases (SQL or MongoDB)",
+        "Familiarity with payment gateways and RESTful APIs is a plus",
+        "Strong collaboration and learning mindset"
+      ],
+      "template_text": "We are seeking a Junior Full-Stack Engineer to build scalable e-commerce features, APIs, and user-facing components. The ideal candidate is eager to learn, collaborative, and excited about improving site performance."
+    },
+    "stored_at": "2025-10-06T04:08:25.731081"
+  },
+  "jd_48e424aa505b": {
+    "content": {
+      "jd_id": "jd_software_fullstack_junior_002",
+      "title": "Junior Full-Stack Developer (Fresher-Friendly)",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "junior",
+      "skills": [
+        "React",
+        "TailwindCSS",
+        "Node.js",
+        "REST APIs",
+        "SQL",
+        "Git",
+        "Testing",
+        "Documentation",
+        "Problem-solving",
+        "Communication"
+      ],
+      "experience": {
+        "min_years": 0,
+        "max_years": 1,
+        "description": "Entry-level, suitable for fresh graduates with exposure to web technologies"
+      },
+      "responsibilities": [
+        "Assist in developing front-end interfaces using React and TailwindCSS",
+        "Support back-end service development in Node.js and integrate APIs",
+        "Contribute to documentation, testing, and DevOps workflows",
+        "Learn best practices in code versioning, testing, and agile delivery",
+        "Bring fresh ideas to improve usability and developer productivity"
+      ],
+      "requirements": [
+        "Passion for building products and eagerness to learn",
+        "Some exposure to web technologies through college projects or bootcamps",
+        "Basic understanding of Git, REST APIs, and databases",
+        "Good problem-solving and communication skills"
+      ],
+      "template_text": "We welcome fresh graduates to join as Junior Full-Stack Developers. You’ll contribute to front-end and back-end development, testing, and DevOps, while learning best practices in a collaborative startup environment."
+    },
+    "stored_at": "2025-10-06T04:08:32.449201"
+  },
+  "jd_8635df044a08": {
+    "content": {
+      "jd_id": "jd_software_fullstack_junior_003",
+      "title": "Junior Software Engineer – Full-Stack (Financial Services)",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "junior",
+      "skills": [
+        "React",
+        "Next.js",
+        "Node.js",
+        "Express.js",
+        "GraphQL",
+        "SQL",
+        "Database optimization",
+        "Testing",
+        "Security awareness",
+        "Collaboration"
+      ],
+      "experience": {
+        "min_years": 0,
+        "max_years": 2,
+        "description": "0–2 years of experience in full-stack development, ideally in financial services or startups"
+      },
+      "responsibilities": [
+        "Develop secure web interfaces and reusable UI components",
+        "Build REST and GraphQL APIs with Node.js and integrate with cloud data sources",
+        "Collaborate with QA to write testable and robust code",
+        "Monitor and troubleshoot production systems",
+        "Participate in design discussions and product demos"
+      ],
+      "requirements": [
+        "Knowledge of React/Next.js and server-side development with Node.js/Express",
+        "Understanding of database fundamentals (SQL, indexing, transactions)",
+        "Basic awareness of security and compliance for handling sensitive data",
+        "Enthusiastic about working in a fast-paced startup environment"
+      ],
+      "template_text": "We are hiring a Junior Full-Stack Engineer to modernize financial services with secure interfaces, APIs, and cloud-integrated systems. Ideal candidates are enthusiastic about startups and eager to grow their full-stack expertise."
+    },
+    "stored_at": "2025-10-06T04:08:34.523949"
+  },
+  "jd_9ad5e1c6db5b": {
+    "content": {
+      "jd_id": "jd_software_fullstack_junior_004",
+      "title": "Full-Stack Engineer (Entry Level)",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "junior",
+      "skills": [
+        "JavaScript",
+        "TypeScript",
+        "React",
+        "Node.js",
+        "Python",
+        "Go",
+        "REST APIs",
+        "Git",
+        "Cloud platforms (AWS, Azure, GCP)",
+        "Communication",
+        "Remote collaboration"
+      ],
+      "experience": {
+        "min_years": 0,
+        "max_years": 1,
+        "description": "Entry-level role for freshers or candidates with internships/personal projects"
+      },
+      "responsibilities": [
+        "Design, build, and maintain features in React and Node.js with mentorship",
+        "Write clean, maintainable, and well-documented code",
+        "Participate in code reviews, sprint planning, and team stand-ups",
+        "Learn cloud platforms (AWS/Azure/GCP) and DevOps practices",
+        "Contribute to building a strong engineering culture"
+      ],
+      "requirements": [
+        "Some exposure to full-stack projects via coursework, internships, or personal projects",
+        "Proficiency in JavaScript/TypeScript; Python or Go is a plus",
+        "Familiarity with Git and REST APIs",
+        "Strong communication skills and ability to work remotely"
+      ],
+      "template_text": "We are hiring an Entry-Level Full-Stack Engineer to deliver real features with React and Node.js. This role emphasizes mentorship, cloud learning, and collaboration in a distributed team."
+    },
+    "stored_at": "2025-10-06T04:08:36.386861"
+  },
+  "jd_16ab821fbe26": {
+    "content": {
+      "jd_id": "jd_software_fullstack_junior_005",
+      "title": "Junior Full-Stack Developer",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "junior",
+      "skills": [
+        "JavaScript",
+        "TypeScript",
+        "React",
+        "Angular",
+        "Node.js",
+        "Express.js",
+        "HTML",
+        "CSS",
+        "REST APIs",
+        "PostgreSQL",
+        "MySQL",
+        "NoSQL",
+        "Git",
+        "CI/CD",
+        "Agile development",
+        "Problem-solving"
+      ],
+      "experience": {
+        "min_years": 0,
+        "max_years": 2,
+        "description": "0–2 years of experience in full-stack web development, SaaS applications preferred"
+      },
+      "responsibilities": [
+        "Implement user interfaces with React and responsive design",
+        "Build RESTful APIs and microservices with Node.js and Express",
+        "Integrate APIs and third-party services into the application",
+        "Write automated tests and contribute to CI/CD pipelines",
+        "Troubleshoot issues, optimize performance, and ensure security compliance"
+      ],
+      "requirements": [
+        "Proficiency in JavaScript/TypeScript, HTML, CSS",
+        "Hands-on experience with React or Angular and Node.js",
+        "Understanding of relational (PostgreSQL/MySQL) or NoSQL databases",
+        "Familiarity with Git and agile development workflows",
+        "Good problem-solving skills and teamwork mindset"
+      ],
+      "template_text": "We are looking for a Junior Full-Stack Developer to contribute to scalable SaaS applications. You will work with React, Node.js, and databases while learning modern development and DevOps practices."
+    },
+    "stored_at": "2025-10-06T04:08:38.601197"
+  },
+  "jd_40999a87d2fc": {
+    "content": {
+      "jd_id": "jd_software_fullstack_junior_006",
+      "title": "Junior Full-Stack Software Engineer",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "junior",
+      "skills": [
+        "JavaScript",
+        "TypeScript",
+        "HTML5",
+        "CSS3",
+        "React",
+        "Angular",
+        "Vue",
+        "Node.js",
+        "Express.js",
+        "REST APIs",
+        "SQL",
+        "NoSQL",
+        "Git",
+        "Testing",
+        "CI/CD"
+      ],
+      "experience": {
+        "min_years": 0,
+        "max_years": 2,
+        "description": "0–2 years of experience in full-stack development or strong project/internship experience"
+      },
+      "responsibilities": [
+        "Develop, test, and deploy front-end and back-end components",
+        "Collaborate with product designers and senior engineers to ship new features",
+        "Maintain code quality and follow best practices (reviews, testing, CI/CD)",
+        "Debug issues and support production systems",
+        "Learn quickly and contribute to improving development processes"
+      ],
+      "requirements": [
+        "Bachelor’s degree in Computer Science or related field (or equivalent experience/projects)",
+        "Strong understanding of JavaScript/TypeScript, HTML5, CSS3",
+        "Familiarity with React, Angular, or Vue",
+        "Basic experience with Node.js, Express, REST APIs, and SQL/NoSQL databases",
+        "Knowledge of Git and command-line tools",
+        "Eagerness to learn and grow in a collaborative environment"
+      ],
+      "template_text": "We are hiring a Junior Full-Stack Software Engineer to build features, debug systems, and contribute to CI/CD workflows. The role is ideal for motivated individuals eager to learn modern full-stack practices."
+    },
+    "stored_at": "2025-10-06T04:08:40.840481"
+  },
+  "jd_d99cbf008621": {
+    "content": {
+      "jd_id": "jd_software_fullstack_junior_007",
+      "title": "Junior Full-Stack Engineer – Gaming / Interactive Apps",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack_gaming",
+      "level": "junior",
+      "skills": [
+        "JavaScript",
+        "TypeScript",
+        "React",
+        "WebGL",
+        "Node.js",
+        "REST APIs",
+        "Performance optimization",
+        "Problem-solving",
+        "Team collaboration"
+      ],
+      "experience": {
+        "min_years": 0,
+        "max_years": 2,
+        "description": "0–2 years of experience in full-stack or gaming development projects"
+      },
+      "responsibilities": [
+        "Develop interactive UIs with React and WebGL libraries",
+        "Build APIs for player profiles, leaderboards, and matchmaking",
+        "Optimize app performance for real-time multiplayer experiences",
+        "Collaborate with game designers and testers to enhance gameplay",
+        "Learn about game engine integrations and cloud scalability"
+      ],
+      "requirements": [
+        "Proficiency in JavaScript/TypeScript and React",
+        "Exposure to Node.js and REST APIs",
+        "Interest in gaming technologies and performance optimization",
+        "Strong problem-solving and teamwork mindset"
+      ],
+      "template_text": "We are looking for a Junior Full-Stack Engineer passionate about gaming. You’ll build UIs, APIs, and real-time features for multiplayer platforms while learning about scalability and engine integrations."
+    },
+    "stored_at": "2025-10-06T04:08:43.091096"
+  },
+  "jd_c68f98a8135b": {
+    "content": {
+      "jd_id": "jd_software_fullstack_junior_008",
+      "title": "Junior Full-Stack Developer – Cybersecurity Product",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack_cybersecurity",
+      "level": "junior",
+      "skills": [
+        "JavaScript",
+        "TypeScript",
+        "React",
+        "Node.js",
+        "REST APIs",
+        "Security concepts (encryption, authentication)",
+        "Secure coding",
+        "Testing",
+        "Cloud security basics"
+      ],
+      "experience": {
+        "min_years": 0,
+        "max_years": 2,
+        "description": "0–2 years of experience in full-stack development or security-related projects"
+      },
+      "responsibilities": [
+        "Develop secure front-end interfaces for dashboards and reporting",
+        "Build APIs for authentication, monitoring, and threat analytics",
+        "Follow best practices in secure coding and testing",
+        "Collaborate with product and QA to enhance security modules",
+        "Learn cloud-native security and compliance practices"
+      ],
+      "requirements": [
+        "Strong fundamentals in JavaScript/TypeScript",
+        "Exposure to React and Node.js",
+        "Basic understanding of security concepts (encryption, authentication)",
+        "Willingness to learn cloud and compliance standards"
+      ],
+      "template_text": "Join our cybersecurity product team as a Junior Full-Stack Developer to build secure dashboards, APIs, and SaaS modules. You’ll apply security best practices and gain exposure to cloud-native compliance."
+    },
+    "stored_at": "2025-10-06T04:08:44.595151"
+  },
+  "jd_7e963a1e5df0": {
+    "content": {
+      "jd_id": "jd_software_fullstack_junior_009",
+      "title": "Junior Full-Stack Engineer – Logistics / Supply-Chain",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack_logistics",
+      "level": "junior",
+      "skills": [
+        "React",
+        "Node.js",
+        "Express.js",
+        "REST APIs",
+        "Databases",
+        "Cloud platforms",
+        "GPS/IoT data integration",
+        "Problem-solving"
+      ],
+      "experience": {
+        "min_years": 0,
+        "max_years": 2,
+        "description": "0–2 years of experience in web development or interest in logistics technology"
+      },
+      "responsibilities": [
+        "Build APIs for logistics workflows and real-time tracking",
+        "Develop dashboards with React for analytics and operations",
+        "Integrate GPS and IoT device data into applications",
+        "Collaborate with QA to ensure robust and tested features",
+        "Contribute to improving scalability and performance"
+      ],
+      "requirements": [
+        "Knowledge of React and Node.js/Express",
+        "Basic understanding of APIs, databases, and cloud platforms",
+        "Interest in supply-chain tech and real-time data processing",
+        "Problem-solving mindset and eagerness to learn"
+      ],
+      "template_text": "We are seeking a Junior Full-Stack Engineer to develop logistics applications involving APIs, dashboards, and real-time tracking. Ideal for candidates interested in supply-chain and IoT-driven technologies."
+    },
+    "stored_at": "2025-10-06T04:08:46.367203"
+  },
+  "jd_software_fullstack_junior_010": {
+    "content": {
+      "id": "jd_software_fullstack_junior_010",
+      "title": "Junior Full-Stack Engineer – Media & Entertainment",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "junior",
+      "skills": {
+        "technical": [
+          "React",
+          "Next.js",
+          "Node.js",
+          "REST APIs",
+          "AWS",
+          "Azure"
+        ],
+        "cognitive": [
+          "Problem-solving",
+          "Debugging",
+          "Performance optimization"
+        ],
+        "values": [
+          "Collaboration",
+          "Learning mindset",
+          "Communication"
+        ],
+        "leadership": []
+      },
+      "education": {
+        "required": [
+          "Bachelor's in Computer Science, IT, or related field"
+        ],
+        "preferred": []
+      },
+      "experience": {
+        "min_years": 0,
+        "max_years": 2,
+        "description": "0–2 years of full-stack software development experience"
+      },
+      "responsibilities": [
+        "Develop responsive UIs for video and media consumption",
+        "Build APIs for content management and subscription workflows",
+        "Optimize performance for high-traffic streaming services",
+        "Collaborate with designers and QA to improve user experience",
+        "Learn cloud-based media delivery and CDN technologies"
+      ],
+      "requirements": [
+        "Knowledge of React/Next.js and Node.js",
+        "Basic experience with REST APIs and cloud hosting (AWS or Azure)",
+        "Interest in video streaming and content distribution",
+        "Ability to debug and communicate effectively"
+      ],
+      "template_text": "We are seeking a Junior Full-Stack Engineer to join our Media & Entertainment team. You will work with React, Node.js, and cloud hosting platforms to build video streaming and content delivery features while collaborating closely with designers and QA. This role is ideal for candidates eager to learn performance optimization and media technologies.",
+      "metadata": {
+        "source": "user_provided",
+        "version": 1.0,
+        "created_at": "2025-10-03T12:30:00Z"
+      }
+    },
+    "stored_at": "2025-10-06T04:08:48.463459"
+  },
+  "jd_software_fullstack_junior_011": {
+    "content": {
+      "id": "jd_software_fullstack_junior_011",
+      "title": "Junior Full-Stack Software Engineer – Enterprise Apps",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "junior",
+      "skills": {
+        "technical": [
+          "Angular",
+          "React",
+          "Node.js",
+          "Java",
+          "PostgreSQL",
+          "MySQL",
+          "Unit testing"
+        ],
+        "cognitive": [
+          "Structured problem-solving",
+          "Testing mindset",
+          "Documentation"
+        ],
+        "values": [
+          "Collaboration",
+          "Discipline",
+          "Learning attitude"
+        ],
+        "leadership": []
+      },
+      "education": {
+        "required": [
+          "Degree in Computer Science, IT, or equivalent technical training"
+        ],
+        "preferred": []
+      },
+      "experience": {
+        "min_years": 0,
+        "max_years": 2,
+        "description": "0–2 years of programming experience in full-stack development"
+      },
+      "responsibilities": [
+        "Develop front-end components with Angular or React",
+        "Implement secure server-side modules with Java or Node.js",
+        "Write unit tests and assist in integration testing",
+        "Follow project delivery processes and documentation standards",
+        "Collaborate with DevOps and QA teams"
+      ],
+      "requirements": [
+        "Basic programming experience in JavaScript and either Node.js or Java",
+        "Familiarity with relational databases (PostgreSQL/MySQL)",
+        "Ability to work within structured processes and deadlines"
+      ],
+      "template_text": "We are looking for a Junior Full-Stack Software Engineer to contribute to enterprise and government applications. You will gain experience in Angular, React, Java, Node.js, and databases while working in structured delivery environments with QA and DevOps teams.",
+      "metadata": {
+        "source": "user_provided",
+        "version": 1.0,
+        "created_at": "2025-10-03T12:30:00Z"
+      }
+    },
+    "stored_at": "2025-10-06T04:08:50.361977"
+  },
+  "jd_software_fullstack_junior_012": {
+    "content": {
+      "id": "jd_software_fullstack_junior_012",
+      "title": "Junior Full-Stack Developer – AI-Powered Apps",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "junior",
+      "skills": {
+        "technical": [
+          "React",
+          "Node.js",
+          "TypeScript",
+          "JavaScript",
+          "Python",
+          "REST APIs",
+          "GraphQL"
+        ],
+        "cognitive": [
+          "Analytical thinking",
+          "Problem-solving",
+          "Eagerness to learn AI/ML"
+        ],
+        "values": [
+          "Collaboration",
+          "Curiosity",
+          "Adaptability"
+        ],
+        "leadership": []
+      },
+      "education": {
+        "required": [
+          "Bachelor's in Computer Science, IT, or related field"
+        ],
+        "preferred": []
+      },
+      "experience": {
+        "min_years": 0,
+        "max_years": 2,
+        "description": "0–2 years of experience in full-stack or AI-driven app development"
+      },
+      "responsibilities": [
+        "Integrate ML APIs into web applications",
+        "Build dashboards and visualization tools using React",
+        "Develop and maintain RESTful and GraphQL APIs",
+        "Collaborate with data scientists to productionize models",
+        "Participate in optimizing app performance and usability"
+      ],
+      "requirements": [
+        "Knowledge of JavaScript/TypeScript, React, and Node.js",
+        "Familiarity with Python is a plus",
+        "Basic understanding of REST APIs, JSON, and cloud hosting",
+        "Enthusiasm for learning AI/ML concepts"
+      ],
+      "template_text": "We are seeking a Junior Full-Stack Developer to build AI-powered applications. You will integrate ML APIs, build dashboards, and collaborate with data scientists, while developing REST and GraphQL services in React and Node.js.",
+      "metadata": {
+        "source": "user_provided",
+        "version": 1.0,
+        "created_at": "2025-10-03T12:30:00Z"
+      }
+    },
+    "stored_at": "2025-10-06T04:08:52.428951"
+  },
+  "jd_software_fullstack_junior_013": {
+    "content": {
+      "id": "jd_software_fullstack_junior_013",
+      "title": "Junior Full-Stack Engineer – HealthTech",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "junior",
+      "skills": {
+        "technical": [
+          "React",
+          "Node.js",
+          "SQL",
+          "NoSQL",
+          "Web security"
+        ],
+        "cognitive": [
+          "Attention to detail",
+          "Problem-solving",
+          "Testing mindset"
+        ],
+        "values": [
+          "Collaboration",
+          "Privacy awareness",
+          "Communication"
+        ],
+        "leadership": []
+      },
+      "education": {
+        "required": [
+          "Bachelor's in Computer Science, IT, or related field"
+        ],
+        "preferred": []
+      },
+      "experience": {
+        "min_years": 0,
+        "max_years": 2,
+        "description": "0–2 years of experience in full-stack software development"
+      },
+      "responsibilities": [
+        "Build and maintain secure and compliant web applications",
+        "Develop new modules for patient data and analytics dashboards",
+        "Collaborate with product team to understand healthcare workflows",
+        "Participate in code reviews, testing, and deployment",
+        "Learn best practices in data privacy and security"
+      ],
+      "requirements": [
+        "Basic experience with React, Node.js, and SQL/NoSQL databases",
+        "Awareness of data handling and privacy standards",
+        "Ability to work in distributed team setups",
+        "Good communication and documentation skills"
+      ],
+      "template_text": "We are hiring a Junior Full-Stack Engineer to work on SaaS solutions in healthcare. You will develop secure applications, analytics dashboards, and collaborate on privacy-compliant workflows using React, Node.js, and databases.",
+      "metadata": {
+        "source": "user_provided",
+        "version": 1.0,
+        "created_at": "2025-10-03T12:30:00Z"
+      }
+    },
+    "stored_at": "2025-10-06T04:08:54.989025"
+  },
+  "jd_software_fullstack_junior_014": {
+    "content": {
+      "id": "jd_software_fullstack_junior_014",
+      "title": "Junior Full-Stack Developer – Social Media / Community Platform",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "junior",
+      "skills": {
+        "technical": [
+          "React",
+          "Next.js",
+          "Node.js",
+          "WebSockets",
+          "APIs"
+        ],
+        "cognitive": [
+          "Debugging",
+          "Problem-solving",
+          "Scalable thinking"
+        ],
+        "values": [
+          "Collaboration",
+          "Adaptability",
+          "Communication"
+        ],
+        "leadership": []
+      },
+      "education": {
+        "required": [
+          "Bachelor's in Computer Science, IT, or related field"
+        ],
+        "preferred": []
+      },
+      "experience": {
+        "min_years": 0,
+        "max_years": 2,
+        "description": "0–2 years of experience in full-stack development for web platforms"
+      },
+      "responsibilities": [
+        "Develop responsive UIs for feeds and user profiles",
+        "Build APIs for real-time messaging and content sharing",
+        "Integrate push notifications and third-party APIs",
+        "Contribute to backend performance tuning",
+        "Learn scalable architectures and cloud deployment"
+      ],
+      "requirements": [
+        "Knowledge of React/Next.js and Node.js",
+        "Exposure to WebSockets or real-time communication APIs is a plus",
+        "Strong debugging and collaboration skills",
+        "Passion for social media technologies"
+      ],
+      "template_text": "We are looking for a Junior Full-Stack Developer to build features for a social media/community platform. You will work with React, Node.js, and WebSockets to create real-time feeds, messaging, and scalable APIs.",
+      "metadata": {
+        "source": "user_provided",
+        "version": 1.0,
+        "created_at": "2025-10-03T12:30:00Z"
+      }
+    },
+    "stored_at": "2025-10-06T04:08:58.046776"
+  },
+  "jd_software_fullstack_junior_015": {
+    "content": {
+      "id": "jd_software_fullstack_junior_015",
+      "title": "Junior Full-Stack Engineer – Greentech / Sustainability",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "junior",
+      "skills": {
+        "technical": [
+          "React",
+          "Node.js",
+          "APIs",
+          "D3.js",
+          "Chart.js"
+        ],
+        "cognitive": [
+          "Analytical thinking",
+          "Problem-solving",
+          "Debugging"
+        ],
+        "values": [
+          "Impact-driven mindset",
+          "Collaboration",
+          "Curiosity"
+        ],
+        "leadership": []
+      },
+      "education": {
+        "required": [
+          "Bachelor's in Computer Science, IT, or related field"
+        ],
+        "preferred": []
+      },
+      "experience": {
+        "min_years": 0,
+        "max_years": 2,
+        "description": "0–2 years of full-stack experience with focus on analytics and visualization"
+      },
+      "responsibilities": [
+        "Build user-facing dashboards and visualization tools",
+        "Develop APIs for IoT and sensor data integration",
+        "Write efficient and testable code for production workloads",
+        "Collaborate with data scientists to display real-time analytics",
+        "Learn about sustainable tech practices and energy platforms"
+      ],
+      "requirements": [
+        "Experience with React, Node.js, and APIs",
+        "Familiarity with visualization libraries (D3.js, Chart.js) is a plus",
+        "Strong problem-solving and debugging abilities",
+        "Enthusiasm for climate tech and sustainability"
+      ],
+      "template_text": "We are seeking a Junior Full-Stack Engineer to work on sustainability-focused applications. You will build dashboards, APIs, and visualizations with React, Node.js, and data libraries while collaborating with data scientists on energy analytics.",
+      "metadata": {
+        "source": "user_provided",
+        "version": 1.0,
+        "created_at": "2025-10-03T12:30:00Z"
+      }
+    },
+    "stored_at": "2025-10-06T04:09:01.526133"
+  },
+  "jd_software_fullstack_junior_016": {
+    "content": {
+      "id": "jd_software_fullstack_junior_016",
+      "title": "Junior Full-Stack Engineer – Ride-hailing / Mobility",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "junior",
+      "skills": {
+        "technical": [
+          "React",
+          "Node.js",
+          "APIs",
+          "WebSockets",
+          "Mapping APIs"
+        ],
+        "cognitive": [
+          "Problem-solving",
+          "Real-time systems thinking",
+          "Debugging"
+        ],
+        "values": [
+          "Collaboration",
+          "Adaptability",
+          "Communication"
+        ],
+        "leadership": []
+      },
+      "education": {
+        "required": [
+          "Bachelor's in Computer Science, IT, or related field"
+        ],
+        "preferred": []
+      },
+      "experience": {
+        "min_years": 0,
+        "max_years": 2,
+        "description": "0–2 years of experience in full-stack or mobility-focused platforms"
+      },
+      "responsibilities": [
+        "Build interactive UIs for ride booking and tracking",
+        "Develop APIs for trip management, pricing, and payments",
+        "Optimize backend for high-frequency, real-time requests",
+        "Collaborate with product managers for new mobility features",
+        "Learn about geolocation, routing, and optimization systems"
+      ],
+      "requirements": [
+        "Hands-on experience with React and Node.js",
+        "Basic understanding of APIs and WebSockets",
+        "Familiarity with mapping and routing APIs is a plus",
+        "Strong collaboration and learning mindset"
+      ],
+      "template_text": "We are hiring a Junior Full-Stack Engineer to build mobility and ride-hailing apps. You will work on UIs, APIs, and real-time features in React and Node.js while learning about geolocation and routing systems.",
+      "metadata": {
+        "source": "user_provided",
+        "version": 1.0,
+        "created_at": "2025-10-03T12:30:00Z"
+      }
+    },
+    "stored_at": "2025-10-06T04:09:04.058256"
+  },
+  "jd_software_fullstack_junior_017": {
+    "content": {
+      "id": "jd_software_fullstack_junior_017",
+      "title": "Junior Full-Stack Developer – FinOps / Accounting Tech",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "junior",
+      "skills": {
+        "technical": [
+          "React",
+          "Node.js",
+          "REST APIs",
+          "Financial data structures"
+        ],
+        "cognitive": [
+          "Attention to detail",
+          "Problem-solving",
+          "Debugging"
+        ],
+        "values": [
+          "Collaboration",
+          "Accuracy",
+          "Learning mindset"
+        ],
+        "leadership": []
+      },
+      "education": {
+        "required": [
+          "Bachelor's in Computer Science, IT, or related field"
+        ],
+        "preferred": []
+      },
+      "experience": {
+        "min_years": 0,
+        "max_years": 2,
+        "description": "0–2 years of full-stack experience with financial or accounting software is a plus"
+      },
+      "responsibilities": [
+        "Develop front-end features for financial dashboards",
+        "Build APIs for data ingestion and transaction management",
+        "Integrate payment and reconciliation workflows",
+        "Test for accuracy and compliance with financial standards",
+        "Collaborate with QA and product teams"
+      ],
+      "requirements": [
+        "Knowledge of React, Node.js, and REST APIs",
+        "Basic understanding of financial data structures",
+        "Strong problem-solving and debugging abilities",
+        "Willingness to learn compliance and FinOps concepts"
+      ],
+      "template_text": "We are looking for a Junior Full-Stack Developer to contribute to FinOps and accounting technology products. You will work on dashboards, APIs, and workflows in React and Node.js while gaining exposure to financial compliance standards.",
+      "metadata": {
+        "source": "user_provided",
+        "version": 1.0,
+        "created_at": "2025-10-03T12:30:00Z"
+      }
+    },
+    "stored_at": "2025-10-06T04:09:05.906774"
+  },
+  "jd_software_fullstack_junior_018": {
+    "content": {
+      "id": "jd_software_fullstack_junior_018",
+      "title": "Junior Full-Stack Engineer – Blockchain / Web3 Startup",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "junior",
+      "skills": [
+        "JavaScript/TypeScript",
+        "React",
+        "Node.js",
+        "REST/GraphQL APIs",
+        "Web3.js / Ethers.js",
+        "Blockchain fundamentals",
+        "Curiosity to learn emerging decentralized technologies"
+      ],
+      "education": {
+        "required": [],
+        "preferred": []
+      },
+      "experience": {
+        "min_years": 0,
+        "max_years": 2,
+        "description": "Entry-level experience or projects in Web3, blockchain, or full-stack development"
+      },
+      "responsibilities": [
+        "Develop front-end UIs for wallet integration and transactions",
+        "Implement APIs for blockchain data and smart contract interactions",
+        "Collaborate with blockchain engineers to integrate new features",
+        "Ensure app security and smooth user experience",
+        "Learn Web3 frameworks and emerging decentralized technologies"
+      ],
+      "requirements": [
+        "Proficiency in JavaScript/TypeScript and React",
+        "Exposure to Node.js and REST/GraphQL APIs",
+        "Basic knowledge of Web3.js, Ethers.js, or similar libraries",
+        "Curiosity to learn blockchain ecosystems"
+      ],
+      "template_text": "Join a Web3 startup as a Junior Full-Stack Engineer to build decentralized applications, wallet integrations, and smart contract APIs. Ideal candidate is proficient in React and Node.js with a curiosity for blockchain technologies.",
+      "metadata": {
+        "source": "standard_library",
+        "version": 1.0,
+        "created_at": "2025-10-03T11:00:00Z"
+      }
+    },
+    "stored_at": "2025-10-06T04:09:07.487881"
+  },
+  "jd_software_fullstack_junior_019": {
+    "content": {
+      "id": "jd_software_fullstack_junior_019",
+      "title": "Junior Full-Stack Developer – IoT Platform",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "junior",
+      "skills": [
+        "React",
+        "Node.js",
+        "REST APIs",
+        "MQTT or other IoT protocols",
+        "Cloud IoT services (AWS IoT, Azure IoT Hub)",
+        "Collaboration and communication skills"
+      ],
+      "education": {
+        "required": [],
+        "preferred": []
+      },
+      "experience": {
+        "min_years": 0,
+        "max_years": 2,
+        "description": "Entry-level experience with IoT, full-stack projects, or related coursework"
+      },
+      "responsibilities": [
+        "Build interfaces for device monitoring and dashboards",
+        "Develop APIs for device data ingestion and processing",
+        "Collaborate with data engineers for scalable data pipelines",
+        "Test and debug integrations between hardware and software",
+        "Learn cloud IoT services (AWS IoT, Azure IoT Hub)"
+      ],
+      "requirements": [
+        "Knowledge of React, Node.js, and APIs",
+        "Basic understanding of MQTT or other IoT protocols",
+        "Ability to learn fast and work in a hardware-software ecosystem",
+        "Good collaboration and communication skills"
+      ],
+      "template_text": "Work as a Junior Full-Stack Developer on an IoT platform, building dashboards, APIs, and integrations with cloud IoT services. Ideal candidate is proficient in React/Node.js and eager to learn IoT protocols.",
+      "metadata": {
+        "source": "standard_library",
+        "version": 1.0,
+        "created_at": "2025-10-03T11:00:00Z"
+      }
+    },
+    "stored_at": "2025-10-06T04:09:09.138052"
+  },
+  "jd_software_fullstack_junior_020": {
+    "content": {
+      "id": "jd_software_fullstack_junior_020",
+      "title": "Junior Full-Stack Engineer – Remote Collaboration Tools",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "junior",
+      "skills": [
+        "React",
+        "Node.js",
+        "REST APIs",
+        "WebSockets/WebRTC",
+        "Teamwork and problem-solving",
+        "Remote work enablement"
+      ],
+      "education": {
+        "required": [],
+        "preferred": []
+      },
+      "experience": {
+        "min_years": 0,
+        "max_years": 2,
+        "description": "Entry-level experience with full-stack web development or collaborative applications"
+      },
+      "responsibilities": [
+        "Develop real-time collaborative interfaces using React",
+        "Build APIs for chat, file sharing, and notifications",
+        "Optimize for performance and accessibility in remote work settings",
+        "Collaborate with QA and design for usability improvements",
+        "Learn WebRTC and related technologies"
+      ],
+      "requirements": [
+        "Knowledge of React, Node.js, and APIs",
+        "Basic experience with WebSockets or WebRTC",
+        "Strong teamwork and problem-solving abilities",
+        "Interest in enabling remote work through technology"
+      ],
+      "template_text": "Join a remote-first team as a Junior Full-Stack Engineer to build collaborative tools with React, Node.js, and real-time APIs. Ideal candidate is eager to learn WebRTC and optimize remote work experiences.",
+      "metadata": {
+        "source": "standard_library",
+        "version": 1.0,
+        "created_at": "2025-10-03T11:00:00Z"
+      }
+    },
+    "stored_at": "2025-10-06T04:09:12.412203"
+  },
+  "jd_software_fullstack_junior_021": {
+    "content": {
+      "id": "jd_software_fullstack_junior_021",
+      "title": "Junior Full-Stack Developer – Cyber-Physical Security (IoT + Security)",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "junior",
+      "skills": [
+        "React",
+        "Node.js",
+        "REST APIs",
+        "IoT protocols (MQTT, CoAP)",
+        "Problem-solving",
+        "Security-focused mindset"
+      ],
+      "education": {
+        "required": [],
+        "preferred": []
+      },
+      "experience": {
+        "min_years": 0,
+        "max_years": 2,
+        "description": "Entry-level experience in IoT, security, or full-stack development"
+      },
+      "responsibilities": [
+        "Build user interfaces for monitoring devices and alerts",
+        "Develop APIs for data ingestion from IoT devices",
+        "Collaborate with QA for secure and tested workflows",
+        "Integrate notifications and video analytics services",
+        "Learn about edge computing and device-cloud integration"
+      ],
+      "requirements": [
+        "Knowledge of React, Node.js, and APIs",
+        "Basic understanding of IoT protocols (MQTT, CoAP)",
+        "Problem-solving mindset and adaptability",
+        "Interest in security-focused technologies"
+      ],
+      "template_text": "Work on cyber-physical security platforms as a Junior Full-Stack Developer, building IoT interfaces, APIs, and secure workflows. Ideal candidate is proficient in React/Node.js and eager to learn IoT security protocols.",
+      "metadata": {
+        "source": "standard_library",
+        "version": 1.0,
+        "created_at": "2025-10-03T11:00:00Z"
+      }
+    },
+    "stored_at": "2025-10-06T04:09:14.852171"
+  },
+  "jd_software_fullstack_junior_022": {
+    "content": {
+      "id": "jd_software_fullstack_junior_022",
+      "title": "Junior Full-Stack Engineer – Gaming Backend Services",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "junior",
+      "skills": [
+        "Node.js",
+        "React",
+        "APIs",
+        "Databases",
+        "Backend optimization",
+        "Debugging and problem-solving"
+      ],
+      "education": {
+        "required": [],
+        "preferred": []
+      },
+      "experience": {
+        "min_years": 0,
+        "max_years": 2,
+        "description": "Entry-level experience in backend or game-related full-stack development"
+      },
+      "responsibilities": [
+        "Build APIs for game profiles, leaderboards, and matchmaking",
+        "Develop web-based dashboards for analytics and moderation",
+        "Optimize backend for high-performance gaming workloads",
+        "Collaborate with front-end and gameplay teams",
+        "Learn about real-time data pipelines and scaling"
+      ],
+      "requirements": [
+        "Knowledge of Node.js, APIs, and databases",
+        "Basic exposure to React for dashboard interfaces",
+        "Strong debugging and optimization skills",
+        "Interest in backend systems for online gaming"
+      ],
+      "template_text": "Join a gaming platform as a Junior Full-Stack Engineer to build APIs, dashboards, and backend systems. Ideal candidate has Node.js experience and basic React skills with an interest in real-time gaming services.",
+      "metadata": {
+        "source": "standard_library",
+        "version": 1.0,
+        "created_at": "2025-10-03T11:00:00Z"
+      }
+    },
+    "stored_at": "2025-10-06T04:09:16.348316"
+  },
+  "jd_software_fullstack_junior_023": {
+    "content": {
+      "id": "jd_software_fullstack_junior_023",
+      "title": "Junior Full-Stack Engineer – Streaming Analytics",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "junior",
+      "skills": [
+        "React",
+        "Node.js",
+        "REST APIs",
+        "Streaming/event-driven architecture",
+        "Big data frameworks",
+        "Debugging and problem-solving"
+      ],
+      "education": {
+        "required": [],
+        "preferred": []
+      },
+      "experience": {
+        "min_years": 0,
+        "max_years": 2,
+        "description": "Entry-level experience in analytics, streaming, or full-stack web development"
+      },
+      "responsibilities": [
+        "Develop dashboards with React and charting libraries",
+        "Build APIs to fetch and process large-scale data",
+        "Work with data engineers to integrate pipelines",
+        "Optimize performance for real-time updates",
+        "Learn about big-data streaming frameworks"
+      ],
+      "requirements": [
+        "Knowledge of React, Node.js, and APIs",
+        "Basic understanding of streaming and event-driven architectures",
+        "Interest in data-heavy applications and real-time insights",
+        "Strong debugging and learning attitude"
+      ],
+      "template_text": "Work as a Junior Full-Stack Engineer on streaming analytics dashboards and APIs. Ideal candidate is proficient in React/Node.js and interested in real-time, data-heavy applications.",
+      "metadata": {
+        "source": "standard_library",
+        "version": 1.0,
+        "created_at": "2025-10-03T11:00:00Z"
+      }
+    },
+    "stored_at": "2025-10-06T04:09:18.321185"
+  },
+  "jd_software_fullstack_junior_024": {
+    "content": {
+      "id": "jd_software_fullstack_junior_024",
+      "title": "Junior Full-Stack Developer – Customer Support / Chatbot Platforms",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "junior",
+      "skills": [
+        "React",
+        "Node.js",
+        "REST APIs",
+        "Chatbot frameworks",
+        "AI-human hybrid support",
+        "Collaboration and problem-solving"
+      ],
+      "education": {
+        "required": [],
+        "preferred": []
+      },
+      "experience": {
+        "min_years": 0,
+        "max_years": 2,
+        "description": "Entry-level experience with chatbots, support platforms, or full-stack web development"
+      },
+      "responsibilities": [
+        "Develop user interfaces for live chat and support dashboards",
+        "Build APIs for chatbot integration and analytics",
+        "Collaborate with data teams for NLP-powered features",
+        "Optimize backend performance for real-time responses",
+        "Learn best practices for AI-human hybrid support systems"
+      ],
+      "requirements": [
+        "Knowledge of React, Node.js, and APIs",
+        "Basic understanding of chatbot frameworks",
+        "Problem-solving mindset and interest in AI-driven support tools",
+        "Strong learning attitude and collaboration skills"
+      ],
+      "template_text": "Join a chatbot support platform as a Junior Full-Stack Developer to build interfaces, APIs, and analytics. Ideal candidate is proficient in React/Node.js with interest in AI-powered support solutions.",
+      "metadata": {
+        "source": "standard_library",
+        "version": 1.0,
+        "created_at": "2025-10-03T11:00:00Z"
+      }
+    },
+    "stored_at": "2025-10-06T04:09:20.508932"
+  },
+  "jd_software_fullstack_junior_025": {
+    "content": {
+      "id": "jd_software_fullstack_junior_025",
+      "title": "Junior Full-Stack Developer – VR/AR Applications",
+      "domain": "technical",
+      "family": "software_engineering",
+      "specialization": "fullstack",
+      "level": "junior",
+      "skills": [
+        "React",
+        "Node.js",
+        "REST APIs",
+        "Three.js or Unity integrations",
+        "WebXR / immersive technologies",
+        "Collaboration and problem-solving"
+      ],
+      "education": {
+        "required": [],
+        "preferred": []
+      },
+      "experience": {
+        "min_years": 0,
+        "max_years": 2,
+        "description": "Entry-level experience in VR/AR, immersive platforms, or full-stack development"
+      },
+      "responsibilities": [
+        "Build responsive UIs and integrate VR/AR components",
+        "Develop APIs for managing 3D assets and user interactions",
+        "Collaborate with design and XR specialists for new experiences",
+        "Optimize backend for real-time streaming of 3D content",
+        "Learn immersive technologies and WebXR frameworks"
+      ],
+      "requirements": [
+        "Knowledge of React, Node.js, and APIs",
+        "Basic exposure to Three.js or Unity integrations",
+        "Interest in XR technologies and interactive platforms",
+        "Strong learning attitude and collaborative mindset"
+      ],
+      "template_text": "Work on immersive VR/AR applications as a Junior Full-Stack Developer, building UIs, APIs, and integrating 3D/VR components. Ideal candidate is proficient in React/Node.js with interest in XR technologies.",
+      "metadata": {
+        "source": "standard_library",
+        "version": 1.0,
+        "created_at": "2025-10-03T11:00:00Z"
+      }
+    },
+    "stored_at": "2025-10-06T04:09:22.132258"
+  }
+}

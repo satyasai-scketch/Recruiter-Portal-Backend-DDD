@@ -1,5 +1,8 @@
 from pydantic_settings import BaseSettings
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
 class Settings(BaseSettings):
 	"""Application settings loaded from environment variables."""
@@ -45,6 +48,27 @@ class Settings(BaseSettings):
 	from_name: str = "Recruiter AI"
 	frontend_url: str = "http://localhost:3000"
 
+	OPENAI_API_KEY: str = ""
+	PINECONE_API_KEY: str = ""
+
+	# Vector Database Configuration
+	VECTOR_INDEX_NAME: str = "jd-templates-v1"
+	EMBEDDING_MODEL: str = "text-embedding-3-small"
+	EMBEDDING_DIMENSION: int = 1536
+
+	# Storage Configuration
+	JD_STORAGE_FILE: str = "data\jd_storage.json"
+	TEMPLATE_DATA_DIR: str = "data\jd_templates"
+
+	# Search Configuratio
+	DEFAULT_MIN_SIMILARITY: float = 0.5
+	MAX_SEARCH_RESULTS: int = 10
+
+	# Pinecone Configuration
+	PINECONE_CLOUD: str = "aws"
+	PINECONE_REGION: str = "us-east-1"
+	JD_REFINEMENT_MODEL: str = os.getenv("JD_REFINEMENT_MODEL", "gpt-4o")
+	JD_REFINEMENT_TEMPERATURE: float = float(os.getenv("JD_REFINEMENT_TEMPERATURE", "0.5"))
 	class Config:
 		env_file = ".env"
 		env_file_encoding = "utf-8"

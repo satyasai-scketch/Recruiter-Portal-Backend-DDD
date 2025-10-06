@@ -173,6 +173,53 @@ async def refine_jd(jd_id: str, body: dict, db: Session = Depends(get_db), user=
 			rollback_on_error(db)
 		raise handle_service_errors(e)
 
+from app.schemas.jd import JDRefinementRequest, JDRefinementResponse
+from app.cqrs.commands.refine_jd_with_ai import RefineJDWithAI
+
+# ADD new endpoint (after the existing /refine endpoint)
+@router.post("/{jd_id}/refine/ai", response_model=JDRefinementResponse, summary="AI-powered JD refinement")
+async def refine_jd_with_ai(
+    jd_id: str, 
+    request: JDRefinementRequest,
+    db: Session = Depends(get_db), 
+    user=Depends(get_current_user)
+):
+    """Refine job description using AI."""
+    try:
+        # Verify JD ownership
+        jd = handle_query(db, GetJobDescription(jd_id))
+        if not jd or jd.created_by != user.id:
+            raise HTTPException(status_code=404, detail="JD not found")
+        
+        # Use company_id from request, or from JD, or None
+        company_id = request.company_id or jd.company_id  # Can be None
+        
+        # Execute refinement (now works with None company_id)
+        updated_model, refinement_result = handle_command(
+            db, 
+            RefineJDWithAI(
+                jd_id=jd_id,
+                role=request.role,
+                company_id=company_id,  # Pass None if not available
+                methodology=request.methodology,
+                min_similarity=request.min_similarity or 0.7
+            )
+        )
+        
+        return JDRefinementResponse(
+            jd_id=updated_model.id,
+            original_text=refinement_result.original_text,
+            refined_text=refinement_result.refined_text,
+            improvements=refinement_result.improvements,
+            methodology=refinement_result.methodology,
+            template_used=refinement_result.template_used,
+            template_similarity=refinement_result.template_similarity
+        )
+        
+    except (ValueError, SQLAlchemyError) as e:
+        if isinstance(e, SQLAlchemyError):
+            rollback_on_error(db)
+        raise handle_service_errors(e)
 
 @router.get("/{jd_id}", response_model=JDRead, summary="Retrieve full Job Description (query)")
 async def get_jd(jd_id: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
