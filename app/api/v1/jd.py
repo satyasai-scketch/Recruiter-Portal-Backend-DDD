@@ -38,7 +38,13 @@ def _convert_jd_model_to_read_schema(jd_model) -> JDRead:
         created_at=jd_model.created_at,
         created_by=jd_model.created_by,
         updated_at=jd_model.updated_at,
-        updated_by=jd_model.updated_by
+        updated_by=jd_model.updated_by,
+        # Document metadata fields
+        original_document_filename=jd_model.original_document_filename,
+        original_document_size=jd_model.original_document_size,
+        original_document_extension=jd_model.original_document_extension,
+        document_word_count=jd_model.document_word_count,
+        document_character_count=jd_model.document_character_count
     )
 
 
