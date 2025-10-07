@@ -20,6 +20,12 @@ class PersonaNotesSchema(BaseModel):
 
 	model_config = ConfigDict(from_attributes=True)
 
+class PersonaLevelSchema(BaseModel):
+	id: Optional[str] = None
+	name: str
+	position: Optional[int] = None
+	model_config = ConfigDict(from_attributes=True)
+
 
 class PersonaChangeLogSchema(BaseModel):
 	entity_type: str
@@ -38,10 +44,9 @@ class PersonaSubcategorySchema(BaseModel):
 	weight_percentage: int
 	range_min: Optional[float] = None
 	range_max: Optional[float] = None
-	level_id: Optional[str] = None
+	level: Optional[PersonaLevelSchema] = None
 	position: Optional[int] = None
 	skillset: Optional[PersonaSkillsetSchema] = None
-
 	model_config = ConfigDict(from_attributes=True)
 
 
@@ -53,7 +58,6 @@ class PersonaCategorySchema(BaseModel):
 	range_max: Optional[float] = None
 	position: Optional[int] = None
 	subcategories: List[PersonaSubcategorySchema] = []
-	skillsets: List[PersonaSkillsetSchema] = []
 	notes: Optional[PersonaNotesSchema] = None
 
 	model_config = ConfigDict(from_attributes=True)
@@ -80,12 +84,7 @@ class PersonaRead(BaseModel):
 	name: str
 	role_name: Optional[str] = None
 	created_by: Optional[str] = None
-	weights: Optional[Dict[str, float]] = None
-	intervals: Optional[Dict[str, WeightIntervalSchema]] = None
 	categories: List[PersonaCategorySchema] = []
-	skillsets: List[PersonaSkillsetSchema] = []
-	notes: List[PersonaNotesSchema] = []
-	change_logs: List[PersonaChangeLogSchema] = []
 
 	model_config = ConfigDict(from_attributes=True)
 
