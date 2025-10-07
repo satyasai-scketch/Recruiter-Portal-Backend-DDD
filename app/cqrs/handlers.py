@@ -9,6 +9,7 @@ from app.services.candidate_service import CandidateService
 from app.services.match_service import MatchService
 from app.services.company_service import CompanyService
 from app.services.job_role_service import JobRoleService
+from app.services.persona_level_service import PersonaLevelService
 
 # Import base classes
 from app.cqrs.commands.base import Command
@@ -32,6 +33,16 @@ from app.cqrs.commands.job_role_commands import (
     DeleteJobRole
 )
 from app.cqrs.commands.create_persona import CreatePersona
+from app.cqrs.commands.persona_level_commands import (
+	CreatePersonaLevel,
+	UpdatePersonaLevel,
+	DeletePersonaLevel
+)
+from app.cqrs.commands.persona_commands import (
+	CreatePersona,
+	UpdatePersona,
+	DeletePersona
+)
 from app.cqrs.commands.upload_cv import UploadCVs
 from app.cqrs.commands.score_candidates import ScoreCandidates
 
@@ -64,6 +75,19 @@ from app.cqrs.queries.job_role_queries import (
     CountActiveJobRoles,
     CountSearchJobRoles,
     GetJobRoleCategories
+)
+from app.cqrs.queries.persona_queries import (
+	GetPersona,
+	ListPersonasByJobDescription,
+	ListAllPersonas,
+	CountPersonas
+)
+from app.cqrs.queries.persona_level_queries import (
+	GetPersonaLevel,
+	GetPersonaLevelByName,
+	ListPersonaLevels,
+	ListAllPersonaLevels,
+	GetPersonaLevelByPosition
 )
 
 import asyncio
@@ -120,7 +144,7 @@ def handle_command(db: Session, command: Command) -> Any:
 	if isinstance(command, UploadJobDescriptionDocument):
 		return JDService().create_from_document(db, command.payload, command.file_content, command.filename)
 	if isinstance(command, CreatePersona):
-		return PersonaService().create(db, command.payload)
+		return PersonaService().create_nested(db, command.payload, command.created_by)
 	if isinstance(command, UploadCVs):
 		return CandidateService().upload(db, command.payloads)
 	if isinstance(command, ScoreCandidates):
@@ -143,6 +167,12 @@ def handle_command(db: Session, command: Command) -> Any:
 		return JobRoleService().update(db, command.job_role_id, command.payload)
 	if isinstance(command, DeleteJobRole):
 		return JobRoleService().delete(db, command.job_role_id)
+	if isinstance(command, CreatePersonaLevel):
+		return PersonaLevelService().create_level(db, command.payload)
+	if isinstance(command, UpdatePersonaLevel):
+		return PersonaLevelService().update_level(db, command.persona_level_id, command.payload)
+	if isinstance(command, DeletePersonaLevel):
+		return PersonaLevelService().delete_level(db, command.persona_level_id)
 	raise NotImplementedError(f"No handler for command {type(command).__name__}")
 
 
@@ -189,4 +219,22 @@ def handle_query(db: Session, query: Query) -> Any:
 		return JobRoleService().count_search(db, query.search_criteria)
 	if isinstance(query, GetJobRoleCategories):
 		return JobRoleService().get_categories(db)
+	if isinstance(query, GetPersonaLevel):
+		return PersonaLevelService().get_level(db, query.persona_level_id)
+	if isinstance(query, GetPersonaLevelByName):
+		return PersonaLevelService().get_level_by_name(db, query.name)
+	if isinstance(query, ListPersonaLevels):
+		return PersonaLevelService().list_levels(db, query.sort_by_position)
+	if isinstance(query, ListAllPersonaLevels):
+		return PersonaLevelService().get_levels_count(db)
+	if isinstance(query, GetPersonaLevelByPosition):
+		return PersonaLevelService().get_level_by_position(db, query.position)
+	if isinstance(query, ListPersonasByJobDescription):
+		return PersonaService().list_by_jd(db, query.job_description_id)
+	if isinstance(query, ListAllPersonas):
+		return PersonaService().list_all(db)
+	if isinstance(query, CountPersonas):
+		return PersonaService().count(db)
+	if isinstance(query, GetPersona):
+		return PersonaService().get_persona(db, query.persona_id)
 	raise NotImplementedError(f"No handler for query {type(query).__name__}")

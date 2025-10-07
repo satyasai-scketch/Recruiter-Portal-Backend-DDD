@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from uuid import uuid4
 from sqlalchemy.orm import Session
 
@@ -24,6 +24,18 @@ class PersonaService:
 		self.repo = repo or SQLAlchemyPersonaRepository()
 		self.level_repo = level_repo or SQLAlchemyPersonaLevelRepository()
 		self.jd_repo = jd_repo or SQLAlchemyJobDescriptionRepository()
+	
+	def get_persona(self, db: Session, persona_id: str) -> PersonaModel:
+		return self.repo.get(db, persona_id)
+	
+	def list_by_jd(self, db: Session, job_description_id: str) -> List[PersonaModel]:
+		return self.repo.list_by_jd(db, job_description_id)
+	
+	def list_all(self, db: Session) -> List[PersonaModel]:
+		return self.repo.list_all(db)
+	
+	def count(self, db: Session) -> int:
+		return self.repo.count(db)
 
 	def create(self, db: Session, data: dict) -> PersonaModel:
 		"""Create a persona after validating via the domain factory (legacy flat)."""

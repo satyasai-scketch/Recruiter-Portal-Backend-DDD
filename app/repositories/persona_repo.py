@@ -92,6 +92,12 @@ class SQLAlchemyPersonaRepository(PersonaRepository):
 	def get_by_job_description(self, db: Session, jd_id: str) -> Sequence[PersonaModel]:
 		return self.list_by_jd(db, jd_id)
 
+	def list_all(self, db: Session) -> Sequence[PersonaModel]:
+		return db.query(PersonaModel).all()
+	
+	def count(self, db: Session) -> int:
+		return db.query(PersonaModel).count()
+
 	def add_category(self, db: Session, category: PersonaCategoryModel) -> PersonaCategoryModel:
 		db.add(category)
 		db.commit()

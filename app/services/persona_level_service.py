@@ -37,6 +37,10 @@ class PersonaLevelService:
     def get_level_by_name(self, db: Session, name: str) -> Optional[PersonaLevelModel]:
         """Get a persona level by name."""
         return self.repo.get_by_name(db, name)
+    
+    def get_level_by_position(self, db: Session, position: int) -> Optional[PersonaLevelModel]:
+        """Get a persona level by position."""
+        return self.repo.get_by_position(db, position)
 
     def update_level(self, db: Session, level_id: str, data: PersonaLevelUpdate) -> Optional[PersonaLevelModel]:
         """Update a persona level."""

@@ -191,45 +191,45 @@ async def refine_jd_with_ai(
     user=Depends(get_current_user)
 ):
     """Refine job description using AI.
-	# This endpoint refines a job description (JD) using AI, based on the provided parameters.
-	# 
-	# Request Body (JDRefinementRequest):
-	# - role (str): The job role/title for which the JD is being refined. Required.
-	# - company_id (Optional[str]): The company ID to use for context. Optional; if not provided, the JD's company_id is used if available.
-	# - methodology (str): The AI refinement methodology. Accepts:
-	#     - "direct": Directly refines the JD text using AI.
-	#     - "template_based": Uses a template-matching approach to refine the JD.
-	#   Default is "direct".
-	# - min_similarity (Optional[float]): Minimum similarity threshold (between 0.0 and 1.0) for template matching. 
-	#   Only used if methodology is "template_based". Default is 0.5.
-	#
-	# Response (JDRefinementResponse):
-	# - jd_id (str): The ID of the refined JD.
-	# - original_text (str): The original JD text before refinement.
-	# - refined_text (str): The AI-refined JD text.
-	# - improvements (List[str]): List of improvements or changes made by the AI.
-	# - methodology (str): The methodology used for refinement ("direct" or "template_based").
-	# - template_used (Optional[Dict[str, Any]]): If template-based, details of the template used (may be None).
-	# - template_similarity (Optional[float]): If template-based, the similarity score with the template (may be None).
-	#
-	# Example request:
-	# {
-	#   "role": "Software Engineer",
-	#   "company_id": "abc123",
-	#   "methodology": "template_based",
-	#   "min_similarity": 0.8
-	# }
-	#
-	# Example response:
-	# {
-	#   "jd_id": "jd_456",
-	#   "original_text": "...",
-	#   "refined_text": "...",
-	#   "improvements": ["Clarified responsibilities", "Added required skills section"],
-	#   "methodology": "template_based",
-	#   "template_used": {"id": "tpl_789", "name": "Standard SWE Template"},
-	#   "template_similarity": 0.85
-	# }
+	 This endpoint refines a job description (JD) using AI, based on the provided parameters.
+	 
+	 Request Body (JDRefinementRequest):
+	 - role (str): The job role/title for which the JD is being refined. Required.
+	 - company_id (Optional[str]): The company ID to use for context. Optional; if not provided, the JD's company_id is used if available.
+	 - methodology (str): The AI refinement methodology. Accepts:
+	     - "direct": Directly refines the JD text using AI.
+	     - "template_based": Uses a template-matching approach to refine the JD.
+	   Default is "direct".
+	 - min_similarity (Optional[float]): Minimum similarity threshold (between 0.0 and 1.0) for template matching. 
+	   Only used if methodology is "template_based". Default is 0.5.
+	
+	 Response (JDRefinementResponse):
+	 - jd_id (str): The ID of the refined JD.
+	 - original_text (str): The original JD text before refinement.
+	 - refined_text (str): The AI-refined JD text.
+	 - improvements (List[str]): List of improvements or changes made by the AI.
+	 - methodology (str): The methodology used for refinement ("direct" or "template_based").
+	 - template_used (Optional[Dict[str, Any]]): If template-based, details of the template used (may be None).
+	 - template_similarity (Optional[float]): If template-based, the similarity score with the template (may be None).
+	
+	 Example request:
+	 {
+	   "role": "Software Engineer",
+	   "company_id": "abc123",
+	   "methodology": "template_based",
+	   "min_similarity": 0.8
+	 }
+	
+	 Example response:
+	 {
+	   "jd_id": "jd_456",
+	   "original_text": "...",
+	   "refined_text": "...",
+	   "improvements": ["Clarified responsibilities", "Added required skills section"],
+	   "methodology": "template_based",
+	   "template_used": {"id": "tpl_789", "name": "Standard SWE Template"},
+	   "template_similarity": 0.85
+	 }
 	"""
     try:
         # Verify JD ownership
