@@ -41,6 +41,9 @@ class SQLAlchemyPersonaLevelRepository(PersonaLevelRepository):
     def get_by_name(self, db: Session, name: str) -> Optional[PersonaLevelModel]:
         return db.query(PersonaLevelModel).filter(PersonaLevelModel.name == name).first()
 
+    def get_by_position(self, db: Session, position: int) -> Optional[PersonaLevelModel]:
+        return db.query(PersonaLevelModel).filter(PersonaLevelModel.position == position).first()
+
     def create(self, db: Session, level: PersonaLevelModel) -> PersonaLevelModel:
         db.add(level)
         db.commit()

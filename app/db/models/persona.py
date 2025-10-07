@@ -5,7 +5,7 @@ from sqlalchemy.sql import func
 
 from app.db.base import Base
 
-LEVEL_ENUM = Enum("L1", "L2", "L3", "L4", "L5", name="level_enum", native_enum=False)
+# LEVEL_ENUM = Enum("L1", "L2", "L3", "L4", "L5", name="level_enum", native_enum=False)
 
 
 class PersonaModel(Base):
