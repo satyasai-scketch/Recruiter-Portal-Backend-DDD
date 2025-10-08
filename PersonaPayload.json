@@ -1,0 +1,251 @@
+{
+    "job_description_id": "jd-2025-FE-001",
+    "name": "Senior Frontend Developer Persona",
+    "categories": [
+      {
+        "name": "Technical Skills",
+        "weight_percentage": 35,
+        "range_min": -5,
+        "range_max": 10,
+        "position": 1,
+        "subcategories": [
+          {
+            "name": "Frontend Frameworks",
+            "weight_percentage": 30,
+            "range_min": -5,
+            "range_max": 10,
+            "level_id": "5",
+            "position": 1,
+            "skillset": {
+              "technologies": ["React", "Next.js", "Vue.js", "Angular"]
+            }
+          },
+          {
+            "name": "JavaScript & TypeScript",
+            "weight_percentage": 25,
+            "range_min": -5,
+            "range_max": 10,
+            "level_id": "5",
+            "position": 2,
+            "skillset": {
+              "technologies": ["JavaScript (ES6+)", "TypeScript", "Node.js (basic)"]
+            }
+          },
+          {
+            "name": "UI Development & Styling",
+            "weight_percentage": 25,
+            "range_min": -5,
+            "range_max": 10,
+            "level_id": "4",
+            "position": 3,
+            "skillset": {
+              "technologies": ["HTML5", "CSS3", "Tailwind", "Sass", "Styled Components"]
+            }
+          },
+          {
+            "name": "Performance & Optimization",
+            "weight_percentage": 20,
+            "range_min": -5,
+            "range_max": 10,
+            "level_id": "4",
+            "position": 4,
+            "skillset": {
+              "technologies": ["Lighthouse", "Core Web Vitals", "Lazy Loading", "Code Splitting"]
+            }
+          }
+        ],
+        "notes": {
+          "custom_notes": "Expertise in modern frameworks with strong TypeScript skills and focus on scalable, high-performance UI."
+        }
+      },
+      {
+        "name": "Cognitive Demands",
+        "weight_percentage": 15,
+        "range_min": -3,
+        "range_max": 7,
+        "position": 2,
+        "subcategories": [
+          {
+            "name": "Problem Solving",
+            "weight_percentage": 40,
+            "range_min": -3,
+            "range_max": 7,
+            "level_id": "5",
+            "position": 1
+          },
+          {
+            "name": "Design Thinking",
+            "weight_percentage": 35,
+            "range_min": -3,
+            "range_max": 7,
+            "level_id": "4",
+            "position": 2
+          },
+          {
+            "name": "Attention to Detail",
+            "weight_percentage": 25,
+            "range_min": -3,
+            "range_max": 7,
+            "level_id": "4",
+            "position": 3
+          }
+        ],
+        "notes": {
+          "custom_notes": "Should balance creative design interpretation with technical implementation precision."
+        }
+      },
+      {
+        "name": "Values (Schwartz)",
+        "weight_percentage": 10,
+        "range_min": -2,
+        "range_max": 5,
+        "position": 3,
+        "subcategories": [
+          {
+            "name": "Creativity & Self-Direction",
+            "weight_percentage": 35,
+            "range_min": -2,
+            "range_max": 5,
+            "level_id": "4",
+            "position": 1
+          },
+          {
+            "name": "Achievement",
+            "weight_percentage": 25,
+            "range_min": -2,
+            "range_max": 5,
+            "level_id": "4",
+            "position": 2
+          },
+          {
+            "name": "Benevolence",
+            "weight_percentage": 20,
+            "range_min": -2,
+            "range_max": 5,
+            "level_id": "3",
+            "position": 3
+          },
+          {
+            "name": "Conformity",
+            "weight_percentage": 20,
+            "range_min": -2,
+            "range_max": 5,
+            "level_id": "2",
+            "position": 4
+          }
+        ],
+        "notes": {
+          "custom_notes": "Encourages innovation while maintaining code standards and collaboration ethics."
+        }
+      },
+      {
+        "name": "Foundational Behaviors",
+        "weight_percentage": 15,
+        "range_min": -3,
+        "range_max": 7,
+        "position": 4,
+        "subcategories": [
+          {
+            "name": "Collaboration",
+            "weight_percentage": 35,
+            "range_min": -3,
+            "range_max": 7,
+            "level_id": "4",
+            "position": 1
+          },
+          {
+            "name": "Adaptability",
+            "weight_percentage": 35,
+            "range_min": -3,
+            "range_max": 7,
+            "level_id": "4",
+            "position": 2
+          },
+          {
+            "name": "Ownership",
+            "weight_percentage": 30,
+            "range_min": -3,
+            "range_max": 7,
+            "level_id": "5",
+            "position": 3
+          }
+        ],
+        "notes": {
+          "custom_notes": "Thrives in agile environments, embraces feedback loops, and owns delivery end-to-end."
+        }
+      },
+      {
+        "name": "Leadership Skills",
+        "weight_percentage": 15,
+        "range_min": -5,
+        "range_max": 10,
+        "position": 5,
+        "subcategories": [
+          {
+            "name": "Mentoring & Peer Review",
+            "weight_percentage": 40,
+            "range_min": -5,
+            "range_max": 10,
+            "level_id": "4",
+            "position": 1
+          },
+          {
+            "name": "Decision Making",
+            "weight_percentage": 30,
+            "range_min": -5,
+            "range_max": 10,
+            "level_id": "4",
+            "position": 2
+          },
+          {
+            "name": "Strategic Vision",
+            "weight_percentage": 30,
+            "range_min": -5,
+            "range_max": 10,
+            "level_id": "3",
+            "position": 3
+          }
+        ],
+        "notes": {
+          "custom_notes": "Guides UI architecture, ensures code quality through reviews, and supports cross-functional alignment."
+        }
+      },
+      {
+        "name": "Education and Experience",
+        "weight_percentage": 10,
+        "range_min": -2,
+        "range_max": 5,
+        "position": 6,
+        "subcategories": [
+          {
+            "name": "Academic Qualification",
+            "weight_percentage": 40,
+            "range_min": -2,
+            "range_max": 5,
+            "level_id": "2",
+            "position": 1
+          },
+          {
+            "name": "Years of Experience",
+            "weight_percentage": 40,
+            "range_min": -2,
+            "range_max": 5,
+            "level_id": "5",
+            "position": 2
+          },
+          {
+            "name": "Certifications & Portfolio",
+            "weight_percentage": 20,
+            "range_min": -2,
+            "range_max": 5,
+            "level_id": "3",
+            "position": 3
+          }
+        ],
+        "notes": {
+          "custom_notes": "Typically 5–8 years of frontend development with a strong portfolio of responsive, scalable web apps."
+        }
+      }
+    ]
+  }
+  
