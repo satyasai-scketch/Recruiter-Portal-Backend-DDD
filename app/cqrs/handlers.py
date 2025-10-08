@@ -80,7 +80,8 @@ from app.cqrs.queries.persona_queries import (
 	GetPersona,
 	ListPersonasByJobDescription,
 	ListAllPersonas,
-	CountPersonas
+	CountPersonas,
+	GetPersonaChangeLogs
 )
 from app.cqrs.queries.persona_level_queries import (
 	GetPersonaLevel,
@@ -241,4 +242,6 @@ def handle_query(db: Session, query: Query) -> Any:
 		return PersonaService().count(db)
 	if isinstance(query, GetPersona):
 		return PersonaService().get_persona(db, query.persona_id)
+	if isinstance(query, GetPersonaChangeLogs):
+		return PersonaService().get_change_logs(db, query.persona_id)
 	raise NotImplementedError(f"No handler for query {type(query).__name__}")

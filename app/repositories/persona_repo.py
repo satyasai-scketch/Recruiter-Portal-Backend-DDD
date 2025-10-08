@@ -43,6 +43,9 @@ class PersonaRepository:
 	def add_change_log(self, db: Session, change_log: PersonaChangeLogModel) -> PersonaChangeLogModel:
 		raise NotImplementedError
 
+	def get_change_logs(self, db: Session, persona_id: str) -> List[PersonaChangeLogModel]:
+		raise NotImplementedError
+
 	def delete_persona(self, db: Session, persona_id: str) -> None:
 		raise NotImplementedError
 
@@ -127,6 +130,16 @@ class SQLAlchemyPersonaRepository(PersonaRepository):
 		db.commit()
 		db.refresh(change_log)
 		return change_log
+
+	def get_change_logs(self, db: Session, persona_id: str) -> List[PersonaChangeLogModel]:
+		"""Get all change logs for a persona, ordered by most recent first."""
+		return (
+			db.query(PersonaChangeLogModel)
+			.options(selectinload(PersonaChangeLogModel.user))
+			.filter(PersonaChangeLogModel.persona_id == persona_id)
+			.order_by(PersonaChangeLogModel.changed_at.desc())
+			.all()
+		)
 
 	def delete_persona(self, db: Session, persona_id: str) -> None:
 		obj = db.query(PersonaModel).filter(PersonaModel.id == persona_id).first()

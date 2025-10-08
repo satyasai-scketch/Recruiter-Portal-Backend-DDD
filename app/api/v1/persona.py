@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api.deps import db_session, get_current_user
-from app.schemas.persona import PersonaCreate, PersonaRead, PersonaUpdate
+from app.schemas.persona import PersonaCreate, PersonaRead, PersonaUpdate, PersonaChangeLogRead
 from app.cqrs.handlers import handle_command, handle_query
 from app.services.persona_service import PersonaService
 from app.db.models.user import UserModel
 from app.cqrs.commands.persona_commands import CreatePersona, UpdatePersona
-from app.cqrs.queries.persona_queries import ListPersonasByJobDescription, ListAllPersonas, CountPersonas, GetPersona
+from app.cqrs.queries.persona_queries import ListPersonasByJobDescription, ListAllPersonas, CountPersonas, GetPersona, GetPersonaChangeLogs
 
 
 router = APIRouter()
@@ -75,3 +75,50 @@ async def update_persona(
 	# Fetch the updated model with all relationships
 	updated_model = handle_query(db, GetPersona(model.id))
 	return PersonaRead.model_validate(updated_model)
+
+
+@router.get("/{persona_id}/change-logs", response_model=list[PersonaChangeLogRead], summary="Get change logs for a persona")
+async def get_persona_change_logs(
+	persona_id: str,
+	db: Session = Depends(db_session)
+):
+	"""Get all change logs for a persona.
+	
+	Returns a list of all changes made to the persona and its nested entities,
+	ordered by most recent changes first. Each change log entry includes:
+	- Entity type (persona, category, subcategory, skillset, notes)
+	- Entity ID
+	- Field name that was changed
+	- Old and new values
+	- User who made the change
+	- Timestamp of the change
+	"""
+	change_logs = handle_query(db, GetPersonaChangeLogs(persona_id))
+	
+	# Convert to response format with user details
+	result = []
+	for log in change_logs:
+		log_data = {
+			"id": log.id,
+			"persona_id": log.persona_id,
+			"entity_type": log.entity_type,
+			"entity_id": log.entity_id,
+			"field_name": log.field_name,
+			"old_value": log.old_value,
+			"new_value": log.new_value,
+			"changed_by": log.changed_by,
+			"changed_at": log.changed_at,
+			"changed_by_user": None
+		}
+		
+		# Add user details if available
+		if log.user:
+			log_data["changed_by_user"] = {
+				"id": log.user.id,
+				"email": log.user.email,
+				"name": getattr(log.user, 'name', None) or f"{log.user.first_name} {log.user.last_name}".strip() or log.user.email
+			}
+		
+		result.append(PersonaChangeLogRead(**log_data))
+	
+	return result

@@ -37,6 +37,10 @@ class PersonaService:
 	
 	def count(self, db: Session) -> int:
 		return self.repo.count(db)
+	
+	def get_change_logs(self, db: Session, persona_id: str) -> List[PersonaChangeLogModel]:
+		"""Get all change logs for a persona, ordered by most recent first."""
+		return self.repo.get_change_logs(db, persona_id)
 
 	def create(self, db: Session, data: dict) -> PersonaModel:
 		"""Create a persona after validating via the domain factory (legacy flat)."""
