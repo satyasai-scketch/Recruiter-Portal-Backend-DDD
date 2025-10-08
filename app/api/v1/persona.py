@@ -26,6 +26,18 @@ async def create_persona(
 	return PersonaRead.model_validate(model)
 
 
+@router.get("/", response_model=list[PersonaRead], summary="Get all personas")
+async def get_all_personas(db: Session = Depends(db_session)):
+	models = handle_query(db, ListAllPersonas())
+	return [PersonaRead.model_validate(m) for m in models]
+
+
+@router.get("/{persona_id}", response_model=PersonaRead, summary="Get persona by ID")
+async def get_persona(persona_id: str, db: Session = Depends(db_session)):
+	model = handle_query(db, GetPersona(persona_id))
+	return PersonaRead.model_validate(model)
+
+
 @router.get("/by-jd/{jd_id}", response_model=list[PersonaRead], summary="List personas for a Job Description")
 async def list_personas_by_jd(jd_id: str, db: Session = Depends(db_session)):
 	models = handle_query(db, ListPersonasByJobDescription(jd_id))
