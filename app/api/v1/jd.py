@@ -38,7 +38,13 @@ def _convert_jd_model_to_read_schema(jd_model) -> JDRead:
         created_at=jd_model.created_at,
         created_by=jd_model.created_by,
         updated_at=jd_model.updated_at,
-        updated_by=jd_model.updated_by
+        updated_by=jd_model.updated_by,
+        # Document metadata fields
+        original_document_filename=jd_model.original_document_filename,
+        original_document_size=jd_model.original_document_size,
+        original_document_extension=jd_model.original_document_extension,
+        document_word_count=jd_model.document_word_count,
+        document_character_count=jd_model.document_character_count
     )
 
 
@@ -184,7 +190,47 @@ async def refine_jd_with_ai(
     db: Session = Depends(get_db), 
     user=Depends(get_current_user)
 ):
-    """Refine job description using AI."""
+    """Refine job description using AI.
+	 This endpoint refines a job description (JD) using AI, based on the provided parameters.
+	 
+	 Request Body (JDRefinementRequest):
+	 - role (str): The job role/title for which the JD is being refined. Required.
+	 - company_id (Optional[str]): The company ID to use for context. Optional; if not provided, the JD's company_id is used if available.
+	 - methodology (str): The AI refinement methodology. Accepts:
+	     - "direct": Directly refines the JD text using AI.
+	     - "template_based": Uses a template-matching approach to refine the JD.
+	   Default is "direct".
+	 - min_similarity (Optional[float]): Minimum similarity threshold (between 0.0 and 1.0) for template matching. 
+	   Only used if methodology is "template_based". Default is 0.5.
+	
+	 Response (JDRefinementResponse):
+	 - jd_id (str): The ID of the refined JD.
+	 - original_text (str): The original JD text before refinement.
+	 - refined_text (str): The AI-refined JD text.
+	 - improvements (List[str]): List of improvements or changes made by the AI.
+	 - methodology (str): The methodology used for refinement ("direct" or "template_based").
+	 - template_used (Optional[Dict[str, Any]]): If template-based, details of the template used (may be None).
+	 - template_similarity (Optional[float]): If template-based, the similarity score with the template (may be None).
+	
+	 Example request:
+	 {
+	   "role": "Software Engineer",
+	   "company_id": "abc123",
+	   "methodology": "template_based",
+	   "min_similarity": 0.8
+	 }
+	
+	 Example response:
+	 {
+	   "jd_id": "jd_456",
+	   "original_text": "...",
+	   "refined_text": "...",
+	   "improvements": ["Clarified responsibilities", "Added required skills section"],
+	   "methodology": "template_based",
+	   "template_used": {"id": "tpl_789", "name": "Standard SWE Template"},
+	   "template_similarity": 0.85
+	 }
+	"""
     try:
         # Verify JD ownership
         jd = handle_query(db, GetJobDescription(jd_id))
@@ -275,6 +321,19 @@ async def get_jd_diff(
         raise handle_service_errors(e)
 @router.patch("/{jd_id}", response_model=JDRead, summary="Update Job Description (selected_version, selected_text, selected_version, selected_edited.)")
 async def update_jd(jd_id: str, body: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
+	"""
+	Update a job description (JD) with the provided fields.
+	
+	Request Body (dict):
+	- selected_version (Optional[str]): The version of the JD Recruiter selected:
+		- "original"
+		- "refined"
+	- selected_text (Optional[str]): The text of the JD Recruiter selected finally.
+	- selected_edited (Optional[bool]): Whether the JD Recruiter selected finally has been edited:
+		- True
+		- False
+	
+	"""
 	try:
 		# First check if JD exists and belongs to user
 		model = handle_query(db, GetJobDescription(jd_id))

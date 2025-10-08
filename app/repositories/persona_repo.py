@@ -3,7 +3,10 @@ from __future__ import annotations
 from typing import Optional, Sequence, List
 from sqlalchemy.orm import Session, selectinload
 
-from app.db.models.persona import PersonaModel, PersonaCategoryModel, PersonaSubcategoryModel
+from app.db.models.persona import (
+	PersonaModel, PersonaCategoryModel, PersonaSubcategoryModel,
+	PersonaSkillsetModel, PersonaNotesModel, PersonaChangeLogModel
+)
 
 
 class PersonaRepository:
@@ -31,6 +34,15 @@ class PersonaRepository:
 	def add_subcategory(self, db: Session, subcat: PersonaSubcategoryModel) -> PersonaSubcategoryModel:
 		raise NotImplementedError
 
+	def add_skillset(self, db: Session, skillset: PersonaSkillsetModel) -> PersonaSkillsetModel:
+		raise NotImplementedError
+
+	def add_note(self, db: Session, note: PersonaNotesModel) -> PersonaNotesModel:
+		raise NotImplementedError
+
+	def add_change_log(self, db: Session, change_log: PersonaChangeLogModel) -> PersonaChangeLogModel:
+		raise NotImplementedError
+
 	def delete_persona(self, db: Session, persona_id: str) -> None:
 		raise NotImplementedError
 
@@ -41,7 +53,12 @@ class SQLAlchemyPersonaRepository(PersonaRepository):
 	def get(self, db: Session, persona_id: str) -> Optional[PersonaModel]:
 		return (
 			db.query(PersonaModel)
-			.options(selectinload(PersonaModel.categories).selectinload(PersonaCategoryModel.subcategories))
+			.options(
+				selectinload(PersonaModel.categories).selectinload(PersonaCategoryModel.subcategories),
+				selectinload(PersonaModel.skillsets),
+				selectinload(PersonaModel.notes),
+				selectinload(PersonaModel.change_logs)
+			)
 			.filter(PersonaModel.id == persona_id)
 			.first()
 		)
@@ -61,7 +78,12 @@ class SQLAlchemyPersonaRepository(PersonaRepository):
 	def list_by_jd(self, db: Session, jd_id: str) -> Sequence[PersonaModel]:
 		return (
 			db.query(PersonaModel)
-			.options(selectinload(PersonaModel.categories).selectinload(PersonaCategoryModel.subcategories))
+			.options(
+				selectinload(PersonaModel.categories).selectinload(PersonaCategoryModel.subcategories),
+				selectinload(PersonaModel.skillsets),
+				selectinload(PersonaModel.notes),
+				selectinload(PersonaModel.change_logs)
+			)
 			.filter(PersonaModel.job_description_id == jd_id)
 			.order_by(PersonaModel.name.asc())
 			.all()
@@ -69,6 +91,12 @@ class SQLAlchemyPersonaRepository(PersonaRepository):
 
 	def get_by_job_description(self, db: Session, jd_id: str) -> Sequence[PersonaModel]:
 		return self.list_by_jd(db, jd_id)
+
+	def list_all(self, db: Session) -> Sequence[PersonaModel]:
+		return db.query(PersonaModel).all()
+	
+	def count(self, db: Session) -> int:
+		return db.query(PersonaModel).count()
 
 	def add_category(self, db: Session, category: PersonaCategoryModel) -> PersonaCategoryModel:
 		db.add(category)
@@ -81,6 +109,24 @@ class SQLAlchemyPersonaRepository(PersonaRepository):
 		db.commit()
 		db.refresh(subcat)
 		return subcat
+
+	def add_skillset(self, db: Session, skillset: PersonaSkillsetModel) -> PersonaSkillsetModel:
+		db.add(skillset)
+		db.commit()
+		db.refresh(skillset)
+		return skillset
+
+	def add_note(self, db: Session, note: PersonaNotesModel) -> PersonaNotesModel:
+		db.add(note)
+		db.commit()
+		db.refresh(note)
+		return note
+
+	def add_change_log(self, db: Session, change_log: PersonaChangeLogModel) -> PersonaChangeLogModel:
+		db.add(change_log)
+		db.commit()
+		db.refresh(change_log)
+		return change_log
 
 	def delete_persona(self, db: Session, persona_id: str) -> None:
 		obj = db.query(PersonaModel).filter(PersonaModel.id == persona_id).first()

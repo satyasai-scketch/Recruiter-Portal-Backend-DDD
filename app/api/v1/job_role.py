@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.deps import get_db, get_current_user
 from app.schemas.job_role import (
@@ -28,6 +29,7 @@ from app.cqrs.queries.job_role_queries import (
     GetJobRoleCategories
 )
 from app.domain.job_role.rules import JobRoleBusinessRules
+from app.utils.error_handlers import handle_service_errors, rollback_on_error
 
 router = APIRouter()
 
@@ -56,10 +58,10 @@ async def create_job_role(
         
         return JobRoleRead.model_validate(created_job_role)
     
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Internal server error")
+    except (ValueError, SQLAlchemyError) as e:
+        if isinstance(e, SQLAlchemyError):
+            rollback_on_error(db)
+        raise handle_service_errors(e)
 
 @router.get("/{job_role_id}", response_model=JobRoleRead, summary="Get Job Role by ID")
 async def get_job_role(
@@ -245,10 +247,10 @@ async def update_job_role(
         
         return JobRoleRead.model_validate(updated_job_role)
     
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Internal server error")
+    except (ValueError, SQLAlchemyError) as e:
+        if isinstance(e, SQLAlchemyError):
+            rollback_on_error(db)
+        raise handle_service_errors(e)
 
 @router.delete("/{job_role_id}", response_model=JobRoleResponse, summary="Delete Job Role")
 async def delete_job_role(
@@ -272,7 +274,7 @@ async def delete_job_role(
             message="Job role deleted successfully"
         )
     
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail="Internal server error")
+    except (ValueError, SQLAlchemyError) as e:
+        if isinstance(e, SQLAlchemyError):
+            rollback_on_error(db)
+        raise handle_service_errors(e)
