@@ -145,6 +145,8 @@ def handle_command(db: Session, command: Command) -> Any:
 		return JDService().create_from_document(db, command.payload, command.file_content, command.filename)
 	if isinstance(command, CreatePersona):
 		return PersonaService().create_nested(db, command.payload, command.created_by)
+	if isinstance(command, UpdatePersona):
+		return PersonaService().update_persona(db, command.persona_id, command.payload, command.updated_by)
 	if isinstance(command, UploadCVs):
 		return CandidateService().upload(db, command.payloads)
 	if isinstance(command, ScoreCandidates):

@@ -111,3 +111,12 @@ class PersonaLevelRead(BaseModel):
 	position: Optional[int] = None
 
 	model_config = ConfigDict(from_attributes=True)
+
+
+class PersonaUpdate(BaseModel):
+	"""Schema for updating persona with change tracking"""
+	name: Optional[str] = None
+	role_name: Optional[str] = None
+	categories: Optional[List[PersonaCategorySchema]] = None
+
+	model_config = ConfigDict(from_attributes=True)

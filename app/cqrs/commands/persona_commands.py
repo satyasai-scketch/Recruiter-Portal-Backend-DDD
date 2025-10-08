@@ -20,6 +20,7 @@ class DeletePersona(Command):
 @dataclass
 class UpdatePersona(Command):
     """Command to update an existing persona."""
-    def __init__(self, persona_id: str, payload: dict):
+    def __init__(self, persona_id: str, payload: dict, updated_by: str):
         self.persona_id = persona_id
         self.payload = payload
+        self.updated_by = updated_by

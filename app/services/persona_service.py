@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 from uuid import uuid4
 from sqlalchemy.orm import Session
 
@@ -15,6 +15,7 @@ from app.domain.persona import services as persona_domain_services
 from app.domain.persona.entities import WeightInterval
 from app.events.event_bus import event_bus
 from app.events.persona_events import PersonaCreatedEvent
+from app.services.persona_change_tracker import PersonaChangeTracker
 
 
 class PersonaService:
@@ -104,28 +105,6 @@ class PersonaService:
 		)
 		created = self.repo.create(db, persona)
 
-		# Create persona-level notes
-		persona_notes = []
-		for note_data in data.get("notes", []):
-			note_id = str(uuid4())
-			note_model = PersonaNotesModel(
-				id=note_id,
-				persona_id=created.id,
-				custom_notes=note_data.get("custom_notes")
-			)
-			persona_notes.append(self.repo.add_note(db, note_model))
-
-		# Create persona-level skillsets
-		persona_skillsets = []
-		for skillset_data in data.get("skillsets", []):
-			skillset_id = str(uuid4())
-			skillset_model = PersonaSkillsetModel(
-				id=skillset_id,
-				persona_id=created.id,
-				technologies=skillset_data.get("technologies", [])
-			)
-			persona_skillsets.append(self.repo.add_skillset(db, skillset_model))
-
 		# Create categories and their nested entities
 		for cat in data.get("categories", []):
 			cat_id = str(uuid4())
@@ -154,17 +133,6 @@ class PersonaService:
 			)
 			created_category = self.repo.add_category(db, cat_model)
 
-			# Create category-level skillsets
-			for skillset_data in cat.get("skillsets", []):
-				cat_skillset_id = str(uuid4())
-				cat_skillset_model = PersonaSkillsetModel(
-					id=cat_skillset_id,
-					persona_id=created.id,
-					persona_category_id=cat_id,
-					technologies=skillset_data.get("technologies", [])
-				)
-				self.repo.add_skillset(db, cat_skillset_model)
-
 			# Create subcategories
 			for sub in cat.get("subcategories", []):
 				sub_id = str(uuid4())
@@ -178,14 +146,15 @@ class PersonaService:
 				
 				# Create subcategory skillset if provided
 				sub_skillset_id = None
-				if sub.get("skillset"):
+				skillset_data = sub.get("skillset")
+				if skillset_data:
 					sub_skillset_id = str(uuid4())
 					sub_skillset_model = PersonaSkillsetModel(
 						id=sub_skillset_id,
 						persona_id=created.id,
 						persona_category_id=cat_id,
 						persona_subcategory_id=sub_id,
-						technologies=sub["skillset"].get("technologies", [])
+						technologies=skillset_data.get("technologies", [])
 					)
 					self.repo.add_skillset(db, sub_skillset_model)
 				
@@ -219,3 +188,270 @@ class PersonaService:
 
 		event_bus.publish_event(PersonaCreatedEvent(id=created.id, job_description_id=created.job_description_id, name=created.name))
 		return created
+
+	def update_persona(self, db: Session, persona_id: str, data: dict, updated_by: str) -> PersonaModel:
+		"""Update a persona with comprehensive change tracking."""
+		# Get the current persona with all relationships
+		old_persona = self.repo.get(db, persona_id)
+		if not old_persona:
+			raise ValueError(f"Persona with ID '{persona_id}' not found")
+		
+		# Initialize change tracker
+		change_tracker = PersonaChangeTracker()
+		
+		# Track changes before applying them
+		change_logs = change_tracker.track_persona_changes(
+			db, persona_id, old_persona, data, updated_by
+		)
+		
+		# Apply updates to persona fields
+		if 'name' in data:
+			old_persona.name = data['name']
+		if 'role_name' in data:
+			old_persona.role_name = data['role_name']
+		
+		# Update categories if provided (includes notes and subcategories with skillsets)
+		if 'categories' in data:
+			self._update_categories(db, old_persona, data['categories'], updated_by)
+		
+		# Save the updated persona
+		updated_persona = self.repo.update(db, old_persona)
+		
+		# Save all change logs
+		for change_log in change_logs:
+			self.repo.add_change_log(db, change_log)
+		
+		return updated_persona
+
+	def _update_categories(self, db: Session, persona: PersonaModel, new_categories: list, updated_by: str) -> None:
+		"""Update categories for a persona."""
+		# Get existing categories
+		existing_categories = {cat.id: cat for cat in persona.categories}
+		new_category_ids = {cat.get('id') for cat in new_categories if cat.get('id')}
+		
+		# Delete categories that are no longer in the new data
+		for cat_id, category in existing_categories.items():
+			if cat_id not in new_category_ids:
+				# Delete subcategories first (cascade should handle this, but being explicit)
+				for subcat in category.subcategories:
+					db.delete(subcat)
+				db.delete(category)
+		
+		# Update or create categories
+		for cat_data in new_categories:
+			cat_id = cat_data.get('id')
+			
+			if cat_id and cat_id in existing_categories:
+				# Update existing category
+				category = existing_categories[cat_id]
+				category.name = cat_data['name']
+				category.weight_percentage = int(cat_data['weight_percentage'])
+				category.range_min = cat_data.get('range_min')
+				category.range_max = cat_data.get('range_max')
+				category.position = cat_data.get('position')
+				
+				# Update category notes
+				if 'notes' in cat_data:
+					self._update_category_notes(db, category, cat_data['notes'], updated_by)
+				
+				# Update subcategories
+				if 'subcategories' in cat_data:
+					self._update_subcategories(db, category, cat_data['subcategories'], updated_by)
+			else:
+				# Create new category
+				new_cat_id = cat_id or str(uuid4())
+				category = PersonaCategoryModel(
+					id=new_cat_id,
+					persona_id=persona.id,
+					name=cat_data['name'],
+					weight_percentage=int(cat_data['weight_percentage']),
+					range_min=cat_data.get('range_min'),
+					range_max=cat_data.get('range_max'),
+					position=cat_data.get('position')
+				)
+				db.add(category)
+				
+				# Create category notes
+				if 'notes' in cat_data:
+					self._create_category_notes(db, category, cat_data['notes'], updated_by)
+				
+				# Create subcategories
+				if 'subcategories' in cat_data:
+					self._create_subcategories(db, category, cat_data['subcategories'], updated_by)
+
+	def _update_category_notes(self, db: Session, category: PersonaCategoryModel, new_notes: Any, updated_by: str) -> None:
+		"""Update notes for a category."""
+		# Get existing note for this category (single note, not a list)
+		existing_note = category.notes if category.notes else None
+		
+		# Handle the note data (can be a single note object or a list)
+		if new_notes:
+			# If it's a list, take the first note; if it's a dict, use it directly
+			if isinstance(new_notes, list):
+				note_data = new_notes[0] if new_notes else None
+			else:
+				note_data = new_notes
+			
+			if note_data:
+				note_id = note_data.get('id')
+				
+				if note_id and existing_note and note_id == existing_note.id:
+					# Update existing note
+					existing_note.custom_notes = note_data.get('custom_notes')
+				else:
+					# Delete existing note if it exists
+					if existing_note:
+						db.delete(existing_note)
+						category.notes_id = None  # Clear the notes_id reference
+					
+					# Create new note
+					new_note_id = note_id or str(uuid4())
+					note = PersonaNotesModel(
+						id=new_note_id,
+						persona_id=category.persona_id,
+						category_id=category.id,
+						custom_notes=note_data.get('custom_notes')
+					)
+					db.add(note)
+					category.notes_id = new_note_id  # Set the notes_id reference
+		else:
+			# No new notes - delete existing note if it exists
+			if existing_note:
+				db.delete(existing_note)
+				category.notes_id = None  # Clear the notes_id reference
+
+	def _create_category_notes(self, db: Session, category: PersonaCategoryModel, notes: Any, updated_by: str) -> None:
+		"""Create new notes for a category."""
+		# Handle the note data (can be a single note object or a list)
+		if notes:
+			# If it's a list, take the first note; if it's a dict, use it directly
+			if isinstance(notes, list):
+				note_data = notes[0] if notes else None
+			else:
+				note_data = notes
+			
+			if note_data:
+				note_id = str(uuid4())
+				note = PersonaNotesModel(
+					id=note_id,
+					persona_id=category.persona_id,
+					category_id=category.id,
+					custom_notes=note_data.get('custom_notes')
+				)
+				db.add(note)
+				category.notes_id = note_id  # Set the notes_id reference
+
+	def _update_subcategories(self, db: Session, category: PersonaCategoryModel, new_subcategories: list, updated_by: str) -> None:
+		"""Update subcategories for a category."""
+		existing_subcats = {sub.id: sub for sub in category.subcategories}
+		new_subcat_ids = {sub.get('id') for sub in new_subcategories if sub.get('id')}
+		
+		# Delete subcategories that are no longer in the new data
+		for sub_id, subcat in existing_subcats.items():
+			if sub_id not in new_subcat_ids:
+				db.delete(subcat)
+		
+		# Update or create subcategories
+		for sub_data in new_subcategories:
+			sub_id = sub_data.get('id')
+			
+			if sub_id and sub_id in existing_subcats:
+				# Update existing subcategory
+				subcat = existing_subcats[sub_id]
+				subcat.name = sub_data['name']
+				subcat.weight_percentage = int(sub_data['weight_percentage'])
+				subcat.range_min = sub_data.get('range_min')
+				subcat.range_max = sub_data.get('range_max')
+				subcat.level_id = sub_data.get('level_id')
+				subcat.position = sub_data.get('position')
+				
+				# Update subcategory skillset
+				if 'skillset' in sub_data:
+					self._update_subcategory_skillset(db, subcat, sub_data['skillset'], updated_by)
+			else:
+				# Create new subcategory
+				new_sub_id = sub_id or str(uuid4())
+				subcat = PersonaSubcategoryModel(
+					id=new_sub_id,
+					category_id=category.id,
+					name=sub_data['name'],
+					weight_percentage=int(sub_data['weight_percentage']),
+					range_min=sub_data.get('range_min'),
+					range_max=sub_data.get('range_max'),
+					level_id=sub_data.get('level_id'),
+					position=sub_data.get('position')
+				)
+				db.add(subcat)
+				
+				# Create subcategory skillset
+				if 'skillset' in sub_data:
+					self._create_subcategory_skillset(db, subcat, sub_data['skillset'], updated_by, category.persona_id, category.id)
+
+	def _update_subcategory_skillset(self, db: Session, subcategory: PersonaSubcategoryModel, skillset_data: Any, updated_by: str) -> None:
+		"""Update skillset for a subcategory."""
+		# Get existing skillset for this subcategory
+		existing_skillset = None
+		for skillset in subcategory.category.persona.skillsets:
+			if skillset.persona_subcategory_id == subcategory.id:
+				existing_skillset = skillset
+				break
+		
+		if skillset_data:
+			if existing_skillset:
+				# Update existing skillset
+				existing_skillset.technologies = skillset_data.get('technologies', [])
+			else:
+				# Create new skillset
+				skillset_id = str(uuid4())
+				skillset = PersonaSkillsetModel(
+					id=skillset_id,
+					persona_id=subcategory.category.persona_id,
+					persona_category_id=subcategory.category_id,
+					persona_subcategory_id=subcategory.id,
+					technologies=skillset_data.get('technologies', [])
+				)
+				db.add(skillset)
+				subcategory.skillset_id = skillset_id  # Set the skillset_id reference
+		else:
+			# No skillset data - delete existing skillset if it exists
+			if existing_skillset:
+				db.delete(existing_skillset)
+				subcategory.skillset_id = None  # Clear the skillset_id reference
+
+	def _create_subcategory_skillset(self, db: Session, subcategory: PersonaSubcategoryModel, skillset_data: Any, updated_by: str, persona_id: str = None, category_id: str = None) -> None:
+		"""Create new skillset for a subcategory."""
+		if skillset_data:
+			skillset_id = str(uuid4())
+			# Use provided parameters or fall back to relationship access
+			persona_id = persona_id or subcategory.category.persona_id
+			category_id = category_id or subcategory.category_id
+			
+			skillset = PersonaSkillsetModel(
+				id=skillset_id,
+				persona_id=persona_id,
+				persona_category_id=category_id,
+				persona_subcategory_id=subcategory.id,
+				technologies=skillset_data.get('technologies', [])
+			)
+			db.add(skillset)
+			subcategory.skillset_id = skillset_id  # Set the skillset_id reference
+
+	def _create_subcategories(self, db: Session, category: PersonaCategoryModel, subcategories: list, updated_by: str) -> None:
+		"""Create new subcategories for a category."""
+		for sub_data in subcategories:
+			sub_id = str(uuid4())
+			subcat = PersonaSubcategoryModel(
+				id=sub_id,
+				category_id=category.id,
+				name=sub_data['name'],
+				weight_percentage=int(sub_data['weight_percentage']),
+				range_min=sub_data.get('range_min'),
+				range_max=sub_data.get('range_max'),
+				level_id=sub_data.get('level_id'),
+				position=sub_data.get('position')
+			)
+			db.add(subcat)
+			
+			# Create subcategory skillset
+			if 'skillset' in sub_data:
+				self._create_subcategory_skillset(db, subcat, sub_data['skillset'], updated_by, category.persona_id, category.id)

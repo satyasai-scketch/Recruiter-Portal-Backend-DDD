@@ -2,11 +2,11 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api.deps import db_session, get_current_user
-from app.schemas.persona import PersonaCreate, PersonaRead
+from app.schemas.persona import PersonaCreate, PersonaRead, PersonaUpdate
 from app.cqrs.handlers import handle_command, handle_query
 from app.services.persona_service import PersonaService
 from app.db.models.user import UserModel
-from app.cqrs.commands.persona_commands import CreatePersona
+from app.cqrs.commands.persona_commands import CreatePersona, UpdatePersona
 from app.cqrs.queries.persona_queries import ListPersonasByJobDescription, ListAllPersonas, CountPersonas, GetPersona
 
 
@@ -42,3 +42,36 @@ async def get_persona(persona_id: str, db: Session = Depends(db_session)):
 async def list_personas_by_jd(jd_id: str, db: Session = Depends(db_session)):
 	models = handle_query(db, ListPersonasByJobDescription(jd_id))
 	return [PersonaRead.model_validate(m) for m in models]
+
+
+@router.patch("/{persona_id}", response_model=PersonaRead, summary="Update persona with change tracking")
+async def update_persona(
+	persona_id: str,
+	payload: PersonaUpdate,
+	db: Session = Depends(db_session),
+	current_user: UserModel = Depends(get_current_user)
+):
+	"""Update a persona with comprehensive change tracking.
+	
+	This endpoint tracks all changes made to the persona and its nested entities:
+	- Persona-level fields (name, role_name)
+	- Categories (modification only, no addition/deletion)
+	- Category notes (single note per category, can be added, modified, or deleted)
+	- Subcategories (can be added, modified, or deleted)
+	- Subcategory skillsets (can be added, modified, or deleted)
+	
+	Structure:
+	- Each Category has ONE note (one-to-one relationship via notes_id)
+	- Skillsets belong to Subcategories (persona_subcategory_id in PersonaSkillsetModel)
+	
+	All changes are logged in the persona_change_logs table for audit purposes.
+	"""
+	# Convert Pydantic model to dict, excluding None values
+	update_data = payload.model_dump(exclude_unset=True)
+	
+	# Use the command handler to update the persona
+	model = handle_command(db, UpdatePersona(persona_id, update_data, current_user.id))
+	
+	# Fetch the updated model with all relationships
+	updated_model = handle_query(db, GetPersona(model.id))
+	return PersonaRead.model_validate(updated_model)
