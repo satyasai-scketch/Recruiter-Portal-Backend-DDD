@@ -44,6 +44,7 @@ class PersonaSubcategorySchema(BaseModel):
 	weight_percentage: int
 	range_min: Optional[float] = None
 	range_max: Optional[float] = None
+	level_id: Optional[str] = None
 	level: Optional[PersonaLevelSchema] = None
 	position: Optional[int] = None
 	skillset: Optional[PersonaSkillsetSchema] = None
