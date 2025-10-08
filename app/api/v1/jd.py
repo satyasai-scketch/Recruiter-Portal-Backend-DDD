@@ -279,7 +279,46 @@ async def get_jd(jd_id: str, db: Session = Depends(get_db), user=Depends(get_cur
 			rollback_on_error(db)
 		raise handle_service_errors(e)
 
+# Add import
+from app.schemas.jd import JDDiffResponse
+from app.cqrs.queries.jd_queries import GetJDDiff
 
+# Add new endpoint
+@router.get("/{jd_id}/diff", response_model=JDDiffResponse, summary="Get diff between original and refined JD")
+async def get_jd_diff(
+    jd_id: str,
+    format: str = "table",  # Query parameter: table, inline, or simple
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user)
+):
+    """
+    Get HTML diff showing changes between original and refined JD.
+    
+    **Formats:**
+    - `table` (default): Side-by-side comparison table
+    - `inline`: Full HTML page with side-by-side view
+    - `simple`: Inline markup with <ins> and <del> tags
+    
+    **Response includes:**
+    - HTML diff with highlighted changes
+    - Statistics (words added/removed, similarity ratio)
+    """
+    try:
+        # Verify JD ownership
+        jd = handle_query(db, GetJobDescription(jd_id))
+        if not jd or jd.created_by != user.id:
+            raise HTTPException(status_code=404, detail="JD not found")
+        
+        # Get diff
+        result = handle_query(db, GetJDDiff(jd_id, diff_format=format))
+        
+        return JDDiffResponse(**result)
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except (SQLAlchemyError) as e:
+        rollback_on_error(db)
+        raise handle_service_errors(e)
 @router.patch("/{jd_id}", response_model=JDRead, summary="Update Job Description (selected_version, selected_text, selected_version, selected_edited.)")
 async def update_jd(jd_id: str, body: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
 	"""
