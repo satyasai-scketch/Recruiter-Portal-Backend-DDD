@@ -459,3 +459,100 @@ class PersonaService:
 			# Create subcategory skillset
 			if 'skillset' in sub_data:
 				self._create_subcategory_skillset(db, subcat, sub_data['skillset'], updated_by, category.persona_id, category.id)
+
+	def delete_persona(self, db: Session, persona_id: str) -> dict:
+		"""Delete a persona and all its associated data with comprehensive feedback."""
+		# Get the persona first to check if it exists
+		persona = self.repo.get(db, persona_id)
+		if not persona:
+			raise ValueError(f"Persona with ID '{persona_id}' not found")
+		
+		# Collect deletion statistics before deletion
+		deletion_stats = {
+			"persona_id": persona_id,
+			"persona_name": persona.name,
+			"deleted_entities": {
+				"persona": 1,
+				"categories": len(persona.categories),
+				"subcategories": sum(len(cat.subcategories) for cat in persona.categories),
+				"skillsets": len(persona.skillsets),
+				"notes": len(persona.notes),
+				"change_logs": len(persona.change_logs)
+			},
+			"external_references": {
+				"scores": 0  # Will be updated below
+			}
+		}
+		
+		# Count external references (scores table)
+		from app.db.models.score import ScoreModel
+		scores_count = db.query(ScoreModel).filter(ScoreModel.persona_id == persona_id).count()
+		deletion_stats["external_references"]["scores"] = scores_count
+		
+		# Delete external references first (scores)
+		if scores_count > 0:
+			db.query(ScoreModel).filter(ScoreModel.persona_id == persona_id).delete()
+		
+		# Manual deletion to avoid circular dependency issues
+		# Delete in the correct order to break circular references
+		
+		# 1. First, clear all foreign key references that create circular dependencies
+		for category in persona.categories:
+			# Clear notes_id reference in category
+			category.notes_id = None
+			db.flush()  # Flush to update the database
+			
+			for subcategory in category.subcategories:
+				# Clear skillset_id reference in subcategory
+				subcategory.skillset_id = None
+				db.flush()
+		
+		# 2. Delete change logs first (no circular dependencies)
+		for change_log in persona.change_logs:
+			db.delete(change_log)
+		db.flush()
+		
+		# 3. Delete notes (no circular dependencies after clearing references)
+		for note in persona.notes:
+			db.delete(note)
+		db.flush()
+		
+		# 4. Delete skillsets (no circular dependencies after clearing references)
+		for skillset in persona.skillsets:
+			db.delete(skillset)
+		db.flush()
+		
+		# 5. Delete subcategories (no circular dependencies after clearing references)
+		for category in persona.categories:
+			for subcategory in category.subcategories:
+				db.delete(subcategory)
+		db.flush()
+		
+		# 6. Delete categories (no circular dependencies after clearing references)
+		for category in persona.categories:
+			db.delete(category)
+		db.flush()
+		
+		# 7. Finally, delete the persona itself
+		db.delete(persona)
+		db.commit()
+		
+		# Verify deletion by checking if persona still exists
+		remaining_persona = self.repo.get(db, persona_id)
+		remaining_scores = db.query(ScoreModel).filter(ScoreModel.persona_id == persona_id).count()
+		
+		deletion_stats["deletion_status"] = {
+			"persona_deleted": remaining_persona is None,
+			"external_scores_deleted": remaining_scores == 0,
+			"total_entities_deleted": (
+				deletion_stats["deleted_entities"]["persona"] +
+				deletion_stats["deleted_entities"]["categories"] +
+				deletion_stats["deleted_entities"]["subcategories"] +
+				deletion_stats["deleted_entities"]["skillsets"] +
+				deletion_stats["deleted_entities"]["notes"] +
+				deletion_stats["deleted_entities"]["change_logs"] +
+				deletion_stats["external_references"]["scores"]
+			)
+		}
+		
+		return deletion_stats

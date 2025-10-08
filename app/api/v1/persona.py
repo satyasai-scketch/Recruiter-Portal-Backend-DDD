@@ -2,11 +2,11 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api.deps import db_session, get_current_user
-from app.schemas.persona import PersonaCreate, PersonaRead, PersonaUpdate, PersonaChangeLogRead
+from app.schemas.persona import PersonaCreate, PersonaRead, PersonaUpdate, PersonaChangeLogRead, PersonaDeletionStats
 from app.cqrs.handlers import handle_command, handle_query
 from app.services.persona_service import PersonaService
 from app.db.models.user import UserModel
-from app.cqrs.commands.persona_commands import CreatePersona, UpdatePersona
+from app.cqrs.commands.persona_commands import CreatePersona, UpdatePersona, DeletePersona
 from app.cqrs.queries.persona_queries import ListPersonasByJobDescription, ListAllPersonas, CountPersonas, GetPersona, GetPersonaChangeLogs
 
 
@@ -35,6 +35,9 @@ async def get_all_personas(db: Session = Depends(db_session)):
 @router.get("/{persona_id}", response_model=PersonaRead, summary="Get persona by ID")
 async def get_persona(persona_id: str, db: Session = Depends(db_session)):
 	model = handle_query(db, GetPersona(persona_id))
+	if model is None:
+		from fastapi import HTTPException
+		raise HTTPException(status_code=404, detail=f"Persona with ID '{persona_id}' not found")
 	return PersonaRead.model_validate(model)
 
 
@@ -93,6 +96,12 @@ async def get_persona_change_logs(
 	- User who made the change
 	- Timestamp of the change
 	"""
+	# First check if persona exists
+	persona = handle_query(db, GetPersona(persona_id))
+	if persona is None:
+		from fastapi import HTTPException
+		raise HTTPException(status_code=404, detail=f"Persona with ID '{persona_id}' not found")
+	
 	change_logs = handle_query(db, GetPersonaChangeLogs(persona_id))
 	
 	# Convert to response format with user details
@@ -122,3 +131,40 @@ async def get_persona_change_logs(
 		result.append(PersonaChangeLogRead(**log_data))
 	
 	return result
+
+
+@router.delete("/{persona_id}", response_model=PersonaDeletionStats, summary="Delete persona with comprehensive feedback")
+async def delete_persona(
+	persona_id: str,
+	db: Session = Depends(db_session),
+	current_user: UserModel = Depends(get_current_user)
+):
+	"""Delete a persona and all its associated data with comprehensive feedback.
+	
+	This endpoint will:
+	1. Delete the persona and all its nested entities (categories, subcategories, skillsets, notes, change logs)
+	2. Delete any external references (e.g., scores)
+	3. Provide detailed feedback on what was deleted
+	
+	The deletion is comprehensive and will remove:
+	- The main persona record
+	- All persona categories and their subcategories
+	- All persona skillsets (both category-level and subcategory-level)
+	- All persona notes
+	- All persona change logs
+	- Any candidate scores associated with this persona
+	
+	Returns detailed statistics about what was deleted for verification.
+	"""
+	try:
+		# Use the command handler to delete the persona
+		deletion_stats = handle_command(db, DeletePersona(persona_id))
+		
+		return PersonaDeletionStats(**deletion_stats)
+		
+	except ValueError as e:
+		from fastapi import HTTPException
+		raise HTTPException(status_code=404, detail=str(e))
+	except Exception as e:
+		from fastapi import HTTPException
+		raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

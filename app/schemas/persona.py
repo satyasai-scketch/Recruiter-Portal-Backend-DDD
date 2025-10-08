@@ -137,3 +137,14 @@ class PersonaUpdate(BaseModel):
 	categories: Optional[List[PersonaCategorySchema]] = None
 
 	model_config = ConfigDict(from_attributes=True)
+
+
+class PersonaDeletionStats(BaseModel):
+	"""Schema for persona deletion statistics"""
+	persona_id: str
+	persona_name: str
+	deleted_entities: dict
+	external_references: dict
+	deletion_status: dict
+
+	model_config = ConfigDict(from_attributes=True)

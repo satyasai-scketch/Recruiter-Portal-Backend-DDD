@@ -148,6 +148,8 @@ def handle_command(db: Session, command: Command) -> Any:
 		return PersonaService().create_nested(db, command.payload, command.created_by)
 	if isinstance(command, UpdatePersona):
 		return PersonaService().update_persona(db, command.persona_id, command.payload, command.updated_by)
+	if isinstance(command, DeletePersona):
+		return PersonaService().delete_persona(db, command.persona_id)
 	if isinstance(command, UploadCVs):
 		return CandidateService().upload(db, command.payloads)
 	if isinstance(command, ScoreCandidates):
