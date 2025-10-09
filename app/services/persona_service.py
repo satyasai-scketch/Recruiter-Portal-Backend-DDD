@@ -15,7 +15,8 @@ from app.domain.persona import services as persona_domain_services
 from app.domain.persona.entities import WeightInterval
 from app.events.event_bus import event_bus
 from app.events.persona_events import PersonaCreatedEvent
-
+from app.services.persona_generation import OpenAIPersonaGenerator
+from app.core.config import settings
 
 class PersonaService:
 	"""Orchestrates persona workflows at the application layer."""
@@ -24,7 +25,11 @@ class PersonaService:
 		self.repo = repo or SQLAlchemyPersonaRepository()
 		self.level_repo = level_repo or SQLAlchemyPersonaLevelRepository()
 		self.jd_repo = jd_repo or SQLAlchemyJobDescriptionRepository()
-	
+		# Add persona generator
+		self.persona_generator = OpenAIPersonaGenerator(
+			api_key=settings.OPENAI_API_KEY,
+			model=getattr(settings, "PERSONA_GENERATION_MODEL", "gpt-4o")
+		)
 	def get_persona(self, db: Session, persona_id: str) -> PersonaModel:
 		return self.repo.get(db, persona_id)
 	
@@ -219,3 +224,40 @@ class PersonaService:
 
 		event_bus.publish_event(PersonaCreatedEvent(id=created.id, job_description_id=created.job_description_id, name=created.name))
 		return created
+	
+	async def create_from_jd_text(
+		self,
+		db: Session,
+		jd_id: str,
+		jd_text: str,
+		created_by: str
+	) -> PersonaModel:
+		"""
+		Generate persona from JD text using AI.
+		
+		Args:
+			db: Database session
+			jd_id: Job description ID
+			jd_text: JD text to analyze
+			created_by: User ID
+			
+		Returns:
+			Created PersonaModel with full hierarchy
+		"""
+		# Verify JD exists
+		jd = self.jd_repo.get(db, jd_id)
+		if not jd:
+			raise ValueError(f"Job description {jd_id} not found")
+		
+		# Generate persona structure using AI
+		print(f"🤖 Generating persona for JD: {jd_id}")
+		persona_data = await self.persona_generator.generate_persona_from_jd(
+			jd_text=jd_text,
+			jd_id=jd_id
+		)
+		
+		# Use existing create_nested method to save to DB
+		persona_model = self.create_nested(db, persona_data, created_by)
+		
+		print(f"✅ Persona created: {persona_model.id}")
+		return persona_model

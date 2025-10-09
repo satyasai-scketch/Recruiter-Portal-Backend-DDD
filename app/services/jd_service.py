@@ -13,6 +13,8 @@ from app.events.event_bus import event_bus
 from app.services.jd_refinement.refinement_service import JDRefinementService
 from app.repositories.company_repo import CompanyRepository
 from app.utils.jd_diff import JDDiffGenerator
+from app.utils.jd_inline_diff import JDInlineDiffGenerator
+
 class JDService:
     """Application service for Job Description operations."""
 
@@ -263,5 +265,36 @@ class JDService:
             'original_text': original,
             'refined_text': refined,
             'diff_html': diff_html,
+            'stats': stats
+        }
+    
+    def get_jd_inline_markup(self, db: Session, jd_id: str) -> dict:
+        """
+        Get separate marked-up texts for original and refined JD.
+        
+        Args:
+            db: Database session
+            jd_id: Job description ID
+                
+        Returns:
+            Dict with marked up original and refined texts plus statistics
+        """
+        jd = self.get_by_id(db, jd_id)
+        if not jd:
+            raise ValueError("Job description not found")
+                
+        if not jd.refined_text:
+            raise ValueError("JD has not been refined yet")
+                
+        original = jd.original_text or ""
+        refined = jd.refined_text or ""
+                
+        # Generate inline markup using NEW class
+        marked_original, marked_refined, stats = JDInlineDiffGenerator.generate_marked_texts(original, refined)
+                
+        return {
+            'jd_id': jd_id,
+            'original_text': marked_original,
+            'refined_text': marked_refined,
             'stats': stats
         }

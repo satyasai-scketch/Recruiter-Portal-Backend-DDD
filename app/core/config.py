@@ -69,6 +69,7 @@ class Settings(BaseSettings):
 	PINECONE_REGION: str = "us-east-1"
 	JD_REFINEMENT_MODEL: str = os.getenv("JD_REFINEMENT_MODEL", "gpt-4o")
 	JD_REFINEMENT_TEMPERATURE: float = float(os.getenv("JD_REFINEMENT_TEMPERATURE", "0.5"))
+	PERSONA_GENERATION_MODEL: str = "gpt-4o"
 	class Config:
 		env_file = ".env"
 		env_file_encoding = "utf-8"

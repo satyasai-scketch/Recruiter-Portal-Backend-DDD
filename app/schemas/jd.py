@@ -115,3 +115,12 @@ class JDDiffResponse(BaseModel):
     stats: Dict[str, Any]  # Change from Dict[str, int] to Dict[str, Any]
     
     model_config = ConfigDict(from_attributes=True)
+
+class JDInlineMarkupResponse(BaseModel):
+    """Response with separate marked-up original and refined texts"""
+    jd_id: str
+    original_text: str  # Contains inline HTML markup showing deletions
+    refined_text: str   # Contains inline HTML markup showing additions
+    stats: Dict[str, Any]
+    
+    model_config = ConfigDict(from_attributes=True)

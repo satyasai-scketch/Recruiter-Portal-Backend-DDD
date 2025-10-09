@@ -10,7 +10,7 @@ from app.services.match_service import MatchService
 from app.services.company_service import CompanyService
 from app.services.job_role_service import JobRoleService
 from app.services.persona_level_service import PersonaLevelService
-
+from app.cqrs.commands.generate_persona_from_jd import GeneratePersonaFromJD
 # Import base classes
 from app.cqrs.commands.base import Command
 from app.cqrs.queries.base import Query
@@ -94,6 +94,7 @@ import asyncio
 import concurrent.futures
 from app.cqrs.commands.refine_jd_with_ai import RefineJDWithAI
 from app.cqrs.queries.jd_queries import GetJDDiff
+from app.cqrs.queries.jd_queries import GetJDInlineMarkup
 # Add this handler function before handle_command
 def handle_refine_jd_with_ai(db: Session, command: RefineJDWithAI):
     """Handle JD refinement with AI (sync wrapper for async service)"""
@@ -130,6 +131,44 @@ def handle_refine_jd_with_ai(db: Session, command: RefineJDWithAI):
             )
     except Exception as e:
         raise ValueError(f"Error in AI refinement: {str(e)}")
+	
+def handle_generate_persona_from_jd(db: Session, command: GeneratePersonaFromJD):
+    """Handle persona generation from JD with AI (sync wrapper)"""
+    try:
+        # Get JD text
+        jd = JDService().get_by_id(db, command.jd_id)
+        if not jd:
+            raise ValueError(f"Job description {command.jd_id} not found")
+        
+        jd_text = jd.selected_text
+        
+        # Run async persona generation
+        try:
+            loop = asyncio.get_running_loop()
+            # Loop exists, use thread pool
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(
+                    asyncio.run,
+                    PersonaService().create_from_jd_text(
+                        db=db,
+                        jd_id=command.jd_id,
+                        jd_text=jd_text,
+                        created_by=command.created_by
+                    )
+                )
+                return future.result()
+        except RuntimeError:
+            # No running loop
+            return asyncio.run(
+                PersonaService().create_from_jd_text(
+                    db=db,
+                    jd_id=command.jd_id,
+                    jd_text=jd_text,
+                    created_by=command.created_by
+                )
+            )
+    except Exception as e:
+        raise ValueError(f"Error generating persona: {str(e)}")
 # Handlers
 
 def handle_command(db: Session, command: Command) -> Any:
@@ -145,6 +184,8 @@ def handle_command(db: Session, command: Command) -> Any:
 		return JDService().create_from_document(db, command.payload, command.file_content, command.filename)
 	if isinstance(command, CreatePersona):
 		return PersonaService().create_nested(db, command.payload, command.created_by)
+	if isinstance(command, GeneratePersonaFromJD):
+		return handle_generate_persona_from_jd(db, command)
 	if isinstance(command, UploadCVs):
 		return CandidateService().upload(db, command.payloads)
 	if isinstance(command, ScoreCandidates):
@@ -221,6 +262,8 @@ def handle_query(db: Session, query: Query) -> Any:
 		return JobRoleService().get_categories(db)
 	if isinstance(query, GetJDDiff):
 		return JDService().get_jd_diff(db, query.jd_id, query.diff_format)
+	if isinstance(query, GetJDInlineMarkup):
+		return JDService().get_jd_inline_markup(db, query.jd_id)
 	if isinstance(query, GetPersonaLevel):
 		return PersonaLevelService().get_level(db, query.persona_level_id)
 	if isinstance(query, GetPersonaLevelByName):
