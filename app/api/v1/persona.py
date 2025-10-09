@@ -7,7 +7,7 @@ from app.cqrs.handlers import handle_command, handle_query
 from app.services.persona_service import PersonaService
 from app.db.models.user import UserModel
 from app.cqrs.commands.persona_commands import CreatePersona, UpdatePersona, DeletePersona
-from app.cqrs.queries.persona_queries import ListPersonasByJobDescription, ListAllPersonas, CountPersonas, GetPersona, GetPersonaChangeLogs
+from app.cqrs.queries.persona_queries import ListPersonasByJobDescription, ListAllPersonas, CountPersonas, GetPersona, GetPersonaChangeLogs, ListPersonasByJobRole
 
 
 router = APIRouter()
@@ -44,6 +44,24 @@ async def get_persona(persona_id: str, db: Session = Depends(db_session)):
 @router.get("/by-jd/{jd_id}", response_model=list[PersonaRead], summary="List personas for a Job Description")
 async def list_personas_by_jd(jd_id: str, db: Session = Depends(db_session)):
 	models = handle_query(db, ListPersonasByJobDescription(jd_id))
+	return [PersonaRead.model_validate(m) for m in models]
+
+
+@router.get("/by-role/{role_id}", response_model=list[PersonaRead], summary="List personas for a Job Role")
+async def list_personas_by_role(role_id: str, db: Session = Depends(db_session)):
+	"""List all personas associated with a specific job role.
+	
+	This endpoint retrieves all personas that are linked to job descriptions
+	that use the specified job role. The query uses an optimized JOIN between
+	personas and job_descriptions tables for better performance.
+	
+	Args:
+		role_id: The ID of the job role to filter personas by
+		
+	Returns:
+		List of PersonaRead objects containing all personas for the specified role
+	"""
+	models = handle_query(db, ListPersonasByJobRole(role_id))
 	return [PersonaRead.model_validate(m) for m in models]
 
 
