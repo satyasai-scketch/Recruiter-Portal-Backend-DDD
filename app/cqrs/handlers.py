@@ -133,42 +133,46 @@ def handle_refine_jd_with_ai(db: Session, command: RefineJDWithAI):
         raise ValueError(f"Error in AI refinement: {str(e)}")
 	
 def handle_generate_persona_from_jd(db: Session, command: GeneratePersonaFromJD):
-    """Handle persona generation from JD with AI (sync wrapper)"""
+    """Handle persona generation from JD (returns structure, doesn't save)"""
     try:
         # Get JD text
         jd = JDService().get_by_id(db, command.jd_id)
         if not jd:
             raise ValueError(f"Job description {command.jd_id} not found")
         
-        jd_text = jd.selected_text
+        jd_text = jd.refined_text or jd.original_text
         
-        # Run async persona generation
+        # Import here to avoid circular dependency
+        from app.services.persona_generation import OpenAIPersonaGenerator
+        from app.core.config import settings
+        
+        # Initialize generator
+        generator = OpenAIPersonaGenerator(
+            api_key=settings.OPENAI_API_KEY,
+            model=getattr(settings, "PERSONA_GENERATION_MODEL", "gpt-4o")
+        )
+        
+        # Run async persona generation (returns dict, doesn't save)
         try:
             loop = asyncio.get_running_loop()
-            # Loop exists, use thread pool
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 future = executor.submit(
                     asyncio.run,
-                    PersonaService().create_from_jd_text(
-                        db=db,
-                        jd_id=command.jd_id,
+                    generator.generate_persona_from_jd(
                         jd_text=jd_text,
-                        created_by=command.created_by
+                        jd_id=command.jd_id
                     )
                 )
                 return future.result()
         except RuntimeError:
-            # No running loop
             return asyncio.run(
-                PersonaService().create_from_jd_text(
-                    db=db,
-                    jd_id=command.jd_id,
+                generator.generate_persona_from_jd(
                     jd_text=jd_text,
-                    created_by=command.created_by
+                    jd_id=command.jd_id
                 )
             )
     except Exception as e:
-        raise ValueError(f"Error generating persona: {str(e)}")
+        raise ValueError(f"Error generating persona structure: {str(e)}")
 # Handlers
 
 def handle_command(db: Session, command: Command) -> Any:

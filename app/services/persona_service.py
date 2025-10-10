@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
 from uuid import uuid4
 from sqlalchemy.orm import Session
 
@@ -225,39 +225,31 @@ class PersonaService:
 		event_bus.publish_event(PersonaCreatedEvent(id=created.id, job_description_id=created.job_description_id, name=created.name))
 		return created
 	
-	async def create_from_jd_text(
+	async def generate_persona_from_jd_text(
 		self,
-		db: Session,
 		jd_id: str,
-		jd_text: str,
-		created_by: str
-	) -> PersonaModel:
+		jd_text: str
+	) -> Dict[str, Any]:
 		"""
-		Generate persona from JD text using AI.
+		Generate persona structure from JD text using AI WITHOUT saving to DB.
 		
 		Args:
-			db: Database session
 			jd_id: Job description ID
 			jd_text: JD text to analyze
-			created_by: User ID
 			
 		Returns:
-			Created PersonaModel with full hierarchy
+			Dict matching PersonaCreate schema (not saved to DB)
 		"""
 		# Verify JD exists
-		jd = self.jd_repo.get(db, jd_id)
+		jd = self.jd_repo.get(None, jd_id)
 		if not jd:
 			raise ValueError(f"Job description {jd_id} not found")
 		
-		# Generate persona structure using AI
-		print(f"🤖 Generating persona for JD: {jd_id}")
+		print(f"🤖 Generating persona structure for JD: {jd_id}")
 		persona_data = await self.persona_generator.generate_persona_from_jd(
 			jd_text=jd_text,
 			jd_id=jd_id
 		)
 		
-		# Use existing create_nested method to save to DB
-		persona_model = self.create_nested(db, persona_data, created_by)
-		
-		print(f"✅ Persona created: {persona_model.id}")
-		return persona_model
+		print(f"✅ Persona structure generated (not saved)")
+		return persona_data

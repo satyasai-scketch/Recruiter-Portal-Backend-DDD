@@ -24,31 +24,28 @@ async def create_persona(
 	# Fetch eagerly to return nested
 	model = handle_query(db, GetPersona(model.id))
 	return PersonaRead.model_validate(model)
-@router.post("/generate-from-jd/{jd_id}", response_model=PersonaRead, summary="Generate persona from JD using AI")
+@router.post("/generate-from-jd/{jd_id}", response_model=PersonaRead, summary="Generate persona from JD (preview, not saved)")
 async def generate_persona_from_jd(
     jd_id: str,
     db: Session = Depends(db_session),
     current_user: UserModel = Depends(get_current_user)
 ):
     """
-    Generate persona automatically from JD text using AI.
-    
-    This endpoint:
-    1. Fetches the JD text
-    2. Analyzes it with AI (4-phase intelligent generation)
-    3. Calculates optimal category weights
-    4. Creates structured persona with all subcategories
-    5. Saves to database
-    
-    Much easier than manually creating persona structure!
+    Generate persona structure from JD using AI.
+    Returns the structure WITHOUT saving to database.
     """
-    # Generate persona using AI
-    model = handle_command(db, GeneratePersonaFromJD(jd_id=jd_id, created_by=current_user.id))
+    # Generate persona structure
+    persona_data = handle_command(db, GeneratePersonaFromJD(jd_id=jd_id))
     
-    # Fetch with full relationships
-    model = handle_query(db, GetPersona(model.id))
+    # Remove analysis_insights (not part of PersonaRead schema)
+    persona_data.pop('analysis_insights', None)
     
-    return PersonaRead.model_validate(model)
+    # Add mock ID and user info for PersonaRead validation
+    persona_data['id'] = 'preview'  # Or generate temp UUID
+    persona_data['created_by'] = current_user.id
+    persona_data['role_name'] = None  # Will be fetched when actually saved
+    
+    return PersonaRead.model_validate(persona_data)
 
 @router.get("/by-jd/{jd_id}", response_model=list[PersonaRead], summary="List personas for a Job Description")
 async def list_personas_by_jd(jd_id: str, db: Session = Depends(db_session)):
