@@ -128,27 +128,27 @@ class JDPromptTemplates:
     def extract_improvements_prompt(original: str, refined: str) -> str:
         """Generate prompt to extract what was improved"""
         
-        prompt = f"""Compare the original and refined job descriptions and list the key improvements made.
+        prompt = f"""
+You are a strict JSON generator.
 
-**Original JD:**
+Compare the original and refined job descriptions and identify 3-4 key improvements.
+
+Return ONLY a valid JSON array of strings with NO explanation, NO markdown, and NO extra text.
+
+Original:
 {original}
 
-**Refined JD:**
+Refined:
 {refined}
 
-**Task:**
-List 5-8 specific improvements in concise bullet points. Focus on:
+Focus on:
 - Structural improvements
 - Added sections or details
 - Clarity enhancements
 - Keyword optimization
 - Inclusivity improvements
 
-**Output Format:**
-Return ONLY a JSON array of strings, like:
-["improvement 1", "improvement 2", ...]
-
-Example:
-["Added comprehensive technical skills section", "Improved role clarity with specific responsibilities", "Enhanced inclusivity with gender-neutral language"]
+Each string should include a short metric, e.g.:
+["Added technical skills section (+1)", "Improved clarity (+30%)", "Enhanced inclusivity (+40%)"]
 """
         return prompt

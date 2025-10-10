@@ -15,7 +15,12 @@ from app.domain.persona import services as persona_domain_services
 from app.domain.persona.entities import WeightInterval
 from app.events.event_bus import event_bus
 from app.events.persona_events import PersonaCreatedEvent
+
+from app.services.persona_generation import OpenAIPersonaGenerator
+from app.core.config import settings
+
 from app.services.persona_change_tracker import PersonaChangeTracker
+
 
 
 class PersonaService:
@@ -25,7 +30,11 @@ class PersonaService:
 		self.repo = repo or SQLAlchemyPersonaRepository()
 		self.level_repo = level_repo or SQLAlchemyPersonaLevelRepository()
 		self.jd_repo = jd_repo or SQLAlchemyJobDescriptionRepository()
-	
+		# Add persona generator
+		self.persona_generator = OpenAIPersonaGenerator(
+			api_key=settings.OPENAI_API_KEY,
+			model=getattr(settings, "PERSONA_GENERATION_MODEL", "gpt-4o")
+		)
 	def get_persona(self, db: Session, persona_id: str) -> PersonaModel:
 		return self.repo.get(db, persona_id)
 	
@@ -196,6 +205,37 @@ class PersonaService:
 
 		event_bus.publish_event(PersonaCreatedEvent(id=created.id, job_description_id=created.job_description_id, name=created.name))
 		return created
+
+	
+	async def generate_persona_from_jd_text(
+		self,
+		jd_id: str,
+		jd_text: str
+	) -> Dict[str, Any]:
+		"""
+		Generate persona structure from JD text using AI WITHOUT saving to DB.
+		
+		Args:
+			jd_id: Job description ID
+			jd_text: JD text to analyze
+			
+		Returns:
+			Dict matching PersonaCreate schema (not saved to DB)
+		"""
+		# Verify JD exists
+		jd = self.jd_repo.get(None, jd_id)
+		if not jd:
+			raise ValueError(f"Job description {jd_id} not found")
+		
+		print(f"🤖 Generating persona structure for JD: {jd_id}")
+		persona_data = await self.persona_generator.generate_persona_from_jd(
+			jd_text=jd_text,
+			jd_id=jd_id
+		)
+		
+		print(f"✅ Persona structure generated (not saved)")
+		return persona_data
+
 
 	def update_persona(self, db: Session, persona_id: str, data: dict, updated_by: str) -> PersonaModel:
 		"""Update a persona with comprehensive change tracking."""
@@ -560,3 +600,4 @@ class PersonaService:
 		}
 		
 		return deletion_stats
+

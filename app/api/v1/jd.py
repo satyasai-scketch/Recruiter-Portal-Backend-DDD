@@ -319,6 +319,40 @@ async def get_jd_diff(
     except (SQLAlchemyError) as e:
         rollback_on_error(db)
         raise handle_service_errors(e)
+from app.schemas.jd import JDInlineMarkupResponse
+from app.cqrs.queries.jd_queries import GetJDInlineMarkup
+@router.get("/{jd_id}/markup", response_model=JDInlineMarkupResponse, summary="Get inline markup for original and refined JD")
+async def get_jd_inline_markup(
+    jd_id: str,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user)
+):
+    """
+    Get original and refined JD texts with inline markup highlighting changes.
+
+    **Response includes:**
+    - `original_text`: Text with deletions highlighted in red with strikethrough
+    - `refined_text`: Text with additions highlighted in green
+    - `stats`: Change statistics
+    """
+    try:
+        # Verify JD ownership
+        jd = handle_query(db, GetJobDescription(jd_id))
+        if not jd or jd.created_by != user.id:
+            raise HTTPException(status_code=404, detail="JD not found")
+
+        # Get inline markup
+        result = handle_query(db, GetJDInlineMarkup(jd_id))
+
+        return JDInlineMarkupResponse(**result)
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    except SQLAlchemyError as e:
+        rollback_on_error(db)
+        raise handle_service_errors(e)
+
 @router.patch("/{jd_id}", response_model=JDRead, summary="Update Job Description (selected_version, selected_text, selected_version, selected_edited.)")
 async def update_jd(jd_id: str, body: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
 	"""
