@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Dict, List, Optional
+from datetime import datetime
 
 
 class WeightIntervalSchema(BaseModel):
@@ -34,6 +35,22 @@ class PersonaChangeLogSchema(BaseModel):
 	old_value: Optional[str] = None
 	new_value: Optional[str] = None
 	changed_by: str
+
+	model_config = ConfigDict(from_attributes=True)
+
+
+class PersonaChangeLogRead(BaseModel):
+	"""Schema for reading persona change logs with full details"""
+	id: str
+	persona_id: str
+	entity_type: str
+	entity_id: str
+	field_name: str
+	old_value: Optional[str] = None
+	new_value: Optional[str] = None
+	changed_by: Optional[str] = None
+	changed_at: datetime
+	changed_by_user: Optional[dict] = None  # User details if available
 
 	model_config = ConfigDict(from_attributes=True)
 
@@ -109,5 +126,25 @@ class PersonaLevelRead(BaseModel):
 	id: str
 	name: str
 	position: Optional[int] = None
+
+	model_config = ConfigDict(from_attributes=True)
+
+
+class PersonaUpdate(BaseModel):
+	"""Schema for updating persona with change tracking"""
+	name: Optional[str] = None
+	role_name: Optional[str] = None
+	categories: Optional[List[PersonaCategorySchema]] = None
+
+	model_config = ConfigDict(from_attributes=True)
+
+
+class PersonaDeletionStats(BaseModel):
+	"""Schema for persona deletion statistics"""
+	persona_id: str
+	persona_name: str
+	deleted_entities: dict
+	external_references: dict
+	deletion_status: dict
 
 	model_config = ConfigDict(from_attributes=True)

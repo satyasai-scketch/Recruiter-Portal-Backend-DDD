@@ -28,3 +28,15 @@ class CountPersonas(Query):
     """Query to count all personas."""
     def __init__(self):
         pass
+
+@dataclass
+class GetPersonaChangeLogs(Query):
+    """Query to get change logs for a persona."""
+    def __init__(self, persona_id: str):
+        self.persona_id = persona_id
+
+@dataclass
+class ListPersonasByJobRole(Query):
+    """Query to list personas by job role ID."""
+    def __init__(self, role_id: str):
+        self.role_id = role_id

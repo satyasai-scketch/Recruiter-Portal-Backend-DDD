@@ -7,6 +7,7 @@ from app.db.models.persona import (
 	PersonaModel, PersonaCategoryModel, PersonaSubcategoryModel,
 	PersonaSkillsetModel, PersonaNotesModel, PersonaChangeLogModel
 )
+from app.db.models.job_description import JobDescriptionModel
 
 
 class PersonaRepository:
@@ -41,6 +42,12 @@ class PersonaRepository:
 		raise NotImplementedError
 
 	def add_change_log(self, db: Session, change_log: PersonaChangeLogModel) -> PersonaChangeLogModel:
+		raise NotImplementedError
+
+	def get_change_logs(self, db: Session, persona_id: str) -> List[PersonaChangeLogModel]:
+		raise NotImplementedError
+
+	def list_by_role_id(self, db: Session, role_id: str) -> Sequence[PersonaModel]:
 		raise NotImplementedError
 
 	def delete_persona(self, db: Session, persona_id: str) -> None:
@@ -127,6 +134,31 @@ class SQLAlchemyPersonaRepository(PersonaRepository):
 		db.commit()
 		db.refresh(change_log)
 		return change_log
+
+	def get_change_logs(self, db: Session, persona_id: str) -> List[PersonaChangeLogModel]:
+		"""Get all change logs for a persona, ordered by most recent first."""
+		return (
+			db.query(PersonaChangeLogModel)
+			.options(selectinload(PersonaChangeLogModel.user))
+			.filter(PersonaChangeLogModel.persona_id == persona_id)
+			.order_by(PersonaChangeLogModel.changed_at.desc())
+			.all()
+		)
+
+	def list_by_role_id(self, db: Session, role_id: str) -> Sequence[PersonaModel]:
+		"""List all personas for a specific job role ID using JOIN for optimal performance."""
+		return (
+			db.query(PersonaModel)
+			.join(JobDescriptionModel, PersonaModel.job_description_id == JobDescriptionModel.id)
+			.options(
+				selectinload(PersonaModel.categories).selectinload(PersonaCategoryModel.subcategories),
+				selectinload(PersonaModel.skillsets),
+				selectinload(PersonaModel.notes)
+			)
+			.filter(JobDescriptionModel.role_id == role_id)
+			.order_by(PersonaModel.name.asc())
+			.all()
+		)
 
 	def delete_persona(self, db: Session, persona_id: str) -> None:
 		obj = db.query(PersonaModel).filter(PersonaModel.id == persona_id).first()
