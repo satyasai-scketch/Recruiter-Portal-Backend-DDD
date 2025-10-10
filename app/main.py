@@ -8,7 +8,6 @@ from app.api.v1 import jd as jd_router
 from app.api.v1 import persona as persona_router
 from app.api.v1 import persona_level as persona_level_router
 from app.api.v1 import candidate as candidate_router
-from app.api.v1 import candidate_dev as candidate_dev_router
 from app.api.v1 import match as match_router
 from app.api.v1 import auth as auth_router
 from app.api.v1 import company as company_router
@@ -39,7 +38,6 @@ app.include_router(jd_router.router, prefix="/api/v1/jd", tags=["jd"])
 app.include_router(persona_router.router, prefix="/api/v1/persona", tags=["persona"])
 app.include_router(persona_level_router.router, prefix="/api/v1/persona-level", tags=["persona-level"])
 app.include_router(candidate_router.router, prefix="/api/v1/candidate", tags=["candidate"])
-app.include_router(candidate_dev_router.router, prefix="/api/v1/candidate-dev", tags=["candidate-dev"])
 app.include_router(match_router.router, prefix="/api/v1/match", tags=["match"])
 app.include_router(company_router.router, prefix="/api/v1/company", tags=["company"])
 app.include_router(job_role_router.router, prefix="/api/v1/job-role", tags=["job-role"])
