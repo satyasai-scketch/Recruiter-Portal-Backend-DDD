@@ -44,6 +44,7 @@ from app.cqrs.commands.persona_commands import (
 	DeletePersona
 )
 from app.cqrs.commands.upload_cv import UploadCVs
+from app.cqrs.commands.upload_cv_file import UploadCVFile
 from app.cqrs.commands.score_candidates import ScoreCandidates
 
 # Import query classes
@@ -201,6 +202,8 @@ def handle_command(db: Session, command: Command) -> Any:
 
 	if isinstance(command, UploadCVs):
 		return CandidateService().upload(db, command.payloads)
+	if isinstance(command, UploadCVFile):
+		return CandidateService().upload_cv(db, command.file_bytes, command.filename, command.candidate_info)
 	if isinstance(command, ScoreCandidates):
 		return CandidateService().score_candidates(
 			db,

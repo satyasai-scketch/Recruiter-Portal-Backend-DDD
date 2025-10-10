@@ -19,7 +19,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Create candidate_cvs table first (referenced by candidates.latest_cv_id)
+    # First, create candidate_cvs table without foreign key constraint
     op.create_table('candidate_cvs',
         sa.Column('id', sa.String(), nullable=False),
         sa.Column('candidate_id', sa.String(), nullable=False),
@@ -33,7 +33,6 @@ def upgrade() -> None:
         sa.Column('uploaded_at', sa.DateTime(), nullable=True),
         sa.Column('skills', sqlite.JSON(), nullable=True),
         sa.Column('roles_detected', sqlite.JSON(), nullable=True),
-        sa.ForeignKeyConstraint(['candidate_id'], ['candidates.id'], ),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('file_hash')
     )
@@ -54,16 +53,23 @@ def upgrade() -> None:
         sa.Column('latest_cv_id', sa.String(), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=True),
         sa.Column('updated_at', sa.DateTime(), nullable=True),
-        sa.ForeignKeyConstraint(['latest_cv_id'], ['candidate_cvs.id'], ),
         sa.PrimaryKeyConstraint('id')
     )
     
     # Create indexes for candidates
     op.create_index(op.f('ix_candidates_email'), 'candidates', ['email'], unique=False)
     op.create_index(op.f('ix_candidates_phone'), 'candidates', ['phone'], unique=False)
+    
+    # Now add foreign key constraints
+    op.create_foreign_key('fk_candidate_cvs_candidate_id', 'candidate_cvs', 'candidates', ['candidate_id'], ['id'])
+    op.create_foreign_key('fk_candidates_latest_cv_id', 'candidates', 'candidate_cvs', ['latest_cv_id'], ['id'])
 
 
 def downgrade() -> None:
+    # Drop foreign key constraints first
+    op.drop_constraint('fk_candidates_latest_cv_id', 'candidates', type_='foreignkey')
+    op.drop_constraint('fk_candidate_cvs_candidate_id', 'candidate_cvs', type_='foreignkey')
+    
     # Drop indexes
     op.drop_index(op.f('ix_candidates_phone'), table_name='candidates')
     op.drop_index(op.f('ix_candidates_email'), table_name='candidates')

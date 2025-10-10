@@ -14,10 +14,11 @@ class CandidateModel(Base):
 	email = Column(String, nullable=True, index=True)
 	phone = Column(String, nullable=True, index=True)
 	latest_cv_id = Column(String, ForeignKey("candidate_cvs.id"), nullable=True)
-	created_at = Column(DateTime, default=datetime.utcnow)
-	updated_at = Column(DateTime, default=datetime.utcnow)
+	created_at = Column(DateTime, default=datetime.now)
+	updated_at = Column(DateTime, default=datetime.now)
 
-	cvs = relationship("CandidateCVModel", back_populates="candidate", cascade="all, delete-orphan")
+	cvs = relationship("CandidateCVModel", back_populates="candidate", cascade="all, delete-orphan", foreign_keys="[CandidateCVModel.candidate_id]")
+	latest_cv = relationship("CandidateCVModel", foreign_keys="[CandidateModel.latest_cv_id]", post_update=True)
 
 
 class CandidateCVModel(Base):
@@ -32,10 +33,10 @@ class CandidateCVModel(Base):
 	file_size = Column(Integer, nullable=True)
 	mime_type = Column(String, nullable=True)
 	status = Column(String, nullable=False, default="uploaded")  # uploaded|pending|failed|parsed
-	uploaded_at = Column(DateTime, default=datetime.utcnow)
+	uploaded_at = Column(DateTime, default=datetime.now)
 
 	# reserved for later enrichment
 	skills = Column(JSON, nullable=True)          # list of strings or structured
 	roles_detected = Column(JSON, nullable=True)  # list of strings
 
-	candidate = relationship("CandidateModel", back_populates="cvs")
+	candidate = relationship("CandidateModel", back_populates="cvs", foreign_keys="[CandidateCVModel.candidate_id]")

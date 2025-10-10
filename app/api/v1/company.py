@@ -224,7 +224,7 @@ async def update_company(
     """
     try:
         # Convert Pydantic model to dict and add user info
-        payload = company_data.dict(exclude_unset=True)
+        payload = company_data.model_dump(exclude_unset=True)
         payload["updated_by"] = user.id
         
         # Flatten address and social_media if present
