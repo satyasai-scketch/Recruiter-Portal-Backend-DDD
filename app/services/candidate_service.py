@@ -12,7 +12,7 @@ from app.repositories.candidate_cv_repo import SQLAlchemyCandidateCVRepository
 from app.repositories.score_repo import SQLAlchemyScoreRepository
 from app.domain.candidate import services as cand_domain_services
 from app.events.event_bus import event_bus
-from app.events.candidate_events import CVUploadedEvent, ScoreRequestedEvent
+from app.events.candidate_events import CVUploadedEvent, ScoreRequestedEvent, CandidateDeletedEvent, CandidateCVDeletedEvent
 from app.utils.cv_utils import (
 	compute_file_hash, 
 	extract_file_extension, 
@@ -20,6 +20,7 @@ from app.utils.cv_utils import (
 	validate_cv_file,
 	generate_s3_key
 )
+from app.utils.document_parser import DocumentParser
 from app.services.storage import StorageFactory
 
 
@@ -98,9 +99,30 @@ class CandidateService:
 				return result
 			
 			# Step 4: Extract baseline info from file content
-			# For now, we'll use the provided candidate_info or extract from text
-			# In a real implementation, you'd parse the file content here
 			baseline_info = candidate_info or {}
+			
+			# If no candidate info provided, extract from CV content
+			if not baseline_info.get("email") or not baseline_info.get("phone"):
+				try:
+					# Extract text from the CV file
+					parsed_doc = DocumentParser.extract_text(filename, file_bytes)
+					extracted_text = parsed_doc.get("extracted_text", "")
+					
+					# Extract baseline info (name, email, phone) from text
+					extracted_info = extract_baseline_info(extracted_text)
+					
+					# Merge extracted info with provided info (provided info takes precedence)
+					if not baseline_info.get("full_name") and extracted_info.get("name"):
+						baseline_info["full_name"] = extracted_info["name"]
+					if not baseline_info.get("email") and extracted_info.get("email"):
+						baseline_info["email"] = extracted_info["email"]
+					if not baseline_info.get("phone") and extracted_info.get("phone"):
+						baseline_info["phone"] = extracted_info["phone"]
+						
+				except Exception as e:
+					# If text extraction fails, continue with provided info only
+					print(f"Warning: Failed to extract text from CV {filename}: {e}")
+					pass
 			
 			# Step 5: Find or create candidate
 			candidate = self._find_or_create_candidate(db, baseline_info)
@@ -254,3 +276,119 @@ class CandidateService:
 					)
 				)
 		return self.scores.bulk_create(db, rows)
+
+	def get_by_id(self, db: Session, candidate_id: str) -> Optional[CandidateModel]:
+		"""Get a candidate by ID."""
+		return self.candidates.get(db, candidate_id)
+
+	def get_all(self, db: Session, skip: int = 0, limit: int = 100) -> List[CandidateModel]:
+		"""Get all candidates with pagination."""
+		return list(self.candidates.list_all(db)[skip:skip + limit])
+
+	def get_candidate_cv(self, db: Session, candidate_cv_id: str) -> Optional[CandidateCVModel]:
+		"""Get a candidate CV by ID."""
+		return self.candidate_cvs.get(db, candidate_cv_id)
+
+	def get_candidate_cvs(self, db: Session, candidate_id: str) -> List[CandidateCVModel]:
+		"""Get all CVs for a specific candidate."""
+		return self.candidate_cvs.get_candidate_cvs(db, candidate_id)
+
+	def delete_candidate(self, db: Session, candidate_id: str) -> bool:
+		"""Delete a candidate and all associated CVs."""
+		try:
+			# Get candidate first to check if it exists and get name for event
+			candidate = self.candidates.get(db, candidate_id)
+			if not candidate:
+				return False
+			
+			candidate_name = candidate.full_name
+			
+			# Delete all CVs for this candidate first
+			cvs = self.candidate_cvs.get_candidate_cvs(db, candidate_id)
+			for cv in cvs:
+				# Delete CV from storage
+				try:
+					storage_service = StorageFactory.get_storage_service()
+					# Generate the same key format used during upload
+					extension = extract_file_extension(cv.file_name)
+					storage_key = generate_s3_key(cv.file_hash, extension)
+					storage_service.delete_file(storage_key)
+				except Exception as e:
+					# Log storage deletion error but continue with DB deletion
+					print(f"Failed to delete CV file from storage: {e}")
+				
+				# Delete CV from database
+				self.candidate_cvs.delete(db, cv.id)
+			
+			# Delete candidate
+			success = self.candidates.delete(db, candidate_id)
+			
+			if success:
+				# Publish event
+				try:
+					event_bus.publish_event(CandidateDeletedEvent(
+						candidate_id=candidate_id,
+						candidate_name=candidate_name
+					))
+				except Exception as e:
+					print(f"Failed to publish CandidateDeletedEvent: {e}")
+			
+			return success
+			
+		except Exception as e:
+			db.rollback()
+			raise e
+
+	def delete_candidate_cv(self, db: Session, candidate_cv_id: str) -> bool:
+		"""Delete a specific candidate CV."""
+		try:
+			# Get CV first to check if it exists and get info for event
+			cv = self.candidate_cvs.get(db, candidate_cv_id)
+			if not cv:
+				return False
+			
+			candidate_id = cv.candidate_id
+			file_name = cv.file_name
+			
+			# Delete CV from storage
+			try:
+				storage_service = StorageFactory.get_storage_service()
+				# Generate the same key format used during upload
+				extension = extract_file_extension(cv.file_name)
+				storage_key = generate_s3_key(cv.file_hash, extension)
+				storage_service.delete_file(storage_key)
+			except Exception as e:
+				# Log storage deletion error but continue with DB deletion
+				print(f"Failed to delete CV file from storage: {e}")
+			
+			# Delete CV from database
+			success = self.candidate_cvs.delete(db, candidate_cv_id)
+			
+			if success:
+				# Update candidate's latest_cv_id if this was the latest CV
+				candidate = self.candidates.get(db, candidate_id)
+				if candidate and candidate.latest_cv_id == candidate_cv_id:
+					# Find the next latest CV
+					remaining_cvs = self.candidate_cvs.get_candidate_cvs(db, candidate_id)
+					if remaining_cvs:
+						candidate.latest_cv_id = remaining_cvs[0].id  # First one is latest due to desc ordering
+					else:
+						candidate.latest_cv_id = None
+					candidate.updated_at = datetime.now()
+					self.candidates.update(db, candidate)
+				
+				# Publish event
+				try:
+					event_bus.publish_event(CandidateCVDeletedEvent(
+						candidate_cv_id=candidate_cv_id,
+						candidate_id=candidate_id,
+						file_name=file_name
+					))
+				except Exception as e:
+					print(f"Failed to publish CandidateCVDeletedEvent: {e}")
+			
+			return success
+			
+		except Exception as e:
+			db.rollback()
+			raise e

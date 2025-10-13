@@ -45,6 +45,7 @@ from app.cqrs.commands.persona_commands import (
 )
 from app.cqrs.commands.upload_cv import UploadCVs
 from app.cqrs.commands.upload_cv_file import UploadCVFile
+from app.cqrs.commands.candidate_commands import DeleteCandidate, DeleteCandidateCV
 from app.cqrs.commands.score_candidates import ScoreCandidates
 
 # Import query classes
@@ -56,6 +57,12 @@ from app.cqrs.queries.jd_queries import (
 )
 from app.cqrs.queries.get_persona import GetPersona
 from app.cqrs.queries.list_candidates import ListCandidates
+from app.cqrs.queries.candidate_queries import (
+	GetCandidate,
+	ListAllCandidates,
+	GetCandidateCV,
+	GetCandidateCVs
+)
 from app.cqrs.queries.recommendations import Recommendations
 from app.cqrs.queries.company_queries import (
     GetCompany,
@@ -230,6 +237,10 @@ def handle_command(db: Session, command: Command) -> Any:
 		return PersonaLevelService().update_level(db, command.persona_level_id, command.payload)
 	if isinstance(command, DeletePersonaLevel):
 		return PersonaLevelService().delete_level(db, command.persona_level_id)
+	if isinstance(command, DeleteCandidate):
+		return CandidateService().delete_candidate(db, command.candidate_id)
+	if isinstance(command, DeleteCandidateCV):
+		return CandidateService().delete_candidate_cv(db, command.candidate_cv_id)
 	raise NotImplementedError(f"No handler for command {type(command).__name__}")
 
 
@@ -302,4 +313,12 @@ def handle_query(db: Session, query: Query) -> Any:
 		return PersonaService().get_change_logs(db, query.persona_id)
 	if isinstance(query, ListPersonasByJobRole):
 		return PersonaService().list_by_role_id(db, query.role_id)
+	if isinstance(query, GetCandidate):
+		return CandidateService().get_by_id(db, query.candidate_id)
+	if isinstance(query, ListAllCandidates):
+		return CandidateService().get_all(db, query.skip, query.limit)
+	if isinstance(query, GetCandidateCV):
+		return CandidateService().get_candidate_cv(db, query.candidate_cv_id)
+	if isinstance(query, GetCandidateCVs):
+		return CandidateService().get_candidate_cvs(db, query.candidate_id)
 	raise NotImplementedError(f"No handler for query {type(query).__name__}")

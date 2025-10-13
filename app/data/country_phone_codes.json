@@ -1,0 +1,1027 @@
+{
+  "1": {
+    "name": "US/Canada",
+    "min_length": 10,
+    "max_length": 10
+  },
+  "7": {
+    "name": "Russia/Kazakhstan",
+    "min_length": 10,
+    "max_length": 10
+  },
+  "20": {
+    "name": "Egypt",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "27": {
+    "name": "South Africa",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "30": {
+    "name": "Greece",
+    "min_length": 10,
+    "max_length": 10
+  },
+  "31": {
+    "name": "Netherlands",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "32": {
+    "name": "Belgium",
+    "min_length": 8,
+    "max_length": 9
+  },
+  "33": {
+    "name": "France",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "34": {
+    "name": "Spain",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "36": {
+    "name": "Hungary",
+    "min_length": 8,
+    "max_length": 9
+  },
+  "39": {
+    "name": "Italy",
+    "min_length": 9,
+    "max_length": 11
+  },
+  "40": {
+    "name": "Romania",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "41": {
+    "name": "Switzerland",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "43": {
+    "name": "Austria",
+    "min_length": 10,
+    "max_length": 11
+  },
+  "44": {
+    "name": "UK",
+    "min_length": 10,
+    "max_length": 10
+  },
+  "45": {
+    "name": "Denmark",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "46": {
+    "name": "Sweden",
+    "min_length": 7,
+    "max_length": 9
+  },
+  "47": {
+    "name": "Norway",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "48": {
+    "name": "Poland",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "49": {
+    "name": "Germany",
+    "min_length": 10,
+    "max_length": 12
+  },
+  "51": {
+    "name": "Peru",
+    "min_length": 8,
+    "max_length": 9
+  },
+  "52": {
+    "name": "Mexico",
+    "min_length": 10,
+    "max_length": 10
+  },
+  "53": {
+    "name": "Cuba",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "54": {
+    "name": "Argentina",
+    "min_length": 10,
+    "max_length": 10
+  },
+  "55": {
+    "name": "Brazil",
+    "min_length": 10,
+    "max_length": 11
+  },
+  "56": {
+    "name": "Chile",
+    "min_length": 8,
+    "max_length": 9
+  },
+  "57": {
+    "name": "Colombia",
+    "min_length": 10,
+    "max_length": 10
+  },
+  "58": {
+    "name": "Venezuela",
+    "min_length": 10,
+    "max_length": 10
+  },
+  "60": {
+    "name": "Malaysia",
+    "min_length": 9,
+    "max_length": 10
+  },
+  "61": {
+    "name": "Australia",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "62": {
+    "name": "Indonesia",
+    "min_length": 8,
+    "max_length": 12
+  },
+  "63": {
+    "name": "Philippines",
+    "min_length": 10,
+    "max_length": 10
+  },
+  "64": {
+    "name": "New Zealand",
+    "min_length": 8,
+    "max_length": 9
+  },
+  "65": {
+    "name": "Singapore",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "66": {
+    "name": "Thailand",
+    "min_length": 8,
+    "max_length": 9
+  },
+  "81": {
+    "name": "Japan",
+    "min_length": 10,
+    "max_length": 11
+  },
+  "82": {
+    "name": "South Korea",
+    "min_length": 9,
+    "max_length": 10
+  },
+  "84": {
+    "name": "Vietnam",
+    "min_length": 9,
+    "max_length": 10
+  },
+  "86": {
+    "name": "China",
+    "min_length": 11,
+    "max_length": 11
+  },
+  "90": {
+    "name": "Turkey",
+    "min_length": 10,
+    "max_length": 10
+  },
+  "91": {
+    "name": "India",
+    "min_length": 10,
+    "max_length": 10
+  },
+  "92": {
+    "name": "Pakistan",
+    "min_length": 10,
+    "max_length": 10
+  },
+  "93": {
+    "name": "Afghanistan",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "94": {
+    "name": "Sri Lanka",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "95": {
+    "name": "Myanmar",
+    "min_length": 8,
+    "max_length": 9
+  },
+  "98": {
+    "name": "Iran",
+    "min_length": 10,
+    "max_length": 10
+  },
+  "212": {
+    "name": "Morocco",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "213": {
+    "name": "Algeria",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "216": {
+    "name": "Tunisia",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "218": {
+    "name": "Libya",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "220": {
+    "name": "Gambia",
+    "min_length": 7,
+    "max_length": 7
+  },
+  "221": {
+    "name": "Senegal",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "222": {
+    "name": "Mauritania",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "223": {
+    "name": "Mali",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "224": {
+    "name": "Guinea",
+    "min_length": 8,
+    "max_length": 9
+  },
+  "225": {
+    "name": "Ivory Coast",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "226": {
+    "name": "Burkina Faso",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "227": {
+    "name": "Niger",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "228": {
+    "name": "Togo",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "229": {
+    "name": "Benin",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "230": {
+    "name": "Mauritius",
+    "min_length": 7,
+    "max_length": 7
+  },
+  "231": {
+    "name": "Liberia",
+    "min_length": 7,
+    "max_length": 8
+  },
+  "232": {
+    "name": "Sierra Leone",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "233": {
+    "name": "Ghana",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "234": {
+    "name": "Nigeria",
+    "min_length": 10,
+    "max_length": 10
+  },
+  "235": {
+    "name": "Chad",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "236": {
+    "name": "Central African Republic",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "237": {
+    "name": "Cameroon",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "238": {
+    "name": "Cape Verde",
+    "min_length": 7,
+    "max_length": 7
+  },
+  "239": {
+    "name": "São Tomé and Príncipe",
+    "min_length": 7,
+    "max_length": 7
+  },
+  "240": {
+    "name": "Equatorial Guinea",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "241": {
+    "name": "Gabon",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "242": {
+    "name": "Republic of the Congo",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "243": {
+    "name": "Democratic Republic of the Congo",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "244": {
+    "name": "Angola",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "245": {
+    "name": "Guinea-Bissau",
+    "min_length": 7,
+    "max_length": 7
+  },
+  "246": {
+    "name": "British Indian Ocean Territory",
+    "min_length": 7,
+    "max_length": 7
+  },
+  "248": {
+    "name": "Seychelles",
+    "min_length": 7,
+    "max_length": 7
+  },
+  "249": {
+    "name": "Sudan",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "250": {
+    "name": "Rwanda",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "251": {
+    "name": "Ethiopia",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "252": {
+    "name": "Somalia",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "253": {
+    "name": "Djibouti",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "254": {
+    "name": "Kenya",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "255": {
+    "name": "Tanzania",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "256": {
+    "name": "Uganda",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "257": {
+    "name": "Burundi",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "258": {
+    "name": "Mozambique",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "260": {
+    "name": "Zambia",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "261": {
+    "name": "Madagascar",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "262": {
+    "name": "Réunion",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "263": {
+    "name": "Zimbabwe",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "264": {
+    "name": "Namibia",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "265": {
+    "name": "Malawi",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "266": {
+    "name": "Lesotho",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "267": {
+    "name": "Botswana",
+    "min_length": 7,
+    "max_length": 8
+  },
+  "268": {
+    "name": "Swaziland",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "269": {
+    "name": "Comoros",
+    "min_length": 7,
+    "max_length": 7
+  },
+  "290": {
+    "name": "Saint Helena",
+    "min_length": 4,
+    "max_length": 4
+  },
+  "291": {
+    "name": "Eritrea",
+    "min_length": 7,
+    "max_length": 7
+  },
+  "297": {
+    "name": "Aruba",
+    "min_length": 7,
+    "max_length": 7
+  },
+  "298": {
+    "name": "Faroe Islands",
+    "min_length": 6,
+    "max_length": 6
+  },
+  "299": {
+    "name": "Greenland",
+    "min_length": 6,
+    "max_length": 6
+  },
+  "350": {
+    "name": "Gibraltar",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "351": {
+    "name": "Portugal",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "352": {
+    "name": "Luxembourg",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "353": {
+    "name": "Ireland",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "354": {
+    "name": "Iceland",
+    "min_length": 7,
+    "max_length": 9
+  },
+  "355": {
+    "name": "Albania",
+    "min_length": 8,
+    "max_length": 9
+  },
+  "356": {
+    "name": "Malta",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "357": {
+    "name": "Cyprus",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "358": {
+    "name": "Finland",
+    "min_length": 9,
+    "max_length": 10
+  },
+  "359": {
+    "name": "Bulgaria",
+    "min_length": 8,
+    "max_length": 9
+  },
+  "370": {
+    "name": "Lithuania",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "371": {
+    "name": "Latvia",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "372": {
+    "name": "Estonia",
+    "min_length": 7,
+    "max_length": 8
+  },
+  "373": {
+    "name": "Moldova",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "374": {
+    "name": "Armenia",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "375": {
+    "name": "Belarus",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "376": {
+    "name": "Andorra",
+    "min_length": 6,
+    "max_length": 6
+  },
+  "377": {
+    "name": "Monaco",
+    "min_length": 8,
+    "max_length": 9
+  },
+  "378": {
+    "name": "San Marino",
+    "min_length": 6,
+    "max_length": 10
+  },
+  "380": {
+    "name": "Ukraine",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "381": {
+    "name": "Serbia",
+    "min_length": 8,
+    "max_length": 9
+  },
+  "382": {
+    "name": "Montenegro",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "383": {
+    "name": "Kosovo",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "385": {
+    "name": "Croatia",
+    "min_length": 8,
+    "max_length": 9
+  },
+  "386": {
+    "name": "Slovenia",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "387": {
+    "name": "Bosnia and Herzegovina",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "389": {
+    "name": "North Macedonia",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "420": {
+    "name": "Czech Republic",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "421": {
+    "name": "Slovakia",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "423": {
+    "name": "Liechtenstein",
+    "min_length": 7,
+    "max_length": 7
+  },
+  "500": {
+    "name": "Falkland Islands",
+    "min_length": 5,
+    "max_length": 5
+  },
+  "501": {
+    "name": "Belize",
+    "min_length": 7,
+    "max_length": 7
+  },
+  "502": {
+    "name": "Guatemala",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "503": {
+    "name": "El Salvador",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "504": {
+    "name": "Honduras",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "505": {
+    "name": "Nicaragua",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "506": {
+    "name": "Costa Rica",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "507": {
+    "name": "Panama",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "508": {
+    "name": "Saint Pierre and Miquelon",
+    "min_length": 6,
+    "max_length": 6
+  },
+  "509": {
+    "name": "Haiti",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "590": {
+    "name": "Guadeloupe",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "591": {
+    "name": "Bolivia",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "592": {
+    "name": "Guyana",
+    "min_length": 7,
+    "max_length": 7
+  },
+  "593": {
+    "name": "Ecuador",
+    "min_length": 8,
+    "max_length": 9
+  },
+  "594": {
+    "name": "French Guiana",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "595": {
+    "name": "Paraguay",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "596": {
+    "name": "Martinique",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "597": {
+    "name": "Suriname",
+    "min_length": 7,
+    "max_length": 7
+  },
+  "598": {
+    "name": "Uruguay",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "599": {
+    "name": "Netherlands Antilles",
+    "min_length": 7,
+    "max_length": 7
+  },
+  "670": {
+    "name": "East Timor",
+    "min_length": 7,
+    "max_length": 8
+  },
+  "672": {
+    "name": "Australian External Territories",
+    "min_length": 5,
+    "max_length": 5
+  },
+  "673": {
+    "name": "Brunei",
+    "min_length": 7,
+    "max_length": 7
+  },
+  "674": {
+    "name": "Nauru",
+    "min_length": 7,
+    "max_length": 7
+  },
+  "675": {
+    "name": "Papua New Guinea",
+    "min_length": 7,
+    "max_length": 8
+  },
+  "676": {
+    "name": "Tonga",
+    "min_length": 5,
+    "max_length": 5
+  },
+  "677": {
+    "name": "Solomon Islands",
+    "min_length": 5,
+    "max_length": 5
+  },
+  "678": {
+    "name": "Vanuatu",
+    "min_length": 5,
+    "max_length": 5
+  },
+  "679": {
+    "name": "Fiji",
+    "min_length": 7,
+    "max_length": 7
+  },
+  "680": {
+    "name": "Palau",
+    "min_length": 7,
+    "max_length": 7
+  },
+  "681": {
+    "name": "Wallis and Futuna",
+    "min_length": 6,
+    "max_length": 6
+  },
+  "682": {
+    "name": "Cook Islands",
+    "min_length": 5,
+    "max_length": 5
+  },
+  "683": {
+    "name": "Niue",
+    "min_length": 4,
+    "max_length": 4
+  },
+  "684": {
+    "name": "American Samoa",
+    "min_length": 7,
+    "max_length": 7
+  },
+  "685": {
+    "name": "Samoa",
+    "min_length": 5,
+    "max_length": 6
+  },
+  "686": {
+    "name": "Kiribati",
+    "min_length": 5,
+    "max_length": 5
+  },
+  "687": {
+    "name": "New Caledonia",
+    "min_length": 6,
+    "max_length": 6
+  },
+  "688": {
+    "name": "Tuvalu",
+    "min_length": 5,
+    "max_length": 5
+  },
+  "689": {
+    "name": "French Polynesia",
+    "min_length": 6,
+    "max_length": 6
+  },
+  "690": {
+    "name": "Tokelau",
+    "min_length": 4,
+    "max_length": 4
+  },
+  "691": {
+    "name": "Micronesia",
+    "min_length": 7,
+    "max_length": 7
+  },
+  "692": {
+    "name": "Marshall Islands",
+    "min_length": 7,
+    "max_length": 7
+  },
+  "850": {
+    "name": "North Korea",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "852": {
+    "name": "Hong Kong",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "853": {
+    "name": "Macau",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "855": {
+    "name": "Cambodia",
+    "min_length": 8,
+    "max_length": 9
+  },
+  "856": {
+    "name": "Laos",
+    "min_length": 8,
+    "max_length": 10
+  },
+  "880": {
+    "name": "Bangladesh",
+    "min_length": 10,
+    "max_length": 10
+  },
+  "886": {
+    "name": "Taiwan",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "960": {
+    "name": "Maldives",
+    "min_length": 7,
+    "max_length": 7
+  },
+  "961": {
+    "name": "Lebanon",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "962": {
+    "name": "Jordan",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "963": {
+    "name": "Syria",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "964": {
+    "name": "Iraq",
+    "min_length": 10,
+    "max_length": 10
+  },
+  "965": {
+    "name": "Kuwait",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "966": {
+    "name": "Saudi Arabia",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "967": {
+    "name": "Yemen",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "968": {
+    "name": "Oman",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "970": {
+    "name": "Palestine",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "971": {
+    "name": "United Arab Emirates",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "972": {
+    "name": "Israel",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "973": {
+    "name": "Bahrain",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "974": {
+    "name": "Qatar",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "975": {
+    "name": "Bhutan",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "976": {
+    "name": "Mongolia",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "977": {
+    "name": "Nepal",
+    "min_length": 10,
+    "max_length": 10
+  },
+  "992": {
+    "name": "Tajikistan",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "993": {
+    "name": "Turkmenistan",
+    "min_length": 8,
+    "max_length": 8
+  },
+  "994": {
+    "name": "Azerbaijan",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "995": {
+    "name": "Georgia",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "996": {
+    "name": "Kyrgyzstan",
+    "min_length": 9,
+    "max_length": 9
+  },
+  "998": {
+    "name": "Uzbekistan",
+    "min_length": 9,
+    "max_length": 9
+  }
+}

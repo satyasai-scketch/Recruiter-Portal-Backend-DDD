@@ -31,6 +31,9 @@ class CandidateRepository:
 	def find_by_email_or_phone(self, db: Session, email: Optional[str], phone: Optional[str]) -> Optional[CandidateModel]:
 		raise NotImplementedError
 
+	def delete(self, db: Session, candidate_id: str) -> bool:
+		raise NotImplementedError
+
 
 class CandidateCVRepository:
 	"""Repository interface for CandidateCV aggregates."""
@@ -51,6 +54,9 @@ class CandidateCVRepository:
 		raise NotImplementedError
 
 	def get_next_version(self, db: Session, candidate_id: str) -> int:
+		raise NotImplementedError
+
+	def delete(self, db: Session, cv_id: str) -> bool:
 		raise NotImplementedError
 
 
@@ -95,6 +101,19 @@ class SQLAlchemyCandidateRepository(CandidateRepository):
 		
 		return query.filter(and_(*conditions)).first()
 
+	def delete(self, db: Session, candidate_id: str) -> bool:
+		"""Delete a candidate by ID."""
+		try:
+			candidate = self.get(db, candidate_id)
+			if candidate:
+				db.delete(candidate)
+				db.commit()
+				return True
+			return False
+		except Exception as e:
+			db.rollback()
+			raise e
+
 
 class SQLAlchemyCandidateCVRepository(CandidateCVRepository):
 	"""SQLAlchemy-backed implementation of CandidateCVRepository."""
@@ -128,3 +147,16 @@ class SQLAlchemyCandidateCVRepository(CandidateCVRepository):
 		).order_by(CandidateCVModel.version.desc()).first()
 		
 		return (latest_cv.version + 1) if latest_cv else 1
+
+	def delete(self, db: Session, cv_id: str) -> bool:
+		"""Delete a candidate CV by ID."""
+		try:
+			cv = self.get(db, cv_id)
+			if cv:
+				db.delete(cv)
+				db.commit()
+				return True
+			return False
+		except Exception as e:
+			db.rollback()
+			raise e

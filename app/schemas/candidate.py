@@ -65,3 +65,33 @@ class CandidateUploadResponse(BaseModel):
 	status: str
 	is_new_candidate: bool
 	is_new_cv: bool
+
+
+class CandidateListResponse(BaseModel):
+	"""Response for listing candidates with pagination"""
+	candidates: List[CandidateRead]
+	total: int
+	page: int
+	size: int
+	has_next: bool
+	has_prev: bool
+
+
+class CandidateCVListResponse(BaseModel):
+	"""Response for listing candidate CVs"""
+	cvs: List[CandidateCVRead]
+	candidate_id: str
+	total: int
+
+
+class CandidateDeleteResponse(BaseModel):
+	"""Response for candidate deletion"""
+	message: str
+	candidate_id: str
+
+
+class CandidateCVDeleteResponse(BaseModel):
+	"""Response for candidate CV deletion"""
+	message: str
+	candidate_cv_id: str
+	candidate_id: str

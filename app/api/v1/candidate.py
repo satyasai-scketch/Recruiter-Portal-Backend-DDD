@@ -1,14 +1,225 @@
 from typing import List, Dict
 
-from fastapi import APIRouter, Depends, File, UploadFile, Form, HTTPException
+from fastapi import APIRouter, Depends, File, UploadFile, Form, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import db_session, get_current_user
-from app.schemas.candidate import CandidateCreate, CandidateRead, CandidateUploadResponse
-from app.cqrs.handlers import UploadCVs, ScoreCandidates, handle_command
+from app.schemas.candidate import (
+	CandidateCreate, 
+	CandidateRead, 
+	CandidateUploadResponse,
+	CandidateListResponse,
+	CandidateCVRead,
+	CandidateCVListResponse,
+	CandidateDeleteResponse,
+	CandidateCVDeleteResponse
+)
+from app.cqrs.handlers import UploadCVs, ScoreCandidates, handle_command, handle_query
 from app.cqrs.commands.upload_cv_file import UploadCVFile
+from app.cqrs.commands.candidate_commands import DeleteCandidate, DeleteCandidateCV
+from app.cqrs.queries.candidate_queries import (
+	GetCandidate,
+	ListAllCandidates,
+	GetCandidateCV,
+	GetCandidateCVs
+)
 
 router = APIRouter()
+
+
+def _convert_candidate_model_to_read_schema(candidate_model) -> CandidateRead:
+	"""Convert CandidateModel to CandidateRead schema format."""
+	return CandidateRead(
+		id=candidate_model.id,
+		full_name=candidate_model.full_name,
+		email=candidate_model.email,
+		phone=candidate_model.phone,
+		latest_cv_id=candidate_model.latest_cv_id,
+		created_at=candidate_model.created_at,
+		updated_at=candidate_model.updated_at,
+		cvs=None  # CVs are loaded separately when needed
+	)
+
+
+def _convert_cv_model_to_read_schema(cv_model) -> CandidateCVRead:
+	"""Convert CandidateCVModel to CandidateCVRead schema format."""
+	return CandidateCVRead(
+		id=cv_model.id,
+		candidate_id=cv_model.candidate_id,
+		file_name=cv_model.file_name,
+		file_hash=cv_model.file_hash,
+		version=cv_model.version,
+		s3_url=cv_model.s3_url,
+		file_size=cv_model.file_size,
+		mime_type=cv_model.mime_type,
+		status=cv_model.status,
+		uploaded_at=cv_model.uploaded_at,
+		skills=cv_model.skills,
+		roles_detected=cv_model.roles_detected
+	)
+
+
+@router.get("/", response_model=CandidateListResponse, summary="List All Candidates")
+async def list_candidates(
+	page: int = Query(1, ge=1, description="Page number"),
+	size: int = Query(10, ge=1, le=100, description="Page size"),
+	db: Session = Depends(db_session),
+	user=Depends(get_current_user)
+):
+	"""
+	List all candidates with pagination.
+	"""
+	skip = (page - 1) * size
+	
+	# Get candidates
+	candidates = handle_query(db, ListAllCandidates(skip, size))
+	
+	# Get total count (we'll need to add this to the service)
+	# For now, we'll use the length of all candidates
+	all_candidates = handle_query(db, ListAllCandidates(0, 10000))  # Get a large number to count
+	total = len(all_candidates)
+	
+	# Convert to response format
+	candidate_reads = [_convert_candidate_model_to_read_schema(candidate) for candidate in candidates]
+	
+	return CandidateListResponse(
+		candidates=candidate_reads,
+		total=total,
+		page=page,
+		size=size,
+		has_next=(skip + size) < total,
+		has_prev=page > 1
+	)
+
+
+@router.get("/{candidate_id}", response_model=CandidateRead, summary="Get Candidate by ID")
+async def get_candidate(
+	candidate_id: str,
+	db: Session = Depends(db_session),
+	user=Depends(get_current_user)
+):
+	"""
+	Get candidate information by ID.
+	"""
+	candidate = handle_query(db, GetCandidate(candidate_id))
+	
+	if not candidate:
+		raise HTTPException(status_code=404, detail="Candidate not found")
+	
+	return _convert_candidate_model_to_read_schema(candidate)
+
+
+@router.get("/{candidate_id}/cvs", response_model=CandidateCVListResponse, summary="Get Candidate CVs")
+async def get_candidate_cvs(
+	candidate_id: str,
+	db: Session = Depends(db_session),
+	user=Depends(get_current_user)
+):
+	"""
+	Get all CVs for a specific candidate.
+	"""
+	# First check if candidate exists
+	candidate = handle_query(db, GetCandidate(candidate_id))
+	if not candidate:
+		raise HTTPException(status_code=404, detail="Candidate not found")
+	
+	# Get candidate CVs
+	cvs = handle_query(db, GetCandidateCVs(candidate_id))
+	
+	# Convert to response format
+	cv_reads = [_convert_cv_model_to_read_schema(cv) for cv in cvs]
+	
+	return CandidateCVListResponse(
+		cvs=cv_reads,
+		candidate_id=candidate_id,
+		total=len(cv_reads)
+	)
+
+
+@router.get("/cvs/{candidate_cv_id}", response_model=CandidateCVRead, summary="Get Candidate CV by ID")
+async def get_candidate_cv(
+	candidate_cv_id: str,
+	db: Session = Depends(db_session),
+	user=Depends(get_current_user)
+):
+	"""
+	Get candidate CV information by CV ID.
+	"""
+	cv = handle_query(db, GetCandidateCV(candidate_cv_id))
+	
+	if not cv:
+		raise HTTPException(status_code=404, detail="Candidate CV not found")
+	
+	return _convert_cv_model_to_read_schema(cv)
+
+
+@router.delete("/{candidate_id}", response_model=CandidateDeleteResponse, summary="Delete Candidate")
+async def delete_candidate(
+	candidate_id: str,
+	db: Session = Depends(db_session),
+	user=Depends(get_current_user)
+):
+	"""
+	Delete a candidate and all associated CVs.
+	
+	This will permanently delete:
+	- The candidate record
+	- All associated CV files from storage
+	- All CV records from the database
+	
+	This action cannot be undone.
+	"""
+	# First check if candidate exists
+	candidate = handle_query(db, GetCandidate(candidate_id))
+	if not candidate:
+		raise HTTPException(status_code=404, detail="Candidate not found")
+	
+	# Delete candidate using CQRS
+	success = handle_command(db, DeleteCandidate(candidate_id))
+	
+	if not success:
+		raise HTTPException(status_code=500, detail="Failed to delete candidate")
+	
+	return CandidateDeleteResponse(
+		message="Candidate deleted successfully",
+		candidate_id=candidate_id
+	)
+
+
+@router.delete("/cvs/{candidate_cv_id}", response_model=CandidateCVDeleteResponse, summary="Delete Candidate CV")
+async def delete_candidate_cv(
+	candidate_cv_id: str,
+	db: Session = Depends(db_session),
+	user=Depends(get_current_user)
+):
+	"""
+	Delete a specific candidate CV.
+	
+	This will permanently delete:
+	- The CV file from storage
+	- The CV record from the database
+	- Update the candidate's latest_cv_id if this was the latest CV
+	
+	This action cannot be undone.
+	"""
+	# First check if CV exists
+	cv = handle_query(db, GetCandidateCV(candidate_cv_id))
+	if not cv:
+		raise HTTPException(status_code=404, detail="Candidate CV not found")
+	
+	candidate_id = cv.candidate_id
+	
+	# Delete CV using CQRS
+	success = handle_command(db, DeleteCandidateCV(candidate_cv_id))
+	
+	if not success:
+		raise HTTPException(status_code=500, detail="Failed to delete candidate CV")
+	
+	return CandidateCVDeleteResponse(
+		message="Candidate CV deleted successfully",
+		candidate_cv_id=candidate_cv_id,
+		candidate_id=candidate_id
+	)
 
 
 @router.post("/upload", response_model=List[CandidateUploadResponse], summary="Upload CV files (multipart)")
