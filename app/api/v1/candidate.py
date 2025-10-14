@@ -54,6 +54,7 @@ def _convert_cv_model_to_read_schema(cv_model) -> CandidateCVRead:
 		mime_type=cv_model.mime_type,
 		status=cv_model.status,
 		uploaded_at=cv_model.uploaded_at,
+		cv_text=cv_model.cv_text,
 		skills=cv_model.skills,
 		roles_detected=cv_model.roles_detected
 	)
@@ -106,7 +107,14 @@ async def get_candidate(
 	if not candidate:
 		raise HTTPException(status_code=404, detail="Candidate not found")
 	
-	return _convert_candidate_model_to_read_schema(candidate)
+	# Load CVs for this candidate
+	cvs = handle_query(db, GetCandidateCVs(candidate_id))
+	
+	# Convert to response format with CVs included
+	candidate_read = _convert_candidate_model_to_read_schema(candidate)
+	candidate_read.cvs = [_convert_cv_model_to_read_schema(cv) for cv in cvs]
+	
+	return candidate_read
 
 
 @router.get("/{candidate_id}/cvs", response_model=CandidateCVListResponse, summary="Get Candidate CVs")
@@ -257,6 +265,7 @@ async def upload_cv_files(
 					status="error",
 					is_new_candidate=False,
 					is_new_cv=False,
+					cv_text=None,
 					error="No filename provided"
 				))
 				continue
@@ -274,6 +283,7 @@ async def upload_cv_files(
 					status="error",
 					is_new_candidate=False,
 					is_new_cv=False,
+					cv_text=None,
 					error="File size exceeds 10MB limit"
 				))
 				continue
@@ -299,6 +309,7 @@ async def upload_cv_files(
 				status=result.get("status", "error"),
 				is_new_candidate=result.get("is_new_candidate", False),
 				is_new_cv=result.get("is_new_cv", False),
+				cv_text=result.get("cv_text"),
 				error=result.get("error")
 			)
 			
@@ -316,6 +327,7 @@ async def upload_cv_files(
 				status="error",
 				is_new_candidate=False,
 				is_new_cv=False,
+				cv_text=None,
 				error=f"Unexpected error: {str(e)}"
 			))
 	

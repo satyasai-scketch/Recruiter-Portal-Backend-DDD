@@ -11,6 +11,7 @@ class CandidateCVCreate(BaseModel):
 	file_size: Optional[int] = None
 	mime_type: Optional[str] = None
 	status: str = "uploaded"
+	cv_text: Optional[str] = None
 	skills: Optional[List] = None
 	roles_detected: Optional[List] = None
 
@@ -26,6 +27,7 @@ class CandidateCVRead(BaseModel):
 	mime_type: Optional[str] = None
 	status: str
 	uploaded_at: datetime
+	cv_text: Optional[str] = None
 	skills: Optional[List] = None
 	roles_detected: Optional[List] = None
 
@@ -65,6 +67,7 @@ class CandidateUploadResponse(BaseModel):
 	status: str
 	is_new_candidate: bool
 	is_new_cv: bool
+	cv_text: Optional[str] = None
 
 
 class CandidateListResponse(BaseModel):

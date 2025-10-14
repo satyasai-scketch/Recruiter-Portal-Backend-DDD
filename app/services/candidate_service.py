@@ -72,6 +72,7 @@ class CandidateService:
 			"s3_url": None,
 			"is_new_candidate": False,
 			"is_new_cv": False,
+			"cv_text": None,
 			"error": None
 		}
 		
@@ -96,18 +97,21 @@ class CandidateService:
 				result["s3_url"] = existing_cv.s3_url
 				result["is_new_candidate"] = False
 				result["is_new_cv"] = False
+				result["cv_text"] = existing_cv.cv_text  # Include existing CV text
 				return result
 			
 			# Step 4: Extract baseline info from file content
 			baseline_info = candidate_info or {}
 			
-			# If no candidate info provided, extract from CV content
-			if not baseline_info.get("email") or not baseline_info.get("phone"):
-				try:
-					# Extract text from the CV file
-					parsed_doc = DocumentParser.extract_text(filename, file_bytes)
-					extracted_text = parsed_doc.get("extracted_text", "")
-					
+			# Extract text from CV file for storage and baseline info extraction
+			extracted_text = ""
+			try:
+				# Extract text from the CV file
+				parsed_doc = DocumentParser.extract_text(filename, file_bytes)
+				extracted_text = parsed_doc.get("extracted_text", "")
+				
+				# If no candidate info provided, extract baseline info from text
+				if not baseline_info.get("email") or not baseline_info.get("phone"):
 					# Extract baseline info (name, email, phone) from text
 					extracted_info = extract_baseline_info(extracted_text)
 					
@@ -119,10 +123,10 @@ class CandidateService:
 					if not baseline_info.get("phone") and extracted_info.get("phone"):
 						baseline_info["phone"] = extracted_info["phone"]
 						
-				except Exception as e:
-					# If text extraction fails, continue with provided info only
-					print(f"Warning: Failed to extract text from CV {filename}: {e}")
-					pass
+			except Exception as e:
+				# If text extraction fails, continue with provided info only
+				print(f"Warning: Failed to extract text from CV {filename}: {e}")
+				extracted_text = ""  # Ensure extracted_text is empty string on failure
 			
 			# Step 5: Find or create candidate
 			candidate = self._find_or_create_candidate(db, baseline_info)
@@ -162,12 +166,14 @@ class CandidateService:
 				file_size=len(file_bytes),
 				mime_type=validation["mime_type"],
 				status="uploaded",
+				cv_text=extracted_text,  # Store the complete extracted text
 				uploaded_at=datetime.now()
 			)
 			
 			created_cv = self.candidate_cvs.create(db, cv)
 			result["cv_id"] = created_cv.id
 			result["is_new_cv"] = True
+			result["cv_text"] = extracted_text  # Include the extracted text in the response
 			
 			# Step 9: Update candidate's latest_cv_id
 			candidate.latest_cv_id = created_cv.id

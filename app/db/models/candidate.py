@@ -36,6 +36,7 @@ class CandidateCVModel(Base):
 	uploaded_at = Column(DateTime, default=datetime.now)
 
 	# reserved for later enrichment
+	cv_text = Column(String, nullable=True)       # complete extracted text from CV
 	skills = Column(JSON, nullable=True)          # list of strings or structured
 	roles_detected = Column(JSON, nullable=True)  # list of strings
 
