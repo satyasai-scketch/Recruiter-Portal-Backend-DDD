@@ -16,6 +16,14 @@ class CandidateCVCreate(BaseModel):
 	roles_detected: Optional[List] = None
 
 
+class CandidateCVUpdate(BaseModel):
+	"""Schema for updating candidate CV information"""
+	status: Optional[str] = None
+	cv_text: Optional[str] = None
+	skills: Optional[List] = None
+	roles_detected: Optional[List] = None
+
+
 class CandidateCVRead(BaseModel):
 	id: str
 	candidate_id: str
@@ -33,6 +41,13 @@ class CandidateCVRead(BaseModel):
 
 
 class CandidateCreate(BaseModel):
+	full_name: Optional[str] = None
+	email: Optional[str] = None
+	phone: Optional[str] = None
+
+
+class CandidateUpdate(BaseModel):
+	"""Schema for updating candidate information"""
 	full_name: Optional[str] = None
 	email: Optional[str] = None
 	phone: Optional[str] = None

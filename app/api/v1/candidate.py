@@ -6,9 +6,11 @@ from sqlalchemy.orm import Session
 from app.api.deps import db_session, get_current_user
 from app.schemas.candidate import (
 	CandidateCreate, 
+	CandidateUpdate,
 	CandidateRead, 
 	CandidateUploadResponse,
 	CandidateListResponse,
+	CandidateCVUpdate,
 	CandidateCVRead,
 	CandidateCVListResponse,
 	CandidateDeleteResponse,
@@ -16,7 +18,7 @@ from app.schemas.candidate import (
 )
 from app.cqrs.handlers import UploadCVs, ScoreCandidates, handle_command, handle_query
 from app.cqrs.commands.upload_cv_file import UploadCVFile
-from app.cqrs.commands.candidate_commands import DeleteCandidate, DeleteCandidateCV
+from app.cqrs.commands.candidate_commands import UpdateCandidate, UpdateCandidateCV, DeleteCandidate, DeleteCandidateCV
 from app.cqrs.queries.candidate_queries import (
 	GetCandidate,
 	ListAllCandidates,
@@ -159,6 +161,67 @@ async def get_candidate_cv(
 		raise HTTPException(status_code=404, detail="Candidate CV not found")
 	
 	return _convert_cv_model_to_read_schema(cv)
+
+
+@router.patch("/{candidate_id}", response_model=CandidateRead, summary="Update Candidate")
+async def update_candidate(
+	candidate_id: str,
+	update_data: CandidateUpdate,
+	db: Session = Depends(db_session),
+	user=Depends(get_current_user)
+):
+	"""
+	Update candidate information.
+	
+	Only provided fields will be updated. Fields not included in the request will remain unchanged.
+	"""
+	# Convert Pydantic model to dict, excluding None values
+	update_dict = {k: v for k, v in update_data.model_dump().items() if v is not None}
+	
+	if not update_dict:
+		raise HTTPException(status_code=400, detail="No fields provided for update")
+	
+	# Update candidate using CQRS
+	updated_candidate = handle_command(db, UpdateCandidate(candidate_id, update_dict))
+	
+	if not updated_candidate:
+		raise HTTPException(status_code=404, detail="Candidate not found")
+	
+	# Load CVs for this candidate
+	cvs = handle_query(db, GetCandidateCVs(candidate_id))
+	
+	# Convert to response format with CVs included
+	candidate_read = _convert_candidate_model_to_read_schema(updated_candidate)
+	candidate_read.cvs = [_convert_cv_model_to_read_schema(cv) for cv in cvs]
+	
+	return candidate_read
+
+
+@router.patch("/cvs/{candidate_cv_id}", response_model=CandidateCVRead, summary="Update Candidate CV")
+async def update_candidate_cv(
+	candidate_cv_id: str,
+	update_data: CandidateCVUpdate,
+	db: Session = Depends(db_session),
+	user=Depends(get_current_user)
+):
+	"""
+	Update candidate CV information.
+	
+	Only provided fields will be updated. Fields not included in the request will remain unchanged.
+	"""
+	# Convert Pydantic model to dict, excluding None values
+	update_dict = {k: v for k, v in update_data.model_dump().items() if v is not None}
+	
+	if not update_dict:
+		raise HTTPException(status_code=400, detail="No fields provided for update")
+	
+	# Update CV using CQRS
+	updated_cv = handle_command(db, UpdateCandidateCV(candidate_cv_id, update_dict))
+	
+	if not updated_cv:
+		raise HTTPException(status_code=404, detail="Candidate CV not found")
+	
+	return _convert_cv_model_to_read_schema(updated_cv)
 
 
 @router.delete("/{candidate_id}", response_model=CandidateDeleteResponse, summary="Delete Candidate")

@@ -45,7 +45,7 @@ from app.cqrs.commands.persona_commands import (
 )
 from app.cqrs.commands.upload_cv import UploadCVs
 from app.cqrs.commands.upload_cv_file import UploadCVFile
-from app.cqrs.commands.candidate_commands import DeleteCandidate, DeleteCandidateCV
+from app.cqrs.commands.candidate_commands import UpdateCandidate, UpdateCandidateCV, DeleteCandidate, DeleteCandidateCV
 from app.cqrs.commands.score_candidates import ScoreCandidates
 
 # Import query classes
@@ -237,6 +237,10 @@ def handle_command(db: Session, command: Command) -> Any:
 		return PersonaLevelService().update_level(db, command.persona_level_id, command.payload)
 	if isinstance(command, DeletePersonaLevel):
 		return PersonaLevelService().delete_level(db, command.persona_level_id)
+	if isinstance(command, UpdateCandidate):
+		return CandidateService().update_candidate(db, command.candidate_id, command.update_data)
+	if isinstance(command, UpdateCandidateCV):
+		return CandidateService().update_candidate_cv(db, command.cv_id, command.update_data)
 	if isinstance(command, DeleteCandidate):
 		return CandidateService().delete_candidate(db, command.candidate_id)
 	if isinstance(command, DeleteCandidateCV):

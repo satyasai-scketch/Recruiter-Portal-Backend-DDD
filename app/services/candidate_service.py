@@ -291,6 +291,49 @@ class CandidateService:
 		"""Get all candidates with pagination."""
 		return list(self.candidates.list_all(db)[skip:skip + limit])
 
+	def update_candidate(self, db: Session, candidate_id: str, update_data: Dict[str, any]) -> Optional[CandidateModel]:
+		"""Update candidate information."""
+		try:
+			candidate = self.candidates.get(db, candidate_id)
+			if not candidate:
+				return None
+			
+			# Update only provided fields
+			for field, value in update_data.items():
+				if hasattr(candidate, field) and value is not None:
+					setattr(candidate, field, value)
+			
+			# Update timestamp
+			candidate.updated_at = datetime.now()
+			
+			# Save changes
+			updated_candidate = self.candidates.update(db, candidate)
+			return updated_candidate
+			
+		except Exception as e:
+			db.rollback()
+			raise e
+
+	def update_candidate_cv(self, db: Session, cv_id: str, update_data: Dict[str, any]) -> Optional[CandidateCVModel]:
+		"""Update candidate CV information."""
+		try:
+			cv = self.candidate_cvs.get(db, cv_id)
+			if not cv:
+				return None
+			
+			# Update only provided fields
+			for field, value in update_data.items():
+				if hasattr(cv, field) and value is not None:
+					setattr(cv, field, value)
+			
+			# Save changes
+			updated_cv = self.candidate_cvs.update(db, cv)
+			return updated_cv
+			
+		except Exception as e:
+			db.rollback()
+			raise e
+
 	def get_candidate_cv(self, db: Session, candidate_cv_id: str) -> Optional[CandidateCVModel]:
 		"""Get a candidate CV by ID."""
 		return self.candidate_cvs.get(db, candidate_cv_id)
