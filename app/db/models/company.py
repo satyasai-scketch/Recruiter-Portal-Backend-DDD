@@ -23,6 +23,7 @@ class CompanyModel(Base):
     twitter_link = Column(String, nullable=True)
     instagram_link = Column(String, nullable=True)
     facebook_link = Column(String, nullable=True)
+    linkedin_link = Column(String, nullable=True)
     
     # Company description
     about_company = Column(Text, nullable=True)

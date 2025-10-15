@@ -45,11 +45,12 @@ def _convert_model_to_read_schema(company_model) -> CompanyRead:
     # Build social media object if any social media fields exist
     social_media = None
     if any([company_model.twitter_link, company_model.instagram_link, 
-            company_model.facebook_link]):
+            company_model.facebook_link, company_model.linkedin_link]):
         social_media = CompanySocialMediaRead(
             twitter_link=company_model.twitter_link,
             instagram_link=company_model.instagram_link,
-            facebook_link=company_model.facebook_link
+            facebook_link=company_model.facebook_link,
+            linkedin_link=company_model.linkedin_link
         )
     
     return CompanyRead(
