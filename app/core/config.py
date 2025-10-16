@@ -83,6 +83,14 @@ class Settings(BaseSettings):
 	JD_REFINEMENT_MODEL: str = os.getenv("JD_REFINEMENT_MODEL", "gpt-4o")
 	JD_REFINEMENT_TEMPERATURE: float = float(os.getenv("JD_REFINEMENT_TEMPERATURE", "0.5"))
 	PERSONA_GENERATION_MODEL: str = "gpt-4o"
+	
+	# CV Extraction Configuration
+	CV_EXTRACTION_APPROACH: str = os.getenv("CV_EXTRACTION_APPROACH", "regex")  # Options: "regex", "spacy", "llm", "parser"
+	
+	# Groq Configuration for LLM-based CV extraction
+	GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
+	GROQ_MODEL: str = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")  # Fast model for extraction
+	GROQ_TEMPERATURE: float = float(os.getenv("GROQ_TEMPERATURE", "0.1"))  # Low temperature for consistent extraction
 	class Config:
 		env_file = ".env"
 		env_file_encoding = "utf-8"

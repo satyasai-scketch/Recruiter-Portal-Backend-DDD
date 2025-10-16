@@ -36,6 +36,9 @@ from app.cqrs.queries.score_queries import (
 	ListScoresForCVPersona,
 	ListAllScores
 )
+from app.cqrs.queries.persona_queries import GetPersona
+from app.cqrs.queries.jd_queries import GetJobDescription
+from app.cqrs.queries.job_role_queries import GetJobRole
 
 router = APIRouter()
 
@@ -135,8 +138,40 @@ def _convert_score_insight_to_read_schema(insight_model) -> ScoreInsightRead:
 	)
 
 
-def _convert_candidate_score_to_read_schema(score_model) -> CandidateScoreRead:
+def _convert_candidate_score_to_read_schema(score_model, db: Session = None) -> CandidateScoreRead:
 	"""Convert CandidateScoreModel to CandidateScoreRead schema format."""
+	# Fetch candidate and CV information if db session is provided
+	candidate_name = None
+	file_name = None
+	persona_name = None
+	role_name = None
+	
+	if db:
+		try:
+			candidate = handle_query(db, GetCandidate(score_model.candidate_id))
+			cv = handle_query(db, GetCandidateCV(score_model.cv_id))
+			candidate_name = candidate.full_name if candidate else None
+			file_name = cv.file_name if cv else None
+			
+			# Fetch persona and role information
+			persona = handle_query(db, GetPersona(score_model.persona_id))
+			persona_name = persona.name if persona else None
+			
+			if persona:
+				# Try to get role name from persona's role_name field first
+				if persona.role_name:
+					role_name = persona.role_name
+				# If not available, get it from the job description's job role
+				elif persona.job_description_id:
+					job_description = handle_query(db, GetJobDescription(persona.job_description_id))
+					if job_description and job_description.role_id:
+						job_role = handle_query(db, GetJobRole(job_description.role_id))
+						if job_role:
+							role_name = job_role.name
+		except Exception:
+			# If there's an error fetching the data, continue without it
+			pass
+	
 	return CandidateScoreRead(
 		id=score_model.id,
 		candidate_id=score_model.candidate_id,
@@ -151,6 +186,10 @@ def _convert_candidate_score_to_read_schema(score_model) -> CandidateScoreRead:
 		scored_at=score_model.scored_at,
 		scoring_version=score_model.scoring_version,
 		processing_time_ms=score_model.processing_time_ms,
+		candidate_name=candidate_name,
+		file_name=file_name,
+		persona_name=persona_name,
+		role_name=role_name,
 		score_stages=[_convert_score_stage_to_read_schema(stage) for stage in score_model.score_stages],
 		categories=[_convert_score_category_to_read_schema(cat) for cat in score_model.categories],
 		insights=[_convert_score_insight_to_read_schema(insight) for insight in score_model.insights]
@@ -521,13 +560,43 @@ async def score_candidate(body: ScorePayload, db: Session = Depends(db_session))
 		scoring_version=body.scoring_version,
 		processing_time_ms=body.processing_time_ms
 	))
+	
+	# Fetch candidate and CV information for the response
+	candidate = handle_query(db, GetCandidate(body.candidate_id))
+	cv = handle_query(db, GetCandidateCV(body.cv_id))
+	
+	# Fetch persona and role information for the response
+	persona = handle_query(db, GetPersona(body.persona_id))
+	persona_name = persona.name if persona else None
+	role_name = None
+	
+	if persona:
+		# Try to get role name from persona's role_name field first
+		if persona.role_name:
+			role_name = persona.role_name
+		# If not available, get it from the job description's job role
+		elif persona.job_description_id:
+			job_description = handle_query(db, GetJobDescription(persona.job_description_id))
+			if job_description and job_description.role_id:
+				job_role = handle_query(db, GetJobRole(job_description.role_id))
+				if job_role:
+					role_name = job_role.name
+	
+	# Extract candidate name and file name
+	candidate_name = candidate.full_name if candidate else None
+	file_name = cv.file_name if cv else None
+	
 	return ScoreResponse(
 		score_id=score.id,
 		candidate_id=score.candidate_id,
 		persona_id=score.persona_id,
 		final_score=float(score.final_score),
 		final_decision=score.final_decision,
-		pipeline_stage_reached=score.pipeline_stage_reached
+		pipeline_stage_reached=score.pipeline_stage_reached,
+		candidate_name=candidate_name,
+		file_name=file_name,
+		persona_name=persona_name,
+		role_name=role_name
 	)
 
 
@@ -546,7 +615,7 @@ async def get_candidate_score(
 		raise HTTPException(status_code=404, detail="Score not found")
 	
 	# Convert to response format
-	return _convert_candidate_score_to_read_schema(score)
+	return _convert_candidate_score_to_read_schema(score, db)
 
 
 @router.get("/{candidate_id}/scores", response_model=ScoreListResponse, summary="Get Candidate Scores")
@@ -569,7 +638,7 @@ async def get_candidate_scores(
 	scores = handle_query(db, ListCandidateScores(candidate_id, skip, size))
 	
 	# Convert to response format
-	score_reads = [_convert_candidate_score_to_read_schema(score) for score in scores]
+	score_reads = [_convert_candidate_score_to_read_schema(score, db) for score in scores]
 	
 	# Get total count (simplified for now)
 	total = len(score_reads)  # This should be improved with proper counting
@@ -605,7 +674,7 @@ async def get_candidate_scores_for_persona(
 	scores = handle_query(db, ListScoresForCandidatePersona(candidate_id, persona_id, skip, size))
 	
 	# Convert to response format
-	score_reads = [_convert_candidate_score_to_read_schema(score) for score in scores]
+	score_reads = [_convert_candidate_score_to_read_schema(score, db) for score in scores]
 	
 	# Get total count (simplified for now)
 	total = len(score_reads)  # This should be improved with proper counting

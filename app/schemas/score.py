@@ -82,6 +82,10 @@ class CandidateScoreRead(BaseModel):
 	scored_at: datetime
 	scoring_version: Optional[str] = None
 	processing_time_ms: Optional[int] = None
+	candidate_name: Optional[str] = None
+	file_name: Optional[str] = None
+	persona_name: Optional[str] = None
+	role_name: Optional[str] = None
 	
 	# Related data
 	score_stages: List[ScoreStageRead] = []
@@ -97,6 +101,10 @@ class ScoreResponse(BaseModel):
 	final_score: float
 	final_decision: str
 	pipeline_stage_reached: int
+	candidate_name: Optional[str] = None
+	file_name: Optional[str] = None
+	persona_name: Optional[str] = None
+	role_name: Optional[str] = None
 
 
 class ScoreListResponse(BaseModel):

@@ -16,10 +16,10 @@ from app.events.candidate_events import CVUploadedEvent, ScoreRequestedEvent, Sc
 from app.utils.cv_utils import (
 	compute_file_hash, 
 	extract_file_extension, 
-	extract_baseline_info,
 	validate_cv_file,
 	generate_s3_key
 )
+from app.utils.cv_extraction import extract_baseline_info_with_timing
 from app.utils.document_parser import DocumentParser
 from app.services.storage import StorageFactory
 
@@ -112,16 +112,21 @@ class CandidateService:
 				
 				# If no candidate info provided, extract baseline info from text
 				if not baseline_info.get("email") or not baseline_info.get("phone"):
-					# Extract baseline info (name, email, phone) from text
-					extracted_info = extract_baseline_info(extracted_text)
+					# Extract baseline info (name, email, phone) from text with timing
+					extraction_result = extract_baseline_info_with_timing(extracted_text)
+					
+					# Log extraction performance
+					print(f"CV extraction completed using {extraction_result.approach} approach in {extraction_result.processing_time_ms:.2f}ms")
+					if not extraction_result.success:
+						print(f"CV extraction failed: {extraction_result.error}")
 					
 					# Merge extracted info with provided info (provided info takes precedence)
-					if not baseline_info.get("full_name") and extracted_info.get("name"):
-						baseline_info["full_name"] = extracted_info["name"]
-					if not baseline_info.get("email") and extracted_info.get("email"):
-						baseline_info["email"] = extracted_info["email"]
-					if not baseline_info.get("phone") and extracted_info.get("phone"):
-						baseline_info["phone"] = extracted_info["phone"]
+					if not baseline_info.get("full_name") and extraction_result.name:
+						baseline_info["full_name"] = extraction_result.name
+					if not baseline_info.get("email") and extraction_result.email:
+						baseline_info["email"] = extraction_result.email
+					if not baseline_info.get("phone") and extraction_result.phone:
+						baseline_info["phone"] = extraction_result.phone
 						
 			except Exception as e:
 				# If text extraction fails, continue with provided info only
