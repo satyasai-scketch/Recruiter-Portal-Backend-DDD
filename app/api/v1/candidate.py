@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 from fastapi import APIRouter, Depends, File, UploadFile, Form, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -16,7 +16,11 @@ from app.schemas.candidate import (
 	CandidateDeleteResponse,
 	CandidateCVDeleteResponse
 )
-from app.cqrs.handlers import UploadCVs, ScoreCandidates, handle_command, handle_query
+from app.schemas.score import (
+	ScorePayload, ScoreResponse, CandidateScoreRead, ScoreListResponse,
+	ScoreStageRead, ScoreCategoryRead, ScoreSubcategoryRead, ScoreInsightRead
+)
+from app.cqrs.handlers import UploadCVs, ScoreCandidate, handle_command, handle_query
 from app.cqrs.commands.upload_cv_file import UploadCVFile
 from app.cqrs.commands.candidate_commands import UpdateCandidate, UpdateCandidateCV, DeleteCandidate, DeleteCandidateCV
 from app.cqrs.queries.candidate_queries import (
@@ -24,6 +28,13 @@ from app.cqrs.queries.candidate_queries import (
 	ListAllCandidates,
 	GetCandidateCV,
 	GetCandidateCVs
+)
+from app.cqrs.queries.score_queries import (
+	GetCandidateScore,
+	ListCandidateScores,
+	ListScoresForCandidatePersona,
+	ListScoresForCVPersona,
+	ListAllScores
 )
 
 router = APIRouter()
@@ -59,6 +70,90 @@ def _convert_cv_model_to_read_schema(cv_model) -> CandidateCVRead:
 		cv_text=cv_model.cv_text,
 		skills=cv_model.skills,
 		roles_detected=cv_model.roles_detected
+	)
+
+
+def _convert_score_stage_to_read_schema(stage_model) -> ScoreStageRead:
+	"""Convert ScoreStageModel to ScoreStageRead schema format."""
+	return ScoreStageRead(
+		id=stage_model.id,
+		candidate_score_id=stage_model.candidate_score_id,
+		stage_number=stage_model.stage_number,
+		method=stage_model.method,
+		model=stage_model.model,
+		score=float(stage_model.score),
+		threshold=float(stage_model.threshold) if stage_model.threshold else None,
+		min_threshold=float(stage_model.min_threshold) if stage_model.min_threshold else None,
+		decision=stage_model.decision,
+		reason=stage_model.reason,
+		next_stage=stage_model.next_stage,
+		relevance_score=stage_model.relevance_score,
+		quick_assessment=stage_model.quick_assessment,
+		skills_detected=stage_model.skills_detected,
+		roles_detected=stage_model.roles_detected,
+		key_matches=stage_model.key_matches,
+		key_gaps=stage_model.key_gaps
+	)
+
+
+def _convert_score_subcategory_to_read_schema(subcat_model) -> ScoreSubcategoryRead:
+	"""Convert ScoreSubcategoryModel to ScoreSubcategoryRead schema format."""
+	return ScoreSubcategoryRead(
+		id=subcat_model.id,
+		category_id=subcat_model.category_id,
+		subcategory_name=subcat_model.subcategory_name,
+		weight_percentage=subcat_model.weight_percentage,
+		expected_level=subcat_model.expected_level,
+		actual_level=subcat_model.actual_level,
+		base_score=float(subcat_model.base_score),
+		missing_count=subcat_model.missing_count,
+		scored_percentage=float(subcat_model.scored_percentage),
+		notes=subcat_model.notes
+	)
+
+
+def _convert_score_category_to_read_schema(cat_model) -> ScoreCategoryRead:
+	"""Convert ScoreCategoryModel to ScoreCategoryRead schema format."""
+	return ScoreCategoryRead(
+		id=cat_model.id,
+		candidate_score_id=cat_model.candidate_score_id,
+		category_name=cat_model.category_name,
+		weight_percentage=cat_model.weight_percentage,
+		category_score_percentage=float(cat_model.category_score_percentage),
+		category_contribution=float(cat_model.category_contribution),
+		subcategories=[_convert_score_subcategory_to_read_schema(sub) for sub in cat_model.subcategories]
+	)
+
+
+def _convert_score_insight_to_read_schema(insight_model) -> ScoreInsightRead:
+	"""Convert ScoreInsightModel to ScoreInsightRead schema format."""
+	return ScoreInsightRead(
+		id=insight_model.id,
+		candidate_score_id=insight_model.candidate_score_id,
+		insight_type=insight_model.insight_type,
+		insight_text=insight_model.insight_text
+	)
+
+
+def _convert_candidate_score_to_read_schema(score_model) -> CandidateScoreRead:
+	"""Convert CandidateScoreModel to CandidateScoreRead schema format."""
+	return CandidateScoreRead(
+		id=score_model.id,
+		candidate_id=score_model.candidate_id,
+		persona_id=score_model.persona_id,
+		cv_id=score_model.cv_id,
+		pipeline_stage_reached=score_model.pipeline_stage_reached,
+		final_score=float(score_model.final_score),
+		final_decision=score_model.final_decision,
+		embedding_score=float(score_model.embedding_score) if score_model.embedding_score else None,
+		lightweight_llm_score=float(score_model.lightweight_llm_score) if score_model.lightweight_llm_score else None,
+		detailed_llm_score=float(score_model.detailed_llm_score) if score_model.detailed_llm_score else None,
+		scored_at=score_model.scored_at,
+		scoring_version=score_model.scoring_version,
+		processing_time_ms=score_model.processing_time_ms,
+		score_stages=[_convert_score_stage_to_read_schema(stage) for stage in score_model.score_stages],
+		categories=[_convert_score_category_to_read_schema(cat) for cat in score_model.categories],
+		insights=[_convert_score_insight_to_read_schema(insight) for insight in score_model.insights]
 	)
 
 
@@ -416,18 +511,110 @@ async def upload_cvs_legacy(payloads: List[CandidateCreate], db: Session = Depen
 	]
 
 
-class ScorePayload(BaseException):
-	candidate_ids: List[str]
-	persona_id: str
-	persona_weights: Dict[str, float]
-	per_candidate_scores: Dict[str, Dict[str, float]]
+@router.post("/score", response_model=ScoreResponse, summary="Score candidate against persona (comprehensive)")
+async def score_candidate(body: ScorePayload, db: Session = Depends(db_session)):
+	score = handle_command(db, ScoreCandidate(
+		candidate_id=body.candidate_id,
+		persona_id=body.persona_id,
+		cv_id=body.cv_id,
+		ai_scoring_response=body.ai_scoring_response,
+		scoring_version=body.scoring_version,
+		processing_time_ms=body.processing_time_ms
+	))
+	return ScoreResponse(
+		score_id=score.id,
+		candidate_id=score.candidate_id,
+		persona_id=score.persona_id,
+		final_score=float(score.final_score),
+		final_decision=score.final_decision,
+		pipeline_stage_reached=score.pipeline_stage_reached
+	)
 
 
-@router.post("/score", summary="Score candidates (command)")
-async def score_candidates(body: dict, db: Session = Depends(db_session)):
-	candidate_ids = body.get("candidate_ids", [])
-	persona_id = body.get("persona_id")
-	persona_weights = body.get("persona_weights", {})
-	per_candidate_scores = body.get("per_candidate_scores", {})
-	rows = handle_command(db, ScoreCandidates(candidate_ids, persona_id, persona_weights, per_candidate_scores))
-	return {"count": len(rows)}
+@router.get("/scores/{score_id}", response_model=CandidateScoreRead, summary="Get Candidate Score by ID")
+async def get_candidate_score(
+	score_id: str,
+	db: Session = Depends(db_session),
+	user=Depends(get_current_user)
+):
+	"""
+	Get detailed scoring information for a specific score ID.
+	"""
+	score = handle_query(db, GetCandidateScore(score_id))
+	
+	if not score:
+		raise HTTPException(status_code=404, detail="Score not found")
+	
+	# Convert to response format
+	return _convert_candidate_score_to_read_schema(score)
+
+
+@router.get("/{candidate_id}/scores", response_model=ScoreListResponse, summary="Get Candidate Scores")
+async def get_candidate_scores(
+	candidate_id: str,
+	page: int = Query(1, ge=1, description="Page number"),
+	size: int = Query(10, ge=1, le=100, description="Page size"),
+	db: Session = Depends(db_session),
+	user=Depends(get_current_user)
+):
+	"""
+	Get all scores for a specific candidate.
+	"""
+	# First check if candidate exists
+	candidate = handle_query(db, GetCandidate(candidate_id))
+	if not candidate:
+		raise HTTPException(status_code=404, detail="Candidate not found")
+	
+	skip = (page - 1) * size
+	scores = handle_query(db, ListCandidateScores(candidate_id, skip, size))
+	
+	# Convert to response format
+	score_reads = [_convert_candidate_score_to_read_schema(score) for score in scores]
+	
+	# Get total count (simplified for now)
+	total = len(score_reads)  # This should be improved with proper counting
+	
+	return ScoreListResponse(
+		scores=score_reads,
+		total=total,
+		page=page,
+		size=size,
+		has_next=(skip + size) < total,
+		has_prev=page > 1
+	)
+
+
+@router.get("/{candidate_id}/scores/{persona_id}", response_model=ScoreListResponse, summary="Get Candidate Scores for Persona")
+async def get_candidate_scores_for_persona(
+	candidate_id: str,
+	persona_id: str,
+	page: int = Query(1, ge=1, description="Page number"),
+	size: int = Query(10, ge=1, le=100, description="Page size"),
+	db: Session = Depends(db_session),
+	user=Depends(get_current_user)
+):
+	"""
+	Get scores for a candidate against a specific persona.
+	"""
+	# First check if candidate exists
+	candidate = handle_query(db, GetCandidate(candidate_id))
+	if not candidate:
+		raise HTTPException(status_code=404, detail="Candidate not found")
+	
+	skip = (page - 1) * size
+	scores = handle_query(db, ListScoresForCandidatePersona(candidate_id, persona_id, skip, size))
+	
+	# Convert to response format
+	score_reads = [_convert_candidate_score_to_read_schema(score) for score in scores]
+	
+	# Get total count (simplified for now)
+	total = len(score_reads)  # This should be improved with proper counting
+	
+	return ScoreListResponse(
+		scores=score_reads,
+		total=total,
+		page=page,
+		size=size,
+		has_next=(skip + size) < total,
+		has_prev=page > 1
+	)

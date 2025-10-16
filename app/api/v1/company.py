@@ -276,3 +276,10 @@ async def delete_company(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# Summary
+#  persona_name  cv     score    
+#  p1             c1        s1
+#  p1             cv2      s2
+# 

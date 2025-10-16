@@ -9,9 +9,21 @@ class CVUploadedEvent:
 
 @dataclass
 class ScoreRequestedEvent:
-	candidate_ids: List[str]
+	candidate_id: str
 	persona_id: str
-	persona_weights: dict
+	cv_id: str
+	scoring_version: str = "v1.0"
+
+
+@dataclass
+class ScoreCompletedEvent:
+	score_id: str
+	candidate_id: str
+	persona_id: str
+	cv_id: str
+	final_score: float
+	final_decision: str
+	pipeline_stage_reached: int
 
 
 @dataclass

@@ -6,13 +6,13 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from app.db.models.candidate import CandidateModel, CandidateCVModel
-from app.db.models.score import ScoreModel
+from app.db.models.score import CandidateScoreModel, ScoreStageModel, ScoreCategoryModel, ScoreSubcategoryModel, ScoreInsightModel
 from app.repositories.candidate_repo import SQLAlchemyCandidateRepository
 from app.repositories.candidate_cv_repo import SQLAlchemyCandidateCVRepository
 from app.repositories.score_repo import SQLAlchemyScoreRepository
 from app.domain.candidate import services as cand_domain_services
 from app.events.event_bus import event_bus
-from app.events.candidate_events import CVUploadedEvent, ScoreRequestedEvent, CandidateDeletedEvent, CandidateCVDeletedEvent
+from app.events.candidate_events import CVUploadedEvent, ScoreRequestedEvent, ScoreCompletedEvent, CandidateDeletedEvent, CandidateCVDeletedEvent
 from app.utils.cv_utils import (
 	compute_file_hash, 
 	extract_file_extension, 
@@ -245,43 +245,142 @@ class CandidateService:
 		event_bus.publish_event(CVUploadedEvent(candidate_ids=[c.id for c in created]))
 		return created
 
-	def score_candidates(
+
+	def score_candidate(
 		self,
 		db: Session,
-		candidate_ids: List[str],
+		candidate_id: str,
 		persona_id: str,
-		persona_weights: Dict[str, float],
-		per_candidate_category_scores: Dict[str, Dict[str, float]],
-	) -> List[ScoreModel]:
-		"""Persist per-category scores and return created score rows."""
-		# Publish score requested event (async workers may pick up for deeper analysis)
-		event_bus.publish_event(ScoreRequestedEvent(candidate_ids=candidate_ids, persona_id=persona_id, persona_weights=persona_weights))
-
-		rows: List[ScoreModel] = []
-		for cid in candidate_ids:
-			category_scores = per_candidate_category_scores.get(cid, {})
-			candidate = self.candidates.get(db, cid)
-			if not candidate:
-				continue
-			updated = cand_domain_services.score_against_persona(
-				candidate,
-				persona_weights,
-				category_scores,
-			)
-			candidate.scores = updated.scores
-			self.candidates.update(db, candidate)
-
-			for category, score in (category_scores or {}).items():
-				rows.append(
-					ScoreModel(
-						id=str(uuid4()),
-						candidate_id=cid,
-						persona_id=persona_id,
-						category=category,
-						score=float(score),
-					)
+		cv_id: str,
+		ai_scoring_response: Dict[str, any],
+		scoring_version: str = "v1.0",
+		processing_time_ms: Optional[int] = None
+	) -> CandidateScoreModel:
+		"""Create comprehensive scoring record from AI response."""
+		score_id = str(uuid4())
+		
+		# Extract main scoring data
+		pipeline_stage_reached = ai_scoring_response.get("pipeline_stage_reached", 3)
+		final_score = float(ai_scoring_response.get("final_score", 0.0))
+		final_decision = ai_scoring_response.get("final_decision", "UNKNOWN")
+		
+		# Extract score progression
+		score_progression = ai_scoring_response.get("score_progression", {})
+		embedding_score = score_progression.get("embedding")
+		lightweight_llm_score = score_progression.get("lightweight_llm")
+		detailed_llm_score = score_progression.get("detailed_llm")
+		
+		# Create main score record
+		score_record = CandidateScoreModel(
+			id=score_id,
+			candidate_id=candidate_id,
+			persona_id=persona_id,
+			cv_id=cv_id,
+			pipeline_stage_reached=pipeline_stage_reached,
+			final_score=final_score,
+			final_decision=final_decision,
+			embedding_score=float(embedding_score) if embedding_score is not None else None,
+			lightweight_llm_score=float(lightweight_llm_score) if lightweight_llm_score is not None else None,
+			detailed_llm_score=float(detailed_llm_score) if detailed_llm_score is not None else None,
+			scoring_version=scoring_version,
+			processing_time_ms=processing_time_ms
+		)
+		
+		# Create stage records
+		for stage_num in range(1, pipeline_stage_reached + 1):
+			stage_key = f"stage{stage_num}"
+			stage_data = ai_scoring_response.get(stage_key, {})
+			
+			if stage_data:
+				stage_record = ScoreStageModel(
+					id=str(uuid4()),
+					candidate_score_id=score_id,
+					stage_number=stage_num,
+					method=stage_data.get("method", ""),
+					model=stage_data.get("model"),
+					score=float(stage_data.get("score", 0.0)),
+					threshold=float(stage_data.get("threshold")) if stage_data.get("threshold") is not None else None,
+					min_threshold=float(stage_data.get("min_threshold")) if stage_data.get("min_threshold") is not None else None,
+					decision=stage_data.get("decision", ""),
+					reason=stage_data.get("reason"),
+					next_stage=stage_data.get("next_stage"),
+					relevance_score=stage_data.get("relevance_score"),
+					quick_assessment=stage_data.get("quick_assessment"),
+					skills_detected=stage_data.get("skills"),
+					roles_detected=stage_data.get("roles_detected"),
+					key_matches=stage_data.get("key_matches"),
+					key_gaps=stage_data.get("key_gaps")
 				)
-		return self.scores.bulk_create(db, rows)
+				score_record.score_stages.append(stage_record)
+		
+		# Create category records
+		stage3_data = ai_scoring_response.get("stage3", {})
+		categories_data = stage3_data.get("categories", [])
+		
+		for cat_data in categories_data:
+			category_record = ScoreCategoryModel(
+				id=str(uuid4()),
+				candidate_score_id=score_id,
+				category_name=cat_data.get("name", ""),
+				weight_percentage=int(cat_data.get("weight", 0)),
+				category_score_percentage=float(cat_data.get("category_score_percentage", 0.0)),
+				category_contribution=float(cat_data.get("category_contribution", 0.0))
+			)
+			score_record.categories.append(category_record)
+			
+			# Create subcategory records
+			subcategories_data = cat_data.get("subcategories", [])
+			for subcat_data in subcategories_data:
+				subcategory_record = ScoreSubcategoryModel(
+					id=str(uuid4()),
+					category_id=category_record.id,
+					subcategory_name=subcat_data.get("name", ""),
+					weight_percentage=int(subcat_data.get("weight", 0)),
+					expected_level=int(subcat_data.get("expected_level", 0)),
+					actual_level=int(subcat_data.get("actual_level", 0)),
+					base_score=float(subcat_data.get("base_score", 0.0)),
+					missing_count=int(subcat_data.get("missing_count", 0)),
+					scored_percentage=float(subcat_data.get("scored_percentage", 0.0)),
+					notes=subcat_data.get("notes")
+				)
+				category_record.subcategories.append(subcategory_record)
+		
+		# Create insight records (strengths and gaps)
+		strengths = stage3_data.get("strengths", [])
+		for strength in strengths:
+			insight_record = ScoreInsightModel(
+				id=str(uuid4()),
+				candidate_score_id=score_id,
+				insight_type="STRENGTH",
+				insight_text=strength
+			)
+			score_record.insights.append(insight_record)
+		
+		gaps = stage3_data.get("gaps", [])
+		for gap in gaps:
+			insight_record = ScoreInsightModel(
+				id=str(uuid4()),
+				candidate_score_id=score_id,
+				insight_type="GAP",
+				insight_text=gap
+			)
+			score_record.insights.append(insight_record)
+		
+		# Save the complete score record
+		created_score = self.scores.create_candidate_score(db, score_record)
+		
+		# Publish score completed event
+		event_bus.publish_event(ScoreCompletedEvent(
+			score_id=created_score.id,
+			candidate_id=candidate_id,
+			persona_id=persona_id,
+			cv_id=cv_id,
+			final_score=float(created_score.final_score),
+			final_decision=created_score.final_decision,
+			pipeline_stage_reached=created_score.pipeline_stage_reached
+		))
+		
+		return created_score
 
 	def get_by_id(self, db: Session, candidate_id: str) -> Optional[CandidateModel]:
 		"""Get a candidate by ID."""
@@ -341,6 +440,26 @@ class CandidateService:
 	def get_candidate_cvs(self, db: Session, candidate_id: str) -> List[CandidateCVModel]:
 		"""Get all CVs for a specific candidate."""
 		return self.candidate_cvs.get_candidate_cvs(db, candidate_id)
+
+	def get_candidate_score(self, db: Session, score_id: str) -> Optional[CandidateScoreModel]:
+		"""Get a specific candidate score by ID."""
+		return self.scores.get_candidate_score(db, score_id)
+
+	def list_candidate_scores(self, db: Session, candidate_id: str, skip: int = 0, limit: int = 100) -> List[CandidateScoreModel]:
+		"""List all scores for a candidate."""
+		return list(self.scores.list_candidate_scores(db, candidate_id, skip, limit))
+
+	def list_scores_for_candidate_persona(self, db: Session, candidate_id: str, persona_id: str, skip: int = 0, limit: int = 100) -> List[CandidateScoreModel]:
+		"""List scores for a candidate against a specific persona."""
+		return list(self.scores.list_scores_for_candidate_persona(db, candidate_id, persona_id)[skip:skip + limit])
+
+	def list_scores_for_cv_persona(self, db: Session, cv_id: str, persona_id: str, skip: int = 0, limit: int = 100) -> List[CandidateScoreModel]:
+		"""List scores for a CV against a specific persona."""
+		return list(self.scores.list_scores_for_cv_persona(db, cv_id, persona_id)[skip:skip + limit])
+
+	def list_all_scores(self, db: Session, skip: int = 0, limit: int = 100) -> List[CandidateScoreModel]:
+		"""List all scores with pagination."""
+		return list(self.scores.list_all_scores(db, skip, limit))
 
 	def delete_candidate(self, db: Session, candidate_id: str) -> bool:
 		"""Delete a candidate and all associated CVs."""
