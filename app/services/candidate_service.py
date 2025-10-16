@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Dict, List, Tuple, Iterable
+from typing import Optional, Dict, List, Tuple, Iterable, Any
 from uuid import uuid4
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -22,7 +22,8 @@ from app.utils.cv_utils import (
 )
 from app.utils.document_parser import DocumentParser
 from app.services.storage import StorageFactory
-
+from app.core.config import settings
+from app.services.cv_scoring import CVScoringService
 
 class CandidateService:
 	"""Orchestrates candidate workflows at the application layer."""
@@ -36,7 +37,7 @@ class CandidateService:
 		self.candidates = candidates or SQLAlchemyCandidateRepository()
 		self.candidate_cvs = candidate_cvs or SQLAlchemyCandidateCVRepository()
 		self.scores = scores or SQLAlchemyScoreRepository()
-
+		self.cv_scoring_service = CVScoringService(api_key=settings.OPENAI_API_KEY)
 	def upload_cv(self, 
 	             db: Session, 
 	             file_bytes: bytes, 
@@ -381,7 +382,26 @@ class CandidateService:
 		))
 		
 		return created_score
-
+	async def score_candidate_with_ai(
+		self,
+		cv_text: str,
+		persona_dict: Dict[str, Any]
+	) -> Dict[str, Any]:
+		"""
+		Score CV against persona using AI service.
+		
+		Args:
+			cv_text: Raw CV text
+			persona_dict: Persona as dict
+			
+		Returns:
+			AI scoring response dict
+		"""
+		result = await self.cv_scoring_service.score_cv(
+			cv_text=cv_text,
+			persona=persona_dict
+		)
+		return result
 	def get_by_id(self, db: Session, candidate_id: str) -> Optional[CandidateModel]:
 		"""Get a candidate by ID."""
 		return self.candidates.get(db, candidate_id)
