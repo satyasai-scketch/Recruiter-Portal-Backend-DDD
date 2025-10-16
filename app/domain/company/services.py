@@ -19,6 +19,7 @@ def create_company(
     twitter_link: Optional[str] = None,
     instagram_link: Optional[str] = None,
     facebook_link: Optional[str] = None,
+    linkedin_link: Optional[str] = None,
     about_company: Optional[str] = None,
     created_by: Optional[str] = None
 ) -> Company:
@@ -37,11 +38,12 @@ def create_company(
     
     # Create social media links if any are provided
     social_media = None
-    if any([twitter_link, instagram_link, facebook_link]):
+    if any([twitter_link, instagram_link, facebook_link, linkedin_link]):
         social_media = SocialMediaLinks(
             twitter_link=twitter_link,
             instagram_link=instagram_link,
-            facebook_link=facebook_link
+            facebook_link=facebook_link,
+            linkedin_link=linkedin_link
         )
     
     # Create company entity
@@ -81,6 +83,7 @@ def update_company(
     twitter_link: Optional[str] = None,
     instagram_link: Optional[str] = None,
     facebook_link: Optional[str] = None,
+    linkedin_link: Optional[str] = None,
     about_company: Optional[str] = None,
     updated_by: Optional[str] = None
 ) -> Company:
@@ -106,11 +109,12 @@ def update_company(
     
     # Update social media
     updated_social_media = existing_company.social_media
-    if any([twitter_link, instagram_link, facebook_link]):
+    if any([twitter_link, instagram_link, facebook_link, linkedin_link]):
         updated_social_media = SocialMediaLinks(
             twitter_link=twitter_link if twitter_link is not None else (existing_company.social_media.twitter_link if existing_company.social_media else None),
             instagram_link=instagram_link if instagram_link is not None else (existing_company.social_media.instagram_link if existing_company.social_media else None),
-            facebook_link=facebook_link if facebook_link is not None else (existing_company.social_media.facebook_link if existing_company.social_media else None)
+            facebook_link=facebook_link if facebook_link is not None else (existing_company.social_media.facebook_link if existing_company.social_media else None),
+            linkedin_link=linkedin_link if linkedin_link is not None else (existing_company.social_media.linkedin_link if existing_company.social_media else None)
         )
     
     # Create updated company

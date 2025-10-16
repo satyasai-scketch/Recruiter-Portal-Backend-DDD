@@ -44,7 +44,9 @@ from app.cqrs.commands.persona_commands import (
 	DeletePersona
 )
 from app.cqrs.commands.upload_cv import UploadCVs
-from app.cqrs.commands.score_candidates import ScoreCandidates
+from app.cqrs.commands.upload_cv_file import UploadCVFile
+from app.cqrs.commands.candidate_commands import UpdateCandidate, UpdateCandidateCV, DeleteCandidate, DeleteCandidateCV
+from app.cqrs.commands.score_candidates import ScoreCandidate
 
 # Import query classes
 from app.cqrs.queries.jd_queries import (
@@ -55,6 +57,19 @@ from app.cqrs.queries.jd_queries import (
 )
 from app.cqrs.queries.get_persona import GetPersona
 from app.cqrs.queries.list_candidates import ListCandidates
+from app.cqrs.queries.candidate_queries import (
+	GetCandidate,
+	ListAllCandidates,
+	GetCandidateCV,
+	GetCandidateCVs
+)
+from app.cqrs.queries.score_queries import (
+	GetCandidateScore,
+	ListCandidateScores,
+	ListScoresForCandidatePersona,
+	ListScoresForCVPersona,
+	ListAllScores
+)
 from app.cqrs.queries.recommendations import Recommendations
 from app.cqrs.queries.company_queries import (
     GetCompany,
@@ -201,13 +216,17 @@ def handle_command(db: Session, command: Command) -> Any:
 
 	if isinstance(command, UploadCVs):
 		return CandidateService().upload(db, command.payloads)
-	if isinstance(command, ScoreCandidates):
-		return CandidateService().score_candidates(
+	if isinstance(command, UploadCVFile):
+		return CandidateService().upload_cv(db, command.file_bytes, command.filename, command.candidate_info)
+	if isinstance(command, ScoreCandidate):
+		return CandidateService().score_candidate(
 			db,
-			command.candidate_ids,
+			command.candidate_id,
 			command.persona_id,
-			command.persona_weights,
-			command.per_candidate_scores,
+			command.cv_id,
+			command.ai_scoring_response,
+			command.scoring_version,
+			command.processing_time_ms,
 		)
 	if isinstance(command, CreateCompany):
 		return CompanyService().create(db, command.payload)
@@ -227,6 +246,14 @@ def handle_command(db: Session, command: Command) -> Any:
 		return PersonaLevelService().update_level(db, command.persona_level_id, command.payload)
 	if isinstance(command, DeletePersonaLevel):
 		return PersonaLevelService().delete_level(db, command.persona_level_id)
+	if isinstance(command, UpdateCandidate):
+		return CandidateService().update_candidate(db, command.candidate_id, command.update_data)
+	if isinstance(command, UpdateCandidateCV):
+		return CandidateService().update_candidate_cv(db, command.cv_id, command.update_data)
+	if isinstance(command, DeleteCandidate):
+		return CandidateService().delete_candidate(db, command.candidate_id)
+	if isinstance(command, DeleteCandidateCV):
+		return CandidateService().delete_candidate_cv(db, command.candidate_cv_id)
 	raise NotImplementedError(f"No handler for command {type(command).__name__}")
 
 
@@ -299,4 +326,22 @@ def handle_query(db: Session, query: Query) -> Any:
 		return PersonaService().get_change_logs(db, query.persona_id)
 	if isinstance(query, ListPersonasByJobRole):
 		return PersonaService().list_by_role_id(db, query.role_id)
+	if isinstance(query, GetCandidate):
+		return CandidateService().get_by_id(db, query.candidate_id)
+	if isinstance(query, ListAllCandidates):
+		return CandidateService().get_all(db, query.skip, query.limit)
+	if isinstance(query, GetCandidateCV):
+		return CandidateService().get_candidate_cv(db, query.candidate_cv_id)
+	if isinstance(query, GetCandidateCVs):
+		return CandidateService().get_candidate_cvs(db, query.candidate_id)
+	if isinstance(query, GetCandidateScore):
+		return CandidateService().get_candidate_score(db, query.score_id)
+	if isinstance(query, ListCandidateScores):
+		return CandidateService().list_candidate_scores(db, query.candidate_id, query.skip, query.limit)
+	if isinstance(query, ListScoresForCandidatePersona):
+		return CandidateService().list_scores_for_candidate_persona(db, query.candidate_id, query.persona_id, query.skip, query.limit)
+	if isinstance(query, ListScoresForCVPersona):
+		return CandidateService().list_scores_for_cv_persona(db, query.cv_id, query.persona_id, query.skip, query.limit)
+	if isinstance(query, ListAllScores):
+		return CandidateService().list_all_scores(db, query.skip, query.limit)
 	raise NotImplementedError(f"No handler for query {type(query).__name__}")

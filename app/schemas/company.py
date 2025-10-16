@@ -16,8 +16,9 @@ class CompanySocialMediaBase(BaseModel):
     twitter_link: Optional[str] = Field(None, description="Twitter profile URL")
     instagram_link: Optional[str] = Field(None, description="Instagram profile URL")
     facebook_link: Optional[str] = Field(None, description="Facebook page URL")
+    linkedin_link: Optional[str] = Field(None, description="LinkedIn company page URL")
     
-    @validator('twitter_link', 'instagram_link', 'facebook_link')
+    @validator('twitter_link', 'instagram_link', 'facebook_link', 'linkedin_link')
     def validate_urls(cls, v):
         if v and not v.startswith(('http://', 'https://')):
             raise ValueError('URL must start with http:// or https://')

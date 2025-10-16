@@ -35,6 +35,7 @@ class CompanyService:
             twitter_link = data.get("twitter_link")
             instagram_link = data.get("instagram_link")
             facebook_link = data.get("facebook_link")
+            linkedin_link = data.get("linkedin_link")
             about_company = data.get("about_company")
             created_by = data.get("created_by")
             
@@ -64,6 +65,7 @@ class CompanyService:
                 twitter_link=twitter_link,
                 instagram_link=instagram_link,
                 facebook_link=facebook_link,
+                linkedin_link=linkedin_link,
                 about_company=about_company,
                 created_by=created_by
             )
@@ -160,6 +162,7 @@ class CompanyService:
                 twitter_link=data.get("twitter_link"),
                 instagram_link=data.get("instagram_link"),
                 facebook_link=data.get("facebook_link"),
+                linkedin_link=data.get("linkedin_link"),
                 about_company=data.get("about_company"),
                 updated_by=data.get("updated_by")
             )
@@ -238,11 +241,12 @@ class CompanyService:
             )
         
         social_media = None
-        if any([model.twitter_link, model.instagram_link, model.facebook_link]):
+        if any([model.twitter_link, model.instagram_link, model.facebook_link, model.linkedin_link]):
             social_media = SocialMediaLinks(
                 twitter_link=model.twitter_link,
                 instagram_link=model.instagram_link,
-                facebook_link=model.facebook_link
+                facebook_link=model.facebook_link,
+                linkedin_link=model.linkedin_link
             )
         
         return Company(
@@ -290,7 +294,8 @@ class CompanyService:
             data.update({
                 "twitter_link": domain.social_media.twitter_link,
                 "instagram_link": domain.social_media.instagram_link,
-                "facebook_link": domain.social_media.facebook_link
+                "facebook_link": domain.social_media.facebook_link,
+                "linkedin_link": domain.social_media.linkedin_link
             })
         
         return data
@@ -324,7 +329,9 @@ class CompanyService:
             model.twitter_link = domain.social_media.twitter_link
             model.instagram_link = domain.social_media.instagram_link
             model.facebook_link = domain.social_media.facebook_link
+            model.linkedin_link = domain.social_media.linkedin_link
         else:
             model.twitter_link = None
             model.instagram_link = None
             model.facebook_link = None
+            model.linkedin_link = None

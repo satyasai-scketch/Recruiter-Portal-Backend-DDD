@@ -43,6 +43,19 @@ class Settings(BaseSettings):
 	aws_secret_access_key: str = ""
 	aws_region: str = "us-east-1"
 	
+	# Storage Configuration
+	STORAGE_TYPE: str = "local"  # "local" or "s3"
+	
+	# Local Storage Configuration
+	LOCAL_STORAGE_PATH: str = "./uploads/cvs"
+	LOCAL_STORAGE_URL_PREFIX: str = "http://localhost:8000/uploads"
+	
+	# S3 Configuration for CV storage
+	S3_BUCKET_NAME: str = ""
+	S3_ACCESS_KEY_ID: str = ""
+	S3_SECRET_ACCESS_KEY: str = ""
+	S3_REGION: str = "us-east-1"
+	
 	# Common Email Settings
 	from_email: str = "noreply@recruiterai.com"
 	from_name: str = "Recruiter AI"

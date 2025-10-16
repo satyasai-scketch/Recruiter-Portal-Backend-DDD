@@ -45,11 +45,12 @@ def _convert_model_to_read_schema(company_model) -> CompanyRead:
     # Build social media object if any social media fields exist
     social_media = None
     if any([company_model.twitter_link, company_model.instagram_link, 
-            company_model.facebook_link]):
+            company_model.facebook_link, company_model.linkedin_link]):
         social_media = CompanySocialMediaRead(
             twitter_link=company_model.twitter_link,
             instagram_link=company_model.instagram_link,
-            facebook_link=company_model.facebook_link
+            facebook_link=company_model.facebook_link,
+            linkedin_link=company_model.linkedin_link
         )
     
     return CompanyRead(
@@ -224,7 +225,7 @@ async def update_company(
     """
     try:
         # Convert Pydantic model to dict and add user info
-        payload = company_data.dict(exclude_unset=True)
+        payload = company_data.model_dump(exclude_unset=True)
         payload["updated_by"] = user.id
         
         # Flatten address and social_media if present
@@ -275,3 +276,10 @@ async def delete_company(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# Summary
+#  persona_name  cv     score    
+#  p1             c1        s1
+#  p1             cv2      s2
+# 

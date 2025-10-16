@@ -46,26 +46,6 @@ def add_skills(candidate: Candidate, new_skills: Iterable[str]) -> Candidate:
 	return result
 
 
-def score_against_persona(
-	candidate: Candidate,
-	persona_weights: Dict[str, float],
-	per_category_scores: Dict[str, float],
-) -> Candidate:
-	"""Return a new Candidate with persona-aligned per-category and total score.
-
-	This service does not compute the per-category scores from text; it merely
-	applies deterministic weighted aggregation and clamps results.
-	"""
-	# Clamp category scores
-	clamped = {k: cand_rules.clamp_score(v) for k, v in (per_category_scores or {}).items()}
-	# Compute weighted sum
-	total = cand_rules.compute_weighted_score(clamped, persona_weights)
-	# Store all category scores and a special key for total
-	with_total = dict(clamped)
-	with_total["__total__"] = total
-	return candidate.with_scores(with_total)
-
-
 def fit_band(candidate: Candidate, low_threshold: float = 0.4, high_threshold: float = 0.7) -> str:
 	"""Return 'low' | 'mid' | 'high' fit band based on candidate total score."""
 	total = 0.0

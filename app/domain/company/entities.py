@@ -31,13 +31,15 @@ class SocialMediaLinks:
     twitter_link: Optional[str] = None
     instagram_link: Optional[str] = None
     facebook_link: Optional[str] = None
+    linkedin_link: Optional[str] = None
     
     def __post_init__(self):
         """Validate social media links."""
         for field_name, link in [
             ("twitter_link", self.twitter_link),
             ("instagram_link", self.instagram_link),
-            ("facebook_link", self.facebook_link)
+            ("facebook_link", self.facebook_link),
+            ("linkedin_link", self.linkedin_link)
         ]:
             if link and not self._is_valid_url(link):
                 raise ValueError(f"{field_name} must be a valid URL")

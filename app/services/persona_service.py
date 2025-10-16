@@ -528,14 +528,14 @@ class PersonaService:
 			}
 		}
 		
-		# Count external references (scores table)
-		from app.db.models.score import ScoreModel
-		scores_count = db.query(ScoreModel).filter(ScoreModel.persona_id == persona_id).count()
+		# Count external references (candidate_scores table)
+		from app.db.models.score import CandidateScoreModel
+		scores_count = db.query(CandidateScoreModel).filter(CandidateScoreModel.persona_id == persona_id).count()
 		deletion_stats["external_references"]["scores"] = scores_count
 		
-		# Delete external references first (scores)
+		# Delete external references first (candidate_scores)
 		if scores_count > 0:
-			db.query(ScoreModel).filter(ScoreModel.persona_id == persona_id).delete()
+			db.query(CandidateScoreModel).filter(CandidateScoreModel.persona_id == persona_id).delete()
 		
 		# Manual deletion to avoid circular dependency issues
 		# Delete in the correct order to break circular references
@@ -583,7 +583,7 @@ class PersonaService:
 		
 		# Verify deletion by checking if persona still exists
 		remaining_persona = self.repo.get(db, persona_id)
-		remaining_scores = db.query(ScoreModel).filter(ScoreModel.persona_id == persona_id).count()
+		remaining_scores = db.query(CandidateScoreModel).filter(CandidateScoreModel.persona_id == persona_id).count()
 		
 		deletion_stats["deletion_status"] = {
 			"persona_deleted": remaining_persona is None,
