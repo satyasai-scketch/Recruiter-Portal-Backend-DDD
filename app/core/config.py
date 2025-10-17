@@ -80,9 +80,12 @@ class Settings(BaseSettings):
 	# Pinecone Configuration
 	PINECONE_CLOUD: str = "aws"
 	PINECONE_REGION: str = "us-east-1"
-	JD_REFINEMENT_MODEL: str = os.getenv("JD_REFINEMENT_MODEL", "gpt-4o")
+	JD_REFINEMENT_MODEL: str = os.getenv("JD_REFINEMENT_MODEL", "gpt-4o-mini")
 	JD_REFINEMENT_TEMPERATURE: float = float(os.getenv("JD_REFINEMENT_TEMPERATURE", "0.5"))
 	PERSONA_GENERATION_MODEL: str = "gpt-4o"
+	CV_SCORING_EMBEDDING_MODEL: str = os.getenv("CV_SCORING_EMBEDDING_MODEL", "text-embedding-3-small")
+	CV_SCORING_SCREENING_MODEL: str = os.getenv("CV_SCORING_SCREENING_MODEL", "gpt-4o-mini")
+	CV_SCORING_DETAILED_MODEL: str = os.getenv("CV_SCORING_DETAILED_MODEL", "gpt-4o")
 	class Config:
 		env_file = ".env"
 		env_file_encoding = "utf-8"

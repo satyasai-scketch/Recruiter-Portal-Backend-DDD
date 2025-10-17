@@ -11,7 +11,7 @@ class PersonaStructureBuilder:
     def __init__(self, client: AsyncOpenAI, model: str):
         self.client = client
         self.model = model
-        self.supports_json_mode = model in ["gpt-4o", "gpt-4-turbo-preview", "gpt-3.5-turbo-1106"]
+        self.supports_json_mode = model in ["gpt-4o", "gpt-4-turbo-preview", "gpt-3.5-turbo-1106","gpt-4o-mini"]
     
     async def build_persona(
         self,
