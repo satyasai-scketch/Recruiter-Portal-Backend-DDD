@@ -39,6 +39,15 @@ class ListScoresForCVPersona(Query):
 		self.limit = limit
 
 
+class ListLatestCandidateScoresPerPersona(Query):
+	"""Query to list the latest score for each persona for a candidate."""
+	
+	def __init__(self, candidate_id: str, skip: int = 0, limit: int = 100):
+		self.candidate_id = candidate_id
+		self.skip = skip
+		self.limit = limit
+
+
 class ListAllScores(Query):
 	"""Query to list all scores with pagination."""
 	

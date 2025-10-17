@@ -100,26 +100,50 @@ async def upload_jd_document(
 	- tags: JSON array of tags (optional, defaults to empty array)
 	- file: Document file (PDF, DOCX, or DOC, max 10MB)
 	"""
+	import logging
+	logger = logging.getLogger(__name__)
+	
 	try:
+		logger.info(f"=== JD DOCUMENT UPLOAD START ===")
+		logger.info(f"User ID: {user.id}")
+		logger.info(f"Title: {title}")
+		logger.info(f"Role ID: {role_id}")
+		logger.info(f"Company ID: {company_id}")
+		logger.info(f"Notes: {notes}")
+		logger.info(f"Tags: {tags}")
+		logger.info(f"File object: {file}")
+		logger.info(f"File filename: '{file.filename}'")
+		logger.info(f"File content_type: {file.content_type}")
+		logger.info(f"File size: {file.size if hasattr(file, 'size') else 'Unknown'}")
 		# Validate file
+		logger.info(f"Step 1: Validating file...")
 		if not file.filename:
+			logger.error("No filename provided")
 			raise HTTPException(status_code=400, detail="No file provided")
 		
+		logger.info(f"Step 2: Reading file content...")
 		# Check file size (10MB limit)
 		file_content = await file.read()
+		logger.info(f"File content read successfully. Size: {len(file_content)} bytes")
+		
 		if len(file_content) > 10 * 1024 * 1024:
+			logger.error(f"File size {len(file_content)} exceeds 10MB limit")
 			raise HTTPException(status_code=400, detail="File size exceeds 10MB limit")
 		
 		# Parse tags from JSON string
+		logger.info(f"Step 3: Parsing tags...")
 		import json
 		try:
 			tags_list = json.loads(tags) if tags else []
 			if not isinstance(tags_list, list):
 				raise ValueError("Tags must be a list")
-		except (json.JSONDecodeError, ValueError):
+			logger.info(f"Tags parsed successfully: {tags_list}")
+		except (json.JSONDecodeError, ValueError) as e:
+			logger.error(f"Tags parsing failed: {e}")
 			raise HTTPException(status_code=400, detail="Invalid tags format. Must be a JSON array.")
 		
 		# Prepare payload
+		logger.info(f"Step 4: Preparing payload...")
 		payload = {
 			"title": title.strip(),
 			"role_id": role_id.strip(),
@@ -128,11 +152,21 @@ async def upload_jd_document(
 			"tags": tags_list,
 			"created_by": user.id
 		}
+		logger.info(f"Payload prepared: {payload}")
 		
 		# Process document upload
-		model = handle_command(db, UploadJobDescriptionDocument(payload, file_content, file.filename))
+		logger.info(f"Step 5: Creating UploadJobDescriptionDocument command...")
+		logger.info(f"Command parameters - payload: {payload}, file_content size: {len(file_content)}, filename: '{file.filename}'")
+		
+		command = UploadJobDescriptionDocument(payload, file_content, file.filename)
+		logger.info(f"Command created successfully: {command}")
+		
+		logger.info(f"Step 6: Executing handle_command...")
+		model = handle_command(db, command)
+		logger.info(f"Command executed successfully. Model ID: {model.id}")
 		
 		# Prepare response
+		logger.info(f"Step 7: Preparing response...")
 		extracted_metadata = {
 			"original_filename": model.original_document_filename,
 			"file_size": model.original_document_size,
@@ -140,8 +174,9 @@ async def upload_jd_document(
 			"word_count": model.document_word_count,
 			"character_count": model.document_character_count
 		}
+		logger.info(f"Extracted metadata: {extracted_metadata}")
 		
-		return JDDocumentUploadResponse(
+		response = JDDocumentUploadResponse(
 			id=model.id,
 			title=model.title,
 			role_id=model.role_id,
@@ -150,14 +185,23 @@ async def upload_jd_document(
 			extracted_metadata=extracted_metadata,
 			message=f"Successfully uploaded and processed {file.filename}"
 		)
+		logger.info(f"Response prepared successfully")
+		logger.info(f"=== JD DOCUMENT UPLOAD COMPLETED SUCCESSFULLY ===")
+		return response
 		
-	except HTTPException:
+	except HTTPException as e:
+		logger.error(f"HTTPException occurred: {e.detail}")
 		raise
 	except (ValueError, SQLAlchemyError) as e:
+		logger.error(f"ValueError/SQLAlchemyError occurred: {str(e)}")
 		if isinstance(e, SQLAlchemyError):
 			rollback_on_error(db)
 		raise handle_service_errors(e)
 	except Exception as e:
+		logger.error(f"Unexpected error occurred: {str(e)}")
+		logger.error(f"Error type: {type(e).__name__}")
+		import traceback
+		logger.error(f"Traceback: {traceback.format_exc()}")
 		rollback_on_error(db)
 		raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
 

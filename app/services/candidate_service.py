@@ -474,6 +474,10 @@ class CandidateService:
 		"""List all scores for a candidate."""
 		return list(self.scores.list_candidate_scores(db, candidate_id, skip, limit))
 
+	def list_latest_candidate_scores_per_persona(self, db: Session, candidate_id: str, skip: int = 0, limit: int = 100) -> List[CandidateScoreModel]:
+		"""List the latest score for each persona for a candidate."""
+		return list(self.scores.list_latest_candidate_scores_per_persona(db, candidate_id, skip, limit))
+
 	def list_scores_for_candidate_persona(self, db: Session, candidate_id: str, persona_id: str, skip: int = 0, limit: int = 100) -> List[CandidateScoreModel]:
 		"""List scores for a candidate against a specific persona."""
 		return list(self.scores.list_scores_for_candidate_persona(db, candidate_id, persona_id)[skip:skip + limit])

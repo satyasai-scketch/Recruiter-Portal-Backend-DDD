@@ -69,6 +69,7 @@ from app.cqrs.queries.score_queries import (
 	ListCandidateScores,
 	ListScoresForCandidatePersona,
 	ListScoresForCVPersona,
+	ListLatestCandidateScoresPerPersona,
 	ListAllScores
 )
 from app.cqrs.queries.recommendations import Recommendations
@@ -522,6 +523,8 @@ def handle_query(db: Session, query: Query) -> Any:
 		return CandidateService().list_scores_for_candidate_persona(db, query.candidate_id, query.persona_id, query.skip, query.limit)
 	if isinstance(query, ListScoresForCVPersona):
 		return CandidateService().list_scores_for_cv_persona(db, query.cv_id, query.persona_id, query.skip, query.limit)
+	if isinstance(query, ListLatestCandidateScoresPerPersona):
+		return CandidateService().list_latest_candidate_scores_per_persona(db, query.candidate_id, query.skip, query.limit)
 	if isinstance(query, ListAllScores):
 		return CandidateService().list_all_scores(db, query.skip, query.limit)
 	raise NotImplementedError(f"No handler for query {type(query).__name__}")

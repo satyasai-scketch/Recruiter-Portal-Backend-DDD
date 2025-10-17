@@ -27,6 +27,9 @@ class ScoreRepository:
 	def list_candidate_scores(self, db: Session, candidate_id: str, skip: int = 0, limit: int = 100) -> Sequence[CandidateScoreModel]:
 		raise NotImplementedError
 
+	def list_latest_candidate_scores_per_persona(self, db: Session, candidate_id: str, skip: int = 0, limit: int = 100) -> Sequence[CandidateScoreModel]:
+		raise NotImplementedError
+
 	def list_all_scores(self, db: Session, skip: int = 0, limit: int = 100) -> Sequence[CandidateScoreModel]:
 		raise NotImplementedError
 
@@ -91,6 +94,41 @@ class SQLAlchemyScoreRepository(ScoreRepository):
 				selectinload(CandidateScoreModel.score_stages),
 				selectinload(CandidateScoreModel.categories).selectinload(ScoreCategoryModel.subcategories),
 				selectinload(CandidateScoreModel.insights)
+			)
+			.filter(CandidateScoreModel.candidate_id == candidate_id)
+			.order_by(CandidateScoreModel.scored_at.desc())
+			.offset(skip)
+			.limit(limit)
+			.all()
+		)
+
+	def list_latest_candidate_scores_per_persona(self, db: Session, candidate_id: str, skip: int = 0, limit: int = 100) -> Sequence[CandidateScoreModel]:
+		"""List the latest score for each persona for a candidate."""
+		from sqlalchemy import func
+		
+		# Subquery to get the latest scored_at for each persona
+		latest_scores_subquery = (
+			db.query(
+				CandidateScoreModel.persona_id,
+				func.max(CandidateScoreModel.scored_at).label('latest_scored_at')
+			)
+			.filter(CandidateScoreModel.candidate_id == candidate_id)
+			.group_by(CandidateScoreModel.persona_id)
+			.subquery()
+		)
+		
+		# Main query to get the full score records for the latest scores
+		return (
+			db.query(CandidateScoreModel)
+			.options(
+				selectinload(CandidateScoreModel.score_stages),
+				selectinload(CandidateScoreModel.categories).selectinload(ScoreCategoryModel.subcategories),
+				selectinload(CandidateScoreModel.insights)
+			)
+			.join(
+				latest_scores_subquery,
+				(CandidateScoreModel.persona_id == latest_scores_subquery.c.persona_id) &
+				(CandidateScoreModel.scored_at == latest_scores_subquery.c.latest_scored_at)
 			)
 			.filter(CandidateScoreModel.candidate_id == candidate_id)
 			.order_by(CandidateScoreModel.scored_at.desc())

@@ -33,10 +33,31 @@ class DocumentParser:
     @classmethod
     def is_supported_format(cls, filename: str) -> bool:
         """Check if the file format is supported."""
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"=== is_supported_format START ===")
+        logger.info(f"Filename: '{filename}'")
+        logger.info(f"Filename type: {type(filename)}")
+        logger.info(f"Filename repr: {repr(filename)}")
+        
         if not filename:
+            logger.info(f"Filename is empty/None, returning False")
             return False
-        extension = Path(filename).suffix.lower()
-        return extension in cls.SUPPORTED_EXTENSIONS
+        
+        try:
+            extension = Path(filename).suffix.lower()
+            logger.info(f"File extension: '{extension}'")
+            is_supported = extension in cls.SUPPORTED_EXTENSIONS
+            logger.info(f"Is supported: {is_supported}")
+            logger.info(f"Supported extensions: {cls.SUPPORTED_EXTENSIONS}")
+            return is_supported
+        except Exception as e:
+            logger.error(f"Error checking file format: {str(e)}")
+            logger.error(f"Error type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return False
     
     @classmethod
     def validate_file_size(cls, file_size: int) -> bool:
@@ -112,23 +133,54 @@ class DocumentParser:
         Returns:
             Dict containing extracted text and metadata
         """
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"=== DOCUMENT PARSER extract_text START ===")
+        logger.info(f"Filename: '{filename}'")
+        logger.info(f"Filename type: {type(filename)}")
+        logger.info(f"Filename repr: {repr(filename)}")
+        logger.info(f"File content size: {len(file_content)} bytes")
+        
+        logger.info(f"Step 1: Checking supported format...")
         if not cls.is_supported_format(filename):
+            logger.error(f"Unsupported file format: {filename}")
             raise DocumentParseError(f"Unsupported file format: {filename}")
+        logger.info(f"File format is supported")
         
+        logger.info(f"Step 2: Validating file size...")
         if not cls.validate_file_size(len(file_content)):
+            logger.error(f"File size {len(file_content)} exceeds limit {cls.MAX_FILE_SIZE}")
             raise DocumentParseError(f"File size exceeds maximum limit of {cls.MAX_FILE_SIZE} bytes")
+        logger.info(f"File size is valid")
         
-        extension = Path(filename).suffix.lower()
+        logger.info(f"Step 3: Getting file extension...")
+        try:
+            extension = Path(filename).suffix.lower()
+            logger.info(f"File extension: '{extension}'")
+        except Exception as e:
+            logger.error(f"Failed to get file extension: {str(e)}")
+            logger.error(f"Error type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            raise DocumentParseError(f"Failed to get file extension from '{filename}': {str(e)}")
         
+        logger.info(f"Step 4: Extracting text based on extension...")
         try:
             if extension == '.pdf':
+                logger.info(f"Processing PDF file...")
                 extracted_text = cls.extract_text_from_pdf(file_content)
+                logger.info(f"PDF text extraction completed")
             elif extension in ['.docx', '.doc']:
+                logger.info(f"Processing DOCX/DOC file...")
                 extracted_text = cls.extract_text_from_docx(file_content)
+                logger.info(f"DOCX/DOC text extraction completed")
             else:
+                logger.error(f"Unsupported extension: {extension}")
                 raise DocumentParseError(f"Unsupported file format: {extension}")
             
-            return {
+            logger.info(f"Step 5: Preparing result...")
+            result = {
                 'extracted_text': extracted_text.strip(),
                 'original_filename': filename,
                 'file_size': len(file_content),
@@ -136,8 +188,17 @@ class DocumentParser:
                 'word_count': len(extracted_text.split()),
                 'character_count': len(extracted_text)
             }
+            logger.info(f"Result prepared successfully")
+            logger.info(f"Extracted text length: {len(extracted_text)} characters")
+            logger.info(f"Word count: {result['word_count']}")
+            logger.info(f"=== DOCUMENT PARSER extract_text COMPLETED ===")
+            return result
             
         except Exception as e:
+            logger.error(f"Text extraction failed: {str(e)}")
+            logger.error(f"Error type: {type(e).__name__}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
             if isinstance(e, DocumentParseError):
                 raise
             raise DocumentParseError(f"Failed to extract text from {filename}: {str(e)}")
@@ -157,4 +218,24 @@ def extract_job_description_text(filename: str, file_content: bytes) -> Dict[str
     Raises:
         DocumentParseError: If parsing fails
     """
-    return DocumentParser.extract_text(filename, file_content)
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info(f"=== DOCUMENT PARSER extract_job_description_text START ===")
+    logger.info(f"Filename: '{filename}'")
+    logger.info(f"Filename type: {type(filename)}")
+    logger.info(f"Filename repr: {repr(filename)}")
+    logger.info(f"File content size: {len(file_content)} bytes")
+    
+    try:
+        result = DocumentParser.extract_text(filename, file_content)
+        logger.info(f"Document parsing successful")
+        logger.info(f"Result keys: {list(result.keys())}")
+        logger.info(f"=== DOCUMENT PARSER extract_job_description_text COMPLETED ===")
+        return result
+    except Exception as e:
+        logger.error(f"Document parsing failed: {str(e)}")
+        logger.error(f"Error type: {type(e).__name__}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise

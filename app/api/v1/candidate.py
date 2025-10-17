@@ -34,6 +34,7 @@ from app.cqrs.queries.score_queries import (
 	ListCandidateScores,
 	ListScoresForCandidatePersona,
 	ListScoresForCVPersona,
+	ListLatestCandidateScoresPerPersona,
 	ListAllScores
 )
 from app.cqrs.commands.score_with_ai import ScoreCandidateWithAI
@@ -758,11 +759,15 @@ async def get_candidate_scores(
 	candidate_id: str,
 	page: int = Query(1, ge=1, description="Page number"),
 	size: int = Query(10, ge=1, le=100, description="Page size"),
+	latest_only: bool = Query(True, description="Show only the latest score per persona"),
 	db: Session = Depends(db_session),
 	user=Depends(get_current_user)
 ):
 	"""
-	Get all scores for a specific candidate.
+	Get scores for a specific candidate.
+	
+	By default, returns only the latest score for each persona to avoid duplicates.
+	Set latest_only=False to get all scores for the candidate.
 	"""
 	# First check if candidate exists
 	candidate = handle_query(db, GetCandidate(candidate_id))
@@ -770,7 +775,12 @@ async def get_candidate_scores(
 		raise HTTPException(status_code=404, detail="Candidate not found")
 	
 	skip = (page - 1) * size
-	scores = handle_query(db, ListCandidateScores(candidate_id, skip, size))
+	
+	# Choose the appropriate query based on latest_only parameter
+	if latest_only:
+		scores = handle_query(db, ListLatestCandidateScoresPerPersona(candidate_id, skip, size))
+	else:
+		scores = handle_query(db, ListCandidateScores(candidate_id, skip, size))
 	
 	# Convert to response format
 	score_reads = [_convert_candidate_score_to_read_schema(score, db) for score in scores]
