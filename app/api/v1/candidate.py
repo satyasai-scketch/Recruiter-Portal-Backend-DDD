@@ -631,12 +631,68 @@ async def score_candidate_with_ai(
     candidate_id: str,
     persona_id: str,
     cv_id: str,
+    force_rescore: bool = Query(False, description="Force re-scoring even if a score already exists"),
     db: Session = Depends(db_session)
 ):
-    """AI-powered automatic scoring"""
+    """
+    AI-powered automatic scoring with duplicate prevention.
+    
+    This endpoint checks if a score already exists for the given CV and persona combination.
+    If a score exists, it returns the existing score instead of performing new AI scoring.
+    Use force_rescore=True to bypass this check and force re-scoring.
+    """
     start_time = time.time()
     
     try:
+        # Check if a score already exists for this CV and persona combination
+        # Skip this check if force_rescore is True
+        if not force_rescore:
+            existing_scores = handle_query(db, ListScoresForCVPersona(cv_id, persona_id, skip=0, limit=1))
+            
+            if existing_scores:
+                # Return the existing score instead of creating a new one
+                # This prevents duplicate AI scoring for the same CV-persona combination
+                existing_score = existing_scores[0]
+                
+                # Fetch candidate and CV information for the response
+                candidate = handle_query(db, GetCandidate(candidate_id))
+                cv = handle_query(db, GetCandidateCV(cv_id))
+                
+                # Fetch persona and role information for the response
+                persona = handle_query(db, GetPersona(persona_id))
+                persona_name = persona.name if persona else None
+                role_name = None
+                
+                if persona:
+                    # Try to get role name from persona's role_name field first
+                    if persona.role_name:
+                        role_name = persona.role_name
+                    # If not available, get it from the job description's job role
+                    elif persona.job_description_id:
+                        job_description = handle_query(db, GetJobDescription(persona.job_description_id))
+                        if job_description and job_description.role_id:
+                            job_role = handle_query(db, GetJobRole(job_description.role_id))
+                            if job_role:
+                                role_name = job_role.name
+                
+                # Extract candidate name and file name
+                candidate_name = candidate.full_name if candidate else None
+                file_name = cv.file_name if cv else None
+                
+                return ScoreResponse(
+                    score_id=existing_score.id,
+                    candidate_id=existing_score.candidate_id,
+                    persona_id=existing_score.persona_id,
+                    final_score=float(existing_score.final_score),
+                    final_decision=existing_score.final_decision,
+                    pipeline_stage_reached=existing_score.pipeline_stage_reached,
+                    candidate_name=candidate_name,
+                    file_name=file_name,
+                    persona_name=persona_name,
+                    role_name=role_name
+                )
+        
+        # No existing score found, proceed with AI scoring
         # Use command handler (like persona generation)
         ai_scoring_response = handle_command(db, ScoreCandidateWithAI(
             candidate_id=candidate_id,
@@ -657,13 +713,42 @@ async def score_candidate_with_ai(
             processing_time_ms=processing_time_ms
         ))
         
+        # Fetch candidate and CV information for the response
+        candidate = handle_query(db, GetCandidate(candidate_id))
+        cv = handle_query(db, GetCandidateCV(cv_id))
+        
+        # Fetch persona and role information for the response
+        persona = handle_query(db, GetPersona(persona_id))
+        persona_name = persona.name if persona else None
+        role_name = None
+        
+        if persona:
+            # Try to get role name from persona's role_name field first
+            if persona.role_name:
+                role_name = persona.role_name
+            # If not available, get it from the job description's job role
+            elif persona.job_description_id:
+                job_description = handle_query(db, GetJobDescription(persona.job_description_id))
+                if job_description and job_description.role_id:
+                    job_role = handle_query(db, GetJobRole(job_description.role_id))
+                    if job_role:
+                        role_name = job_role.name
+        
+        # Extract candidate name and file name
+        candidate_name = candidate.full_name if candidate else None
+        file_name = cv.file_name if cv else None
+        
         return ScoreResponse(
             score_id=score.id,
             candidate_id=score.candidate_id,
             persona_id=score.persona_id,
             final_score=float(score.final_score),
             final_decision=score.final_decision,
-            pipeline_stage_reached=score.pipeline_stage_reached
+            pipeline_stage_reached=score.pipeline_stage_reached,
+            candidate_name=candidate_name,
+            file_name=file_name,
+            persona_name=persona_name,
+            role_name=role_name
         )
         
     except Exception as e:
