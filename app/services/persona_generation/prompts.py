@@ -241,7 +241,7 @@ Analyze this JD:
             "weight_percentage": <use innovation_focus from values analysis>,
             "range_min": <calculate>,
             "range_max": <calculate>,
-            "level_id": "1",
+            "level_id": "<1-5 based on how strongly JD emphasizes this value>",
             "position": 1,
             "skillset": {{
                 "technologies": ["<Extract creativity/autonomy expectations from JD>"]
@@ -252,7 +252,7 @@ Analyze this JD:
             "weight_percentage": <use achievement_focus from values analysis>,
             "range_min": <calculate>,
             "range_max": <calculate>,
-            "level_id": "1",
+            "level_id": "<1-5 based on how strongly JD emphasizes this value>",
             "position": 2,
             "skillset": {{
                 "technologies": ["<Extract results/goal orientation from JD>"]
@@ -263,7 +263,7 @@ Analyze this JD:
             "weight_percentage": <use collaboration_focus from values analysis>,
             "range_min": <calculate>,
             "range_max": <calculate>,
-            "level_id": "1",
+            "level_id": "<1-5 based on how strongly JD emphasizes this value>",
             "position": 3,
             "skillset": {{
                 "technologies": ["<Extract teamwork/collaboration expectations from JD>"]
@@ -274,7 +274,7 @@ Analyze this JD:
             "weight_percentage": <use security_focus from values analysis>,
             "range_min": <calculate>,
             "range_max": <calculate>,
-            "level_id": "1",
+            "level_id": "<1-5 based on how strongly JD emphasizes this value>",
             "position": 4,
             "skillset": {{
                 "technologies": ["<Extract compliance/process adherence from JD>"]
@@ -296,7 +296,7 @@ Analyze this JD:
             "weight_percentage": <use communication_emphasis from behavioral analysis>,
             "range_min": <calculate>,
             "range_max": <calculate>,
-            "level_id": "1",
+            "level_id": ""<1-5 based on behavioral_emphasis score from analysis>",
             "position": 1,
             "skillset": {{
                 "technologies": ["<Extract specific collaboration/communication needs from JD>"]
@@ -307,7 +307,7 @@ Analyze this JD:
             "weight_percentage": <use resilience_emphasis from behavioral analysis>,
             "range_min": <calculate>,
             "range_max": <calculate>,
-            "level_id": "1",
+            "level_id": ""<1-5 based on behavioral_emphasis score from analysis>",
             "position": 2,
             "skillset": {{
                 "technologies": ["<Extract change management/stress handling needs from JD>"]
@@ -318,7 +318,7 @@ Analyze this JD:
             "weight_percentage": <use decision_making_emphasis from behavioral analysis>,
             "range_min": <calculate>,
             "range_max": <calculate>,
-            "level_id": "1",
+            "level_id": ""<1-5 based on behavioral_emphasis score from analysis>",
             "position": 3,
             "skillset": {{
                 "technologies": ["<Extract accountability/autonomy expectations from JD>"]
@@ -340,7 +340,7 @@ Analyze this JD:
             "weight_percentage": <use mentoring_emphasis from leadership analysis>,
             "range_min": <calculate>,
             "range_max": <calculate>,
-            "level_id": "1",
+            "level_id": "<1-5 based on seniority: junior=1, mid=2, senior=3, lead=4, director+=5>",
             "position": 1,
             "skillset": {{
                 "technologies": ["<Extract mentoring/coaching requirements from JD>"]
@@ -351,7 +351,7 @@ Analyze this JD:
             "weight_percentage": <use influence_emphasis from leadership analysis>,
             "range_min": <calculate>,
             "range_max": <calculate>,
-            "level_id": "1",
+            "level_id": "<1-5 based on seniority: junior=1, mid=2, senior=3, lead=4, director+=5>",
             "position": 2,
             "skillset": {{
                 "technologies": ["<Extract stakeholder management/influence needs from JD>"]
@@ -362,7 +362,7 @@ Analyze this JD:
             "weight_percentage": <use vision_emphasis from leadership analysis>,
             "range_min": <calculate>,
             "range_max": <calculate>,
-            "level_id": "1",
+            "level_id": "<1-5 based on seniority: junior=1, mid=2, senior=3, lead=4, director+=5>",
             "position": 3,
             "skillset": {{
                 "technologies": ["<Extract strategic planning/long-term vision from JD>"]
@@ -384,7 +384,7 @@ Analyze this JD:
             "weight_percentage": {edu_split['education']},
             "range_min": <calculate>,
             "range_max": <calculate>,
-            "level_id": "1",
+            "level_id": "<1-5 based on education_importance>",
             "position": 1,
             "skillset": {{
                 "technologies": ["<Extract exact degree requirements from JD, e.g., 'Bachelor's in CS required', 'MBA preferred'>"]
@@ -395,7 +395,7 @@ Analyze this JD:
             "weight_percentage": {edu_split['experience']},
             "range_min": <calculate>,
             "range_max": <calculate>,
-            "level_id": "1",
+            "level_id": "<1-5 based on years_experience_required>",
             "position": 2,
             "skillset": {{
                 "technologies": ["<Extract exact experience requirements from JD, e.g., '5-7 years in software development', '3+ years leading teams'>"]
@@ -406,7 +406,7 @@ Analyze this JD:
             "weight_percentage": {edu_split['certifications']},
             "range_min": <calculate>,
             "range_max": <calculate>,
-            "level_id": "1",
+            "level_id": "<1-5 based on number of certs required>",
             "position": 3,
             "skillset": {{
                 "technologies": ["<Extract certifications from JD, e.g., 'AWS Certified preferred', 'GitHub portfolio required'>"]

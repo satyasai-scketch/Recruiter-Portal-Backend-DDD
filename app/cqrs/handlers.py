@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Dict
 from sqlalchemy.orm import Session
 
 from app.services.jd_service import JDService
@@ -11,6 +11,7 @@ from app.services.company_service import CompanyService
 from app.services.job_role_service import JobRoleService
 from app.services.persona_level_service import PersonaLevelService
 from app.cqrs.commands.generate_persona_from_jd import GeneratePersonaFromJD
+from app.cqrs.commands.score_with_ai import ScoreCandidateWithAI
 # Import base classes
 from app.cqrs.commands.base import Command
 from app.cqrs.queries.base import Query
@@ -190,6 +191,184 @@ def handle_generate_persona_from_jd(db: Session, command: GeneratePersonaFromJD)
             )
     except Exception as e:
         raise ValueError(f"Error generating persona structure: {str(e)}")
+
+def normalize_ai_scoring_response(ai_response: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Normalize AI scoring response to always have consistent structure,
+    regardless of which pipeline stage it terminated at.
+    
+    This ensures score_candidate method always gets the expected data structure.
+    Handles early rejection (Stage 1/2) by providing empty Stage 3 structures.
+    """
+    normalized = {
+        'pipeline_stage_reached': ai_response.get('pipeline_stage_reached', 1),
+        'final_score': ai_response.get('final_score', 0.0),
+        'final_decision': ai_response.get('final_decision', 'UNKNOWN'),
+        'score_progression': ai_response.get('score_progression') or {},
+    }
+    
+    stage_reached = normalized['pipeline_stage_reached']
+    
+    # ========== STAGE 1 DATA ==========
+    # Always present
+    normalized['stage1'] = ai_response.get('stage1') or {
+        'method': 'embedding',
+        'model': 'text-embedding-3-small',
+        'score': 0.0,
+        'threshold': 60.0,
+        'decision': 'UNKNOWN',
+        'reason': 'No stage 1 data available'
+    }
+    
+    # ========== STAGE 2 DATA ==========
+    # Present only if stage reached >= 2
+    if stage_reached >= 2:
+        normalized['stage2'] = ai_response.get('stage2') or {
+            'method': 'lightweight_llm',
+            'model': 'gpt-4o-mini',
+            'relevance_score': 0,
+            'threshold': 60,
+            'decision': 'UNKNOWN',
+            'reason': 'No stage 2 data available',
+            'skills': [],
+            'roles_detected': [],
+            'quick_assessment': ''
+        }
+    else:
+        normalized['stage2'] = None
+    
+    # ========== STAGE 3 DATA ==========
+    # This is the critical part - must have structure even if not reached
+    if stage_reached >= 3:
+        # Stage 3 was reached - use actual data
+        stage3_data = ai_response.get('stage3') or {}
+        
+        normalized['stage3'] = {
+            'method': 'detailed_llm',
+            'model': 'gpt-4o',
+            'overall_score': stage3_data.get('overall_score', 0.0),
+            'categories': stage3_data.get('categories', []),
+            'strengths': stage3_data.get('strengths', []),
+            'gaps': stage3_data.get('gaps', []),
+            'recommendation': stage3_data.get('recommendation', 'UNKNOWN'),
+            'reasoning': stage3_data.get('reasoning', '')
+        }
+    else:
+        # Stage 3 NOT reached (rejected at Stage 1 or 2)
+        # Provide empty structure so score_candidate doesn't crash
+        normalized['stage3'] = {
+            'method': 'detailed_llm',
+            'model': 'gpt-4o',
+            'overall_score': 0.0,
+            'categories': [],  # Empty list prevents iteration errors
+            'strengths': [],   # Empty list prevents iteration errors
+            'gaps': [],        # Empty list prevents iteration errors
+            'recommendation': 'REJECTED',
+            'reasoning': f"Rejected at stage {stage_reached}"
+        }
+    
+    return normalized
+
+
+# Add this to your handlers.py
+def handle_score_candidate_with_ai(db: Session, command: ScoreCandidateWithAI):
+    """Handle AI-powered CV scoring"""
+    import asyncio
+    import concurrent.futures
+    
+    try:
+        # Get CV text
+        cv = CandidateService().candidate_cvs.get(db, command.cv_id)
+        if not cv:
+            raise ValueError(f"CV {command.cv_id} not found")
+        
+        cv_text = cv.cv_text
+        if not cv_text:
+            raise ValueError(f"CV {command.cv_id} has no extracted text")
+        
+        # Get persona
+        from app.services.persona_service import PersonaService
+        persona_model = PersonaService().get_persona(db, command.persona_id)
+        if not persona_model:
+            raise ValueError(f"Persona {command.persona_id} not found")
+        
+        # Convert persona to dict
+        persona_dict = _persona_to_dict(persona_model)
+        
+        # Run async AI scoring
+        try:
+            loop = asyncio.get_running_loop()
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(
+                    asyncio.run,
+                    CandidateService().score_candidate_with_ai(
+                        cv_text=cv_text,
+                        persona_dict=persona_dict
+                    )
+                )
+                raw_response = future.result()
+        except RuntimeError:
+            raw_response = asyncio.run(
+                CandidateService().score_candidate_with_ai(
+                    cv_text=cv_text,
+                    persona_dict=persona_dict
+                )
+            )
+        
+        # ⭐ NORMALIZE RESPONSE - Ensures consistent structure for score_candidate
+        normalized_response = normalize_ai_scoring_response(raw_response)
+        
+        return normalized_response
+        
+    except Exception as e:
+        raise ValueError(f"Error scoring candidate with AI: {str(e)}")
+
+
+def _persona_to_dict(persona_model):
+    """Convert PersonaModel to dict for AI scoring"""
+    categories = []
+    
+    for cat in persona_model.categories:
+        subcategories = []
+        
+        for sub in cat.subcategories:
+            subcat_dict = {
+                'name': sub.name,
+                'weight_percentage': sub.weight_percentage,
+                'range_min': sub.range_min,
+                'range_max': sub.range_max,
+                'level_id': str(sub.level.position) if sub.level_id else '3',
+                'position': sub.position
+            }
+            
+            if sub.skillset:
+                subcat_dict['skillset'] = {
+                    'technologies': sub.skillset.technologies or []
+                }
+            
+            subcategories.append(subcat_dict)
+        
+        cat_dict = {
+            'name': cat.name,
+            'weight_percentage': cat.weight_percentage,
+            'range_min': cat.range_min,
+            'range_max': cat.range_max,
+            'position': cat.position,
+            'subcategories': subcategories
+        }
+        
+        if cat.notes:
+            cat_dict['notes'] = {
+                'custom_notes': cat.notes.custom_notes or ''
+            }
+        
+        categories.append(cat_dict)
+    
+    return {
+        'job_description_id': persona_model.job_description_id,
+        'name': persona_model.name,
+        'categories': categories
+    }
 # Handlers
 
 def handle_command(db: Session, command: Command) -> Any:
@@ -208,7 +387,8 @@ def handle_command(db: Session, command: Command) -> Any:
 
 	if isinstance(command, GeneratePersonaFromJD):
 		return handle_generate_persona_from_jd(db, command)
-
+	if isinstance(command, ScoreCandidateWithAI):
+		return handle_score_candidate_with_ai(db, command)
 	if isinstance(command, UpdatePersona):
 		return PersonaService().update_persona(db, command.persona_id, command.payload, command.updated_by)
 	if isinstance(command, DeletePersona):

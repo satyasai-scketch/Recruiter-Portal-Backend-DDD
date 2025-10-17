@@ -36,6 +36,8 @@ from app.cqrs.queries.score_queries import (
 	ListScoresForCVPersona,
 	ListAllScores
 )
+from app.cqrs.commands.score_with_ai import ScoreCandidateWithAI
+import time
 from app.cqrs.queries.persona_queries import GetPersona
 from app.cqrs.queries.jd_queries import GetJobDescription
 from app.cqrs.queries.job_role_queries import GetJobRole
@@ -623,6 +625,49 @@ async def get_candidate_score(
 	return _convert_candidate_score_to_read_schema(score, db)
 
 
+
+@router.post("/score-with-ai", response_model=ScoreResponse, summary="Score candidate with AI")
+async def score_candidate_with_ai(
+    candidate_id: str,
+    persona_id: str,
+    cv_id: str,
+    db: Session = Depends(db_session)
+):
+    """AI-powered automatic scoring"""
+    start_time = time.time()
+    
+    try:
+        # Use command handler (like persona generation)
+        ai_scoring_response = handle_command(db, ScoreCandidateWithAI(
+            candidate_id=candidate_id,
+            persona_id=persona_id,
+            cv_id=cv_id
+        ))
+        
+        # Calculate processing time
+        processing_time_ms = int((time.time() - start_time) * 1000)
+        
+        # Save to database
+        score = handle_command(db, ScoreCandidate(
+            candidate_id=candidate_id,
+            persona_id=persona_id,
+            cv_id=cv_id,
+            ai_scoring_response=ai_scoring_response,
+            scoring_version="v1.0",
+            processing_time_ms=processing_time_ms
+        ))
+        
+        return ScoreResponse(
+            score_id=score.id,
+            candidate_id=score.candidate_id,
+            persona_id=score.persona_id,
+            final_score=float(score.final_score),
+            final_decision=score.final_decision,
+            pipeline_stage_reached=score.pipeline_stage_reached
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 @router.get("/{candidate_id}/scores", response_model=ScoreListResponse, summary="Get Candidate Scores")
 async def get_candidate_scores(
 	candidate_id: str,
