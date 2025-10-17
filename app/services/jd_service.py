@@ -52,35 +52,12 @@ class JDService:
 
     def create_from_document(self, db: Session, data: dict, file_content: bytes, filename: str) -> JobDescriptionModel:
         """Create a job description from uploaded document."""
-        import logging
-        logger = logging.getLogger(__name__)
-        
-        logger.info(f"=== JD SERVICE create_from_document START ===")
-        logger.info(f"Data: {data}")
-        logger.info(f"File content size: {len(file_content)} bytes")
-        logger.info(f"Filename: '{filename}'")
-        logger.info(f"Filename type: {type(filename)}")
-        logger.info(f"Filename repr: {repr(filename)}")
-        
         # Extract text and metadata from document
-        logger.info(f"Step 1: Calling extract_job_description_text...")
-        try:
-            extraction_result = extract_job_description_text(filename, file_content)
-            logger.info(f"Text extraction successful")
-            logger.info(f"Extraction result keys: {list(extraction_result.keys())}")
-            extracted_text = extraction_result['extracted_text']
-            metadata = extraction_result
-            logger.info(f"Extracted text length: {len(extracted_text)} characters")
-            logger.info(f"Metadata: {metadata}")
-        except Exception as e:
-            logger.error(f"Text extraction failed: {str(e)}")
-            logger.error(f"Error type: {type(e).__name__}")
-            import traceback
-            logger.error(f"Traceback: {traceback.format_exc()}")
-            raise
+        extraction_result = extract_job_description_text(filename, file_content)
+        extracted_text = extraction_result['extracted_text']
+        metadata = extraction_result
         
         # Create job description model
-        logger.info(f"Step 2: Creating JobDescriptionModel...")
         model = JobDescriptionModel(
             id=str(uuid4()),
             title=data["title"],
@@ -99,16 +76,9 @@ class JDService:
             document_word_count=str(metadata.get("word_count")),
             document_character_count=str(metadata.get("character_count")),
         )
-        logger.info(f"Model created successfully with ID: {model.id}")
         
-        logger.info(f"Step 3: Saving to database...")
         created = self.repo.create(db, model)
-        logger.info(f"Model saved to database successfully")
-        
-        logger.info(f"Step 4: Publishing event...")
         event_bus.publish_event(JDCreatedEvent(id=created.id, title=created.title, role=created.role_id, company_id=created.company_id))
-        logger.info(f"Event published successfully")
-        logger.info(f"=== JD SERVICE create_from_document COMPLETED ===")
         return created
 
     def get_by_id(self, db: Session, jd_id: str) -> Optional[JobDescriptionModel]:

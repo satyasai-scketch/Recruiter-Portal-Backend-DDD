@@ -26,7 +26,9 @@ class PineconeVectorStorageService(VectorStorageService):
     def _setup_storage(self):
         """Setup Pinecone index and JSON storage"""
         # Create storage directory
-        os.makedirs(os.path.dirname(self.storage_file), exist_ok=True)
+        storage_dir = os.path.dirname(self.storage_file)
+        if storage_dir:  # Only create directory if there's a valid directory path
+            os.makedirs(storage_dir, exist_ok=True)
         
         # Create JSON file if doesn't exist
         if not os.path.exists(self.storage_file):

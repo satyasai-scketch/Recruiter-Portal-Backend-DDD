@@ -70,8 +70,8 @@ class Settings(BaseSettings):
 	EMBEDDING_DIMENSION: int = 1536
 
 	# Storage Configuration
-	JD_STORAGE_FILE: str = "data\jd_storage.json"
-	TEMPLATE_DATA_DIR: str = "data\jd_templates"
+	JD_STORAGE_FILE: str = "data/jd_storage.json"
+	TEMPLATE_DATA_DIR: str = "data/jd_templates"
 
 	# Search Configuratio
 	DEFAULT_MIN_SIMILARITY: float = 0.5
