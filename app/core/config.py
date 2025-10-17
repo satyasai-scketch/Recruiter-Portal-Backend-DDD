@@ -48,7 +48,7 @@ class Settings(BaseSettings):
 	
 	# Local Storage Configuration
 	LOCAL_STORAGE_PATH: str = "./uploads/cvs"
-	LOCAL_STORAGE_URL_PREFIX: str = "http://localhost:8000/uploads"
+	LOCAL_STORAGE_URL_PREFIX: str = "http://localhost:8000/uploads/cvs"
 	
 	# S3 Configuration for CV storage
 	S3_BUCKET_NAME: str = ""
