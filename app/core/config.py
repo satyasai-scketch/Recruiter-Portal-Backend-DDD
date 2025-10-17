@@ -73,8 +73,14 @@ class Settings(BaseSettings):
 	JD_STORAGE_FILE: str = "data/jd_storage.json"
 	TEMPLATE_DATA_DIR: str = "data/jd_templates"
 
-	# Search Configuratio
+	# Search Configuration
 	DEFAULT_MIN_SIMILARITY: float = 0.5
+	
+	# CORS Configuration
+	CORS_ORIGINS: list = ["*"]  # Allow all origins by default
+	CORS_ALLOW_CREDENTIALS: bool = True
+	CORS_ALLOW_METHODS: list = ["*"]  # Allow all methods
+	CORS_ALLOW_HEADERS: list = ["*"]  # Allow all headers
 	MAX_SEARCH_RESULTS: int = 10
 
 	# Pinecone Configuration

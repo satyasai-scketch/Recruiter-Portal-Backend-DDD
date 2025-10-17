@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import SQLAlchemyError
 from pathlib import Path
 
@@ -18,6 +19,15 @@ from app.core.config import settings
 
 
 app = FastAPI(title="Recruiter AI Backend", version="0.1.0")
+
+# Configure CORS - Allow all origins for now (to be restricted later)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
+    allow_methods=settings.CORS_ALLOW_METHODS,
+    allow_headers=settings.CORS_ALLOW_HEADERS,
+)
 
 
 @app.exception_handler(ValueError)
