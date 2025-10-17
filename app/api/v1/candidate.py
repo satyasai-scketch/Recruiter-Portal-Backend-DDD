@@ -614,6 +614,11 @@ async def get_candidate_score(
 	if not score:
 		raise HTTPException(status_code=404, detail="Score not found")
 	
+	# Check if the candidate still exists (to handle orphaned scores from deleted candidates)
+	candidate = handle_query(db, GetCandidate(score.candidate_id))
+	if not candidate:
+		raise HTTPException(status_code=404, detail="Score not found - associated candidate has been deleted")
+	
 	# Convert to response format
 	return _convert_candidate_score_to_read_schema(score, db)
 

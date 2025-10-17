@@ -467,7 +467,7 @@ class CandidateService:
 		return list(self.scores.list_all_scores(db, skip, limit))
 
 	def delete_candidate(self, db: Session, candidate_id: str) -> bool:
-		"""Delete a candidate and all associated CVs."""
+		"""Delete a candidate and all associated CVs and scores."""
 		try:
 			# Get candidate first to check if it exists and get name for event
 			candidate = self.candidates.get(db, candidate_id)
@@ -476,7 +476,15 @@ class CandidateService:
 			
 			candidate_name = candidate.full_name
 			
-			# Delete all CVs for this candidate first
+			# Delete all scores for this candidate first
+			# This handles orphaned scores that might exist due to missing foreign key constraints
+			scores = db.query(CandidateScoreModel).filter(CandidateScoreModel.candidate_id == candidate_id).all()
+			for score in scores:
+				# Delete all related score data (stages, categories, insights)
+				# These should cascade automatically due to foreign key constraints
+				db.delete(score)
+			
+			# Delete all CVs for this candidate
 			cvs = self.candidate_cvs.get_candidate_cvs(db, candidate_id)
 			for cv in cvs:
 				# Delete CV from storage
