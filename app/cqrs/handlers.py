@@ -10,6 +10,7 @@ from app.services.match_service import MatchService
 from app.services.company_service import CompanyService
 from app.services.job_role_service import JobRoleService
 from app.services.persona_level_service import PersonaLevelService
+from app.services.user_service import UserService
 from app.cqrs.commands.generate_persona_from_jd import GeneratePersonaFromJD
 from app.cqrs.commands.score_with_ai import ScoreCandidateWithAI
 # Import base classes
@@ -48,6 +49,7 @@ from app.cqrs.commands.upload_cv import UploadCVs
 from app.cqrs.commands.upload_cv_file import UploadCVFile
 from app.cqrs.commands.candidate_commands import UpdateCandidate, UpdateCandidateCV, DeleteCandidate, DeleteCandidateCV
 from app.cqrs.commands.score_candidates import ScoreCandidate
+from app.cqrs.commands.user_commands import UpdateUser
 
 # Import query classes
 from app.cqrs.queries.jd_queries import (
@@ -107,6 +109,10 @@ from app.cqrs.queries.persona_level_queries import (
 	ListPersonaLevels,
 	ListAllPersonaLevels,
 	GetPersonaLevelByPosition
+)
+from app.cqrs.queries.user_queries import (
+	ListAllUsers,
+	GetUser
 )
 
 import asyncio
@@ -435,6 +441,8 @@ def handle_command(db: Session, command: Command) -> Any:
 		return CandidateService().delete_candidate(db, command.candidate_id)
 	if isinstance(command, DeleteCandidateCV):
 		return CandidateService().delete_candidate_cv(db, command.candidate_cv_id)
+	if isinstance(command, UpdateUser):
+		return UserService().update(db, command.user_id, command.payload)
 	raise NotImplementedError(f"No handler for command {type(command).__name__}")
 
 
@@ -527,4 +535,8 @@ def handle_query(db: Session, query: Query) -> Any:
 		return CandidateService().list_latest_candidate_scores_per_persona(db, query.candidate_id, query.skip, query.limit)
 	if isinstance(query, ListAllScores):
 		return CandidateService().list_all_scores(db, query.skip, query.limit)
+	if isinstance(query, ListAllUsers):
+		return UserService().get_all(db, query.skip, query.limit)
+	if isinstance(query, GetUser):
+		return UserService().get_by_id(db, query.user_id)
 	raise NotImplementedError(f"No handler for query {type(query).__name__}")

@@ -4,9 +4,14 @@ from sqlalchemy.orm import Session
 from app.api.deps import db_session, get_db
 from app.schemas.user import (
 	UserSignup, UserLogin, UserRead, LoginResponse, 
-	ForgotPasswordRequest, ResetPasswordRequest, PasswordResetResponse
+	ForgotPasswordRequest, ResetPasswordRequest, PasswordResetResponse, UserUpdate
 )
 from app.services.auth_service import AuthService
+from app.cqrs.handlers import handle_command, handle_query
+from app.cqrs.commands.user_commands import UpdateUser
+from app.cqrs.queries.user_queries import ListAllUsers, GetUser
+from app.api.deps import get_current_user
+from app.db.models.user import UserModel
 
 router = APIRouter()
 
@@ -91,3 +96,68 @@ async def reset_password(payload: ResetPasswordRequest, db: Session = Depends(ge
 		)
 	except ValueError as e:
 		raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/users", response_model=list[UserRead], summary="Get all users")
+async def get_all_users(
+	skip: int = 0,
+	limit: int = 100,
+	db: Session = Depends(db_session),
+	current_user: UserModel = Depends(get_current_user)
+):
+	"""Get all users with pagination."""
+	try:
+		users = handle_query(db, ListAllUsers(skip=skip, limit=limit))
+		return [
+			UserRead(
+				id=user.id,
+				email=user.email,
+				first_name=user.first_name,
+				last_name=user.last_name,
+				phone=user.phone,
+				is_active=user.is_active,
+				role_id=user.role_id,
+				role_name=(user.role.name if user.role else None),
+				created_at=user.created_at,
+				updated_at=user.updated_at
+			)
+			for user in users
+		]
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/users/{user_id}", response_model=UserRead, summary="Update user")
+async def update_user(
+	user_id: str,
+	payload: UserUpdate,
+	db: Session = Depends(db_session),
+	current_user: UserModel = Depends(get_current_user)
+):
+	"""Update a user by ID."""
+	try:
+		# Convert Pydantic model to dict, excluding None values
+		update_data = payload.model_dump(exclude_unset=True)
+		
+		# Use the command handler to update the user
+		updated_user = handle_command(db, UpdateUser(user_id, update_data))
+		
+		if not updated_user:
+			raise HTTPException(status_code=404, detail="User not found")
+		
+		return UserRead(
+			id=updated_user.id,
+			email=updated_user.email,
+			first_name=updated_user.first_name,
+			last_name=updated_user.last_name,
+			phone=updated_user.phone,
+			is_active=updated_user.is_active,
+			role_id=updated_user.role_id,
+			role_name=(updated_user.role.name if updated_user.role else None),
+			created_at=updated_user.created_at,
+			updated_at=updated_user.updated_at
+		)
+	except ValueError as e:
+		raise HTTPException(status_code=400, detail=str(e))
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
