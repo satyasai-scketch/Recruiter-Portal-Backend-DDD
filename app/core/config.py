@@ -18,6 +18,22 @@ class Settings(BaseSettings):
 	jwt_secret_key: str = "change-me"
 	jwt_algorithm: str = "HS256"
 	jwt_access_token_expires_minutes: int = 60
+	
+	# MFA Configuration
+	mfa_enabled: bool = True
+	mfa_issuer_name: str = "Recruiter AI"
+	mfa_totp_window: int = 1  # Allow 1 time window before/after current
+	mfa_backup_codes_count: int = 10
+	mfa_backup_code_length: int = 8
+	mfa_max_login_attempts: int = 5
+	mfa_lockout_duration_minutes: int = 15
+	mfa_require_backup_codes: bool = True
+	
+	# Email OTP Configuration
+	mfa_email_otp_enabled: bool = True
+	mfa_email_otp_length: int = 6
+	mfa_email_otp_expiry_minutes: int = 10
+	mfa_email_otp_max_attempts: int = 3
 
 	# Workers / Queue
 	redis_url: str = "redis://localhost:6379/0"

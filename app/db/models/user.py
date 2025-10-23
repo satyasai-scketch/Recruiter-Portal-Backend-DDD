@@ -23,6 +23,9 @@ class UserModel(Base):
     role_id = Column(String, ForeignKey("roles.id"), nullable=False)
     role = relationship("RoleModel", back_populates="users")
     
+    # MFA relationship
+    mfa = relationship("MFAModel", back_populates="user", uselist=False)
+    
     # Audit fields
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

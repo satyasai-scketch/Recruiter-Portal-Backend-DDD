@@ -11,6 +11,7 @@ from app.api.v1 import persona_level as persona_level_router
 from app.api.v1 import candidate as candidate_router
 from app.api.v1 import match as match_router
 from app.api.v1 import auth as auth_router
+from app.api.v1 import mfa as mfa_router
 from app.api.v1 import company as company_router
 from app.api.v1 import job_role as job_role_router
 from app.api.v1 import role as role_router
@@ -44,6 +45,7 @@ async def sqlalchemy_error_handler(request: Request, exc: SQLAlchemyError):
 
 # Mount API routers
 app.include_router(auth_router.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(mfa_router.router, prefix="/api/v1/mfa", tags=["mfa"])
 app.include_router(jd_router.router, prefix="/api/v1/jd", tags=["jd"])
 app.include_router(persona_router.router, prefix="/api/v1/persona", tags=["persona"])
 app.include_router(persona_level_router.router, prefix="/api/v1/persona-level", tags=["persona-level"])

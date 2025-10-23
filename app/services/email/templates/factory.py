@@ -6,6 +6,8 @@ from typing import Dict, Type
 from .base import EmailTemplate
 from .password_reset import PasswordResetTemplate
 from .welcome import WelcomeTemplate
+from .mfa_otp import MFAOTPTemplate
+from .backup_codes import BackupCodesTemplate
 
 
 class EmailTemplateFactory:
@@ -13,7 +15,9 @@ class EmailTemplateFactory:
     
     _templates: Dict[str, Type[EmailTemplate]] = {
         'password_reset': PasswordResetTemplate,
-        'welcome': WelcomeTemplate
+        'welcome': WelcomeTemplate,
+        'mfa_otp': MFAOTPTemplate,
+        'backup_codes': BackupCodesTemplate
     }
     
     @classmethod

@@ -11,6 +11,8 @@ from app.db.models.role import RoleModel
 from app.repositories.user_repo import SQLAlchemyUserRepository
 from app.core.security import get_password_hash, verify_password, create_access_token
 from app.services.email.email_service import email_service
+from app.services.mfa_service import MFAService
+from app.core.config import settings
 
 
 class AuthService:
@@ -59,6 +61,15 @@ class AuthService:
 		)
 		created_user = self.users.create(db, user)
 		
+		# Auto-enable MFA for new users if system MFA is enabled
+		if settings.mfa_enabled:
+			try:
+				mfa_service = MFAService()
+				mfa_service.auto_enable_mfa_for_user(db, created_user.id)
+			except Exception as e:
+				# Log error but don't fail signup
+				print(f"Failed to auto-enable MFA for new user: {e}")
+		
 		# Send welcome email
 		try:
 			email_service.send_welcome_email(email, f"{first_name} {last_name}")
@@ -68,13 +79,65 @@ class AuthService:
 		
 		return created_user
 
-	def login(self, db: Session, email: str, password: str) -> str:
+	def login(self, db: Session, email: str, password: str) -> dict:
 		user = self.users.get_by_email(db, email)
 		if not user or not verify_password(password, user.hashed_password):
 			raise ValueError("Invalid credentials")
 		if not user.is_active:
 			raise ValueError("Inactive user")
-		return create_access_token(subject=user.id)
+		
+		# Check if MFA is enabled and required (system-level check)
+		mfa_required = False
+		mfa_token = None
+		
+		if settings.mfa_enabled:
+			mfa_service = MFAService()
+			mfa_status = mfa_service.get_mfa_status(db, user.id)
+			# MFA is required if system MFA is enabled AND user has MFA enabled
+			if mfa_status["system_enabled"] and mfa_status["enabled"]:
+				mfa_required = True
+				# Create temporary MFA token (short-lived)
+				mfa_token = create_access_token(subject=user.id, expires_minutes=5)
+		
+		if mfa_required:
+			return {
+				"access_token": None,
+				"token_type": "bearer",
+				"user": user,
+				"mfa_required": True,
+				"mfa_token": mfa_token
+			}
+		else:
+			return {
+				"access_token": create_access_token(subject=user.id),
+				"token_type": "bearer",
+				"user": user,
+				"mfa_required": False,
+				"mfa_token": None
+			}
+	
+	def verify_mfa_login(self, db: Session, mfa_token: str, mfa_code: str) -> str:
+		"""Verify MFA code and return final access token."""
+		from app.core.security import decode_token
+		
+		# Decode MFA token to get user ID
+		token_data = decode_token(mfa_token)
+		if not token_data:
+			raise ValueError("Invalid or expired MFA token")
+		
+		user_id = token_data.get("sub")
+		if not user_id:
+			raise ValueError("Invalid MFA token")
+		
+		# Verify MFA code
+		mfa_service = MFAService()
+		success = mfa_service.verify_mfa_login(db, user_id, mfa_code)
+		
+		if not success:
+			raise ValueError("Invalid MFA code")
+		
+		# Return final access token
+		return create_access_token(subject=user_id)
 	
 	def forgot_password(self, db: Session, email: str) -> bool:
 		"""Initiate password reset process."""

@@ -40,9 +40,11 @@ class UserRead(BaseModel):
 
 
 class LoginResponse(BaseModel):
-	access_token: str
+	access_token: Optional[str] = None
 	token_type: str
 	user: UserRead
+	mfa_required: bool = False
+	mfa_token: Optional[str] = None
 
 
 class PasswordResetResponse(BaseModel):
@@ -56,3 +58,8 @@ class UserUpdate(BaseModel):
 	phone: Optional[str] = Field(None, max_length=20)
 	is_active: Optional[bool] = None
 	role_id: Optional[str] = None
+
+
+class MFALoginRequest(BaseModel):
+	mfa_token: str
+	mfa_code: str = Field(min_length=6, max_length=8, description="TOTP code or backup code")

@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 from app.api.deps import db_session, get_db
 from app.schemas.user import (
 	UserSignup, UserLogin, UserRead, LoginResponse, 
-	ForgotPasswordRequest, ResetPasswordRequest, PasswordResetResponse, UserUpdate
+	ForgotPasswordRequest, ResetPasswordRequest, PasswordResetResponse, UserUpdate,
+	MFALoginRequest
 )
 from app.services.auth_service import AuthService
 from app.cqrs.handlers import handle_command, handle_query
@@ -48,7 +49,7 @@ async def signup(payload: UserSignup, db: Session = Depends(get_db)):
 async def login(payload: UserLogin, db: Session = Depends(get_db)):
 	try:
 		auth_service = AuthService()
-		token = auth_service.login(db, payload.email, payload.password)
+		login_result = auth_service.login(db, payload.email, payload.password)
 		
 		# Get user information
 		user = auth_service.users.get_by_email(db, payload.email)
@@ -66,9 +67,48 @@ async def login(payload: UserLogin, db: Session = Depends(get_db)):
 		)
 		
 		return LoginResponse(
-			access_token=token,
+			access_token=login_result["access_token"],
 			token_type="bearer",
-			user=user_info
+			user=user_info,
+			mfa_required=login_result["mfa_required"],
+			mfa_token=login_result["mfa_token"]
+		)
+	except ValueError as e:
+		raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/login/mfa", response_model=LoginResponse, summary="Complete MFA login")
+async def complete_mfa_login(payload: MFALoginRequest, db: Session = Depends(get_db)):
+	try:
+		auth_service = AuthService()
+		access_token = auth_service.verify_mfa_login(db, payload.mfa_token, payload.mfa_code)
+		
+		# Decode token to get user ID
+		from app.core.security import decode_token
+		token_data = decode_token(access_token)
+		user_id = token_data.get("sub")
+		
+		# Get user information
+		user = auth_service.users.get_by_id(db, user_id)
+		user_info = UserRead(
+			id=user.id,
+			email=user.email,
+			first_name=user.first_name,
+			last_name=user.last_name,
+			phone=user.phone,
+			is_active=user.is_active,
+			role_id=user.role_id,
+			role_name=(user.role.name if user.role else None),
+			created_at=user.created_at,
+			updated_at=user.updated_at
+		)
+		
+		return LoginResponse(
+			access_token=access_token,
+			token_type="bearer",
+			user=user_info,
+			mfa_required=False,
+			mfa_token=None
 		)
 	except ValueError as e:
 		raise HTTPException(status_code=400, detail=str(e))

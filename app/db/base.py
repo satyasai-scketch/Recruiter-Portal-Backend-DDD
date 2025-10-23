@@ -11,3 +11,4 @@ import app.db.models.score  # noqa
 import app.db.models.role  # noqa
 import app.db.models.company  # noqa
 import app.db.models.job_role  # noqa
+import app.db.models.mfa  # noqa

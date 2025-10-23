@@ -27,7 +27,9 @@ class EmailService:
         self.provider = self._create_provider()
         self.templates = {
             'password_reset': EmailTemplateFactory.create_template('password_reset'),
-            'welcome': EmailTemplateFactory.create_template('welcome')
+            'welcome': EmailTemplateFactory.create_template('welcome'),
+            'mfa_otp': EmailTemplateFactory.create_template('mfa_otp'),
+            'backup_codes': EmailTemplateFactory.create_template('backup_codes')
         }
     
     def _create_provider(self) -> EmailProvider:
@@ -165,6 +167,25 @@ class EmailService:
             template_name='welcome',
             to_email=to_email,
             user_name=user_name
+        )
+    
+    def send_mfa_otp_email(self, to_email: str, otp_code: str, user_name: str = None, expiry_minutes: int = 10) -> bool:
+        """Send MFA OTP email."""
+        return self.send_template_email(
+            template_name='mfa_otp',
+            to_email=to_email,
+            otp_code=otp_code,
+            user_name=user_name or 'User',
+            expiry_minutes=expiry_minutes
+        )
+    
+    def send_backup_codes_email(self, to_email: str, backup_codes: list, user_name: str = None) -> bool:
+        """Send backup codes email."""
+        return self.send_template_email(
+            template_name='backup_codes',
+            to_email=to_email,
+            backup_codes=backup_codes,
+            user_name=user_name or 'User'
         )
     
     def get_provider_info(self) -> Dict[str, Any]:

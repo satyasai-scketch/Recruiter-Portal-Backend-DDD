@@ -30,7 +30,9 @@ dependencies = [
     "boto3>=1.34.0",
     "spacy>=3.7.0",
     "en-core-web-sm",
-    "groq>=0.32.0",
+    "groq>=0.4.0",
+    "pyotp>=2.9.0",
+    "qrcode[pil]>=7.4.2",
 ]
 
 [tool.uv.sources]

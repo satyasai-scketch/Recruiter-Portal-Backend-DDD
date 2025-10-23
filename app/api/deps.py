@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 from app.db.session import get_session
 from app.core.security import decode_token
 from app.repositories.user_repo import SQLAlchemyUserRepository
+from app.services.mfa_service import MFAService
+from app.core.config import settings
 
 
 def db_session() -> Generator[Session, None, None]:
@@ -47,3 +49,41 @@ def require_roles(*required_roles: str):
 			raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient privileges")
 		return user
 	return _inner
+
+
+def require_mfa(user=Depends(get_current_user), db: Session = Depends(get_db)):
+	"""Dependency that requires MFA to be enabled and verified for the user."""
+	if not settings.mfa_enabled:
+		return user
+	
+	mfa_service = MFAService()
+	mfa_status = mfa_service.get_mfa_status(db, user.id)
+	
+	if not mfa_status["enabled"]:
+		raise HTTPException(
+			status_code=status.HTTP_403_FORBIDDEN, 
+			detail="Multi-factor authentication is required but not enabled for this user"
+		)
+	
+	if not mfa_status["totp_verified"]:
+		raise HTTPException(
+			status_code=status.HTTP_403_FORBIDDEN, 
+			detail="Multi-factor authentication is not verified for this user"
+		)
+	
+	return user
+
+
+def optional_mfa(user=Depends(get_current_user), db: Session = Depends(get_db)):
+	"""Dependency that checks MFA status but doesn't require it."""
+	if not settings.mfa_enabled:
+		return {"user": user, "mfa_enabled": False, "mfa_verified": False}
+	
+	mfa_service = MFAService()
+	mfa_status = mfa_service.get_mfa_status(db, user.id)
+	
+	return {
+		"user": user, 
+		"mfa_enabled": mfa_status["enabled"], 
+		"mfa_verified": mfa_status["totp_verified"]
+	}
