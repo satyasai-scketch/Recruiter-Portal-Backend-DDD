@@ -1,6 +1,7 @@
 from pydantic_settings import BaseSettings
 import os
 from dotenv import load_dotenv
+from sqlalchemy import true
 
 load_dotenv()
 
@@ -116,6 +117,11 @@ class Settings(BaseSettings):
 	CV_SCORING_EMBEDDING_MODEL: str = os.getenv("CV_SCORING_EMBEDDING_MODEL", "text-embedding-3-small")
 	CV_SCORING_SCREENING_MODEL: str = os.getenv("CV_SCORING_SCREENING_MODEL", "gpt-4o-mini")
 	CV_SCORING_DETAILED_MODEL: str = os.getenv("CV_SCORING_DETAILED_MODEL", "gpt-4o")
+
+	LANGSMITH_TRACING: bool = true
+	LANGSMITH_ENDPOINT: str = ""
+	LANGSMITH_API_KEY: str =""
+	LANGSMITH_PROJECT: str = ""
 	class Config:
 		env_file = ".env"
 		env_file_encoding = "utf-8"
