@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, ForeignKey, Integer, UniqueConstraint, CheckConstraint, Enum, DateTime, Text, Float
+from sqlalchemy import Column, String, ForeignKey, Integer, UniqueConstraint, CheckConstraint, Enum, DateTime, Text, Float, Index
 from sqlalchemy.dialects.sqlite import JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -133,3 +133,26 @@ class PersonaChangeLogModel(Base):
 	# Relationships
 	persona = relationship("PersonaModel", back_populates="change_logs")
 	user = relationship("UserModel", foreign_keys=[changed_by])
+
+
+class PersonaWeightWarningModel(Base):
+    __tablename__ = "persona_weight_warnings"
+    # Primary key
+    id = Column(String, primary_key=True)
+    # Link to actual persona (nullable because generated before save)
+    persona_id = Column(String, ForeignKey("personas.id", ondelete="CASCADE"), nullable=True, index=True)
+    # Which entity this warning is for
+    entity_type = Column(String, nullable=False)  # "category" | "subcategory"
+    entity_name = Column(String, nullable=False, index=True)  # "Technical Skills"
+    # The TWO warning messages
+    below_min_message = Column(Text, nullable=False)
+    above_max_message = Column(Text, nullable=False)
+    # Metadata
+    generated_at = Column(DateTime(timezone=True), server_default=func.now())
+    __table_args__ = (
+        # One warning per entity per persona
+        UniqueConstraint("persona_id", "entity_type", "entity_name", name="uq_persona_warning"),
+        Index("idx_entity_lookup", "persona_id", "entity_type", "entity_name"),
+    )
+    # Relationship
+    persona = relationship("PersonaModel", backref="weight_warnings")
