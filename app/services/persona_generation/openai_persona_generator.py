@@ -6,12 +6,13 @@ from .persona_weight_calculator import PersonaWeightCalculator
 from .persona_structure_builder import PersonaStructureBuilder
 from .persona_validator import PersonaValidator
 from .persona_self_validator import PersonaSelfValidator
+from app.services.llm.OpenAIClient import OpenAIClient
 
 class OpenAIPersonaGenerator(PersonaGeneratorService):
     """Complete persona generation using OpenAI"""
     
     def __init__(self, api_key: str, model: str = "gpt-4o"):
-        self.client = AsyncOpenAI(api_key=api_key)
+        self.client = OpenAIClient(api_key=api_key)
         self.model = model
         
         # Initialize phase components

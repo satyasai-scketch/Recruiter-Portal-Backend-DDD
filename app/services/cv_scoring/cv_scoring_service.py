@@ -6,6 +6,7 @@ from app.services.cv_scoring.lightweight_screener import LightweightScreener
 from app.services.cv_scoring.detailed_scorer import DetailedScorer
 from app.services.embedding.openai_service import OpenAIEmbeddingService
 from app.core.config import settings
+from app.services.llm.OpenAIClient import OpenAIClient
 
 
 class CVScoringService(CVScoringServiceBase):
@@ -16,7 +17,7 @@ class CVScoringService(CVScoringServiceBase):
     
     def __init__(self, api_key: str):
         # Initialize OpenAI client
-        self.client = AsyncOpenAI(api_key=api_key)
+        self.client = OpenAIClient(api_key=api_key)
         
         # Initialize embedding service with config model
         embedding_service = OpenAIEmbeddingService(
