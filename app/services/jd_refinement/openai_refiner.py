@@ -14,14 +14,15 @@ class OpenAIRefinerService(AIRefinerService):
         model: str = "gpt-4-turbo-preview",
         temperature: float = 0.7
     ):
-        self.client = OpenAIClient(api_key,model)
-        # self.model = model
+        self.client = OpenAIClient(api_key)
+        self.model = model
         self.temperature = temperature
     
     async def refine_with_prompt(self, prompt: str) -> str:
         """Send prompt to OpenAI and get refined JD"""
         try:
             response = await self.client.chat_completion(
+                model=self.model,
                 messages=[
                     {
                         "role": "system",
@@ -49,6 +50,7 @@ class OpenAIRefinerService(AIRefinerService):
             prompt = JDPromptTemplates.extract_improvements_prompt(original, refined)
             
             response = await self.client.chat_completion(
+                model=self.model,
                 messages=[
                     {
                         "role": "system",

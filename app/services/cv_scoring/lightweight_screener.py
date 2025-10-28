@@ -37,7 +37,7 @@ class LightweightScreener:
                 {"role": "user", "content": prompt}
             ]
 
-            response = await self.client.chat.completions.create(
+            response = await self.client.chat_completion(
                 model=self.model,
                 messages=messages,
                 temperature=0.3,
