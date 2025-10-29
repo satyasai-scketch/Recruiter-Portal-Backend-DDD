@@ -1,5 +1,5 @@
 from typing import Dict, Any
-
+import json
 
 class PersonaPrompts:
     """Centralized prompts for persona generation"""
@@ -516,3 +516,115 @@ Analyze this JD:
         range_min = -min(5, max(2, weight // 7))
         range_max = min(10, max(3, weight // 3.5))
         return (range_min, range_max)
+    
+    @staticmethod
+    def warning_generation_prompt(persona_data: Dict, jd_analysis: Dict = None) -> str:
+        """Generate warning messages for weight violations"""
+        
+        # Extract role info from persona_data itself
+        persona_name = persona_data.get('name', 'this role')
+        
+        categories_info = []
+        for cat in persona_data.get('categories', []):
+            cat_info = {
+                'name': cat['name'],
+                'weight': cat['weight_percentage'],
+                'range_min': cat.get('range_min'),
+                'range_max': cat.get('range_max'),
+                'subcategories': []
+            }
+            
+            for subcat in cat.get('subcategories', []):
+                cat_info['subcategories'].append({
+                    'name': subcat['name'],
+                    'weight': subcat['weight_percentage'],
+                    'range_min': subcat.get('range_min'),
+                    'range_max': subcat.get('range_max')
+                })
+            
+            categories_info.append(cat_info)
+        
+        return f"""Generate warning messages for weight violations in this candidate persona: "{persona_name}"
+
+    Persona Structure:
+    {json.dumps(categories_info, indent=2)}
+
+    For EACH category and subcategory above, generate TWO warning messages:
+
+    1. **below_min_message**: What happens if the weight goes BELOW range_min?
+    - Explain which skills/capabilities get undervalued
+    - What candidate quality might suffer
+    - Real-world impact on hiring
+
+    2. **above_max_message**: What happens if the weight goes ABOVE range_max?
+    - What tradeoff is being made
+    - Which other areas get squeezed
+    - When this might be justified (if ever)
+
+    CRITICAL RULES:
+    - Keep each message to 2-3 sentences max (concise and actionable)
+    - Be specific to the category/subcategory and its weight context
+    - Focus on PRACTICAL hiring impact, not theory
+    - Make warnings meaningful - don't just say "it's important"
+    - Infer role context from the persona structure itself (e.g., high technical weight = tech role)
+
+    Return JSON in this exact format:
+    {{
+    "warnings": [
+        {{
+        "entity_type": "category",
+        "entity_name": "Technical Skills",
+        "below_min_message": "Reducing Technical Skills below this much may result in hiring candidates who lack depth in core technical areas. This could lead to slower development cycles and increased technical debt.",
+        "above_max_message": "Increasing Technical Skills above this much overemphasizes technical depth at the expense of collaboration and communication skills. This may create silos and hinder cross-functional teamwork."
+        }},
+        {{
+        "entity_type": "subcategory",
+        "entity_name": "Python Programming",
+        "below_min_message": "...",
+        "above_max_message": "..."
+        }}
+    ]
+    }}
+
+    Generate warnings for ALL {sum(1 + len(cat.get('subcategories', [])) for cat in persona_data.get('categories', []))} entities (categories + subcategories).
+    """
+
+    @staticmethod
+    def single_entity_warning_prompt(entity_type: str, entity_data: Dict) -> str:
+        """Generate warning for a single entity only (on-demand approach)"""
+        
+        entity_name = entity_data['name']
+        weight = entity_data['weight']
+        range_min = entity_data['range_min']
+        range_max = entity_data['range_max']
+        lower=weight - range_min
+        upper=weight + range_max
+        context = f"Entity Type: {entity_type}\n"
+        context += f"Entity: {entity_name}\n"
+        context += f"Current Weight: {weight}%\n"
+        context += f"Range: {range_min}% to {range_max}%\n"
+        
+        if entity_type == 'subcategory':
+            context += f"Parent Category: {entity_data.get('parent_category', 'N/A')}\n"
+            if entity_data.get('technologies'):
+                context += f"Technologies: {', '.join(entity_data['technologies'])}\n"
+        
+        return f"""{context}
+
+    Generate TWO warning messages for this specific entity:
+
+    1. **below_min_message**: What happens if weight goes BELOW {range_min}%?
+    2. **above_max_message**: What happens if weight goes ABOVE {range_max}%?
+
+    Rules:
+    - Each message: 2 sentences max
+    - Be specific to this entity and its actual range values
+    - Focus on practical hiring impact
+    - Mention the actual {range_min}% and {range_max}% values in messages
+
+    Return JSON (no markdown):
+    {{
+    "below_min_message": "Reducing {entity_name} below lower% may...",
+    "above_max_message": "Increasing {entity_name} above upper% could..."
+    }}
+    """

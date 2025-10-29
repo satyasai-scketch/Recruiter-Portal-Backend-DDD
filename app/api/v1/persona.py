@@ -10,6 +10,19 @@ from app.cqrs.commands.persona_commands import CreatePersona, UpdatePersona, Del
 from app.cqrs.queries.persona_queries import ListPersonasByJobDescription, ListAllPersonas, CountPersonas, GetPersona, GetPersonaChangeLogs, ListPersonasByJobRole
 
 from app.cqrs.commands.generate_persona_from_jd import GeneratePersonaFromJD
+from app.schemas.persona_warning import (
+    GenerateWarningsRequest,
+    GenerateWarningsResponse,
+    GetWarningResponse,
+    PersonaWarningRead,
+    LinkWarningsRequest,
+    LinkWarningsResponse,
+	GetOrGenerateWarningRequest
+)
+from app.cqrs.commands.persona_warning_commands import GeneratePersonaWarnings, LinkWarningsToPersona
+from app.cqrs.queries.persona_warning_queries import GetWarningByEntity, ListWarningsByPersona, GetOrGenerateWarning
+
+
 router = APIRouter()
 
 
@@ -207,3 +220,229 @@ async def delete_persona(
 	except Exception as e:
 		from fastapi import HTTPException
 		raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+# ============ WARNING ENDPOINTS ============
+
+@router.post("/warnings/generate", response_model=GenerateWarningsResponse, summary="Generate weight violation warnings")
+async def generate_persona_warnings(
+    payload: GenerateWarningsRequest,
+    db: Session = Depends(db_session),
+    current_user: UserModel = Depends(get_current_user)
+):
+    """
+    Generate warning messages for all weight violations in a persona.
+    
+    **When to call**: When the first weight violation is detected.
+    
+    **What it does**:
+    - Analyzes the entire persona structure (categories, subcategories, weights, ranges)
+    - Generates contextual warnings for each category/subcategory
+    - Stores warnings with a temporary preview ID
+    - Returns the preview ID for future queries
+    
+    **What happens**: LLM analyzes persona structure and generates messages like:
+    - "Reducing Technical Skills below 30% may undervalue system design expertise..."
+    - "Increasing Leadership above 40% may over-emphasize management at expense of technical depth..."
+    """
+    result = handle_command(
+        db, 
+        GeneratePersonaWarnings(persona_data=payload.persona_data)
+    )
+    return GenerateWarningsResponse.model_validate(result)
+
+@router.post("/warnings/get-or-generate", response_model=GetWarningResponse)
+async def get_or_generate_warning(
+    payload: GetOrGenerateWarningRequest,
+    db: Session = Depends(db_session),
+    current_user: UserModel = Depends(get_current_user)
+):
+    """
+    **RECOMMENDED**: Fetch warning if cached, generate on-demand if missing.
+    
+    Use this for real-time weight validation during persona editing.
+    
+    **Flow**:
+    
+    1️⃣ **First Violation** (must include entity_data):
+    ```json
+    {
+      "persona_id": null,
+      "entity_type": "subcategory",
+      "entity_name": "Frontend Development",
+      "violation_type": "below_min",
+      "entity_data": {
+        "name": "Frontend Development",
+        "weight": 30,
+        "range_min": -5,
+        "range_max": 10,
+        "level_id": "5",
+        "parent_category": "Technical Skills",
+        "technologies": ["React.js", "JavaScript (ES6+)", "HTML5", "CSS3"]
+      }
+    }
+    ```
+    Response: `{ "persona_id": "preview-abc123", "message": "...", "generated_now": true }`
+    
+    2️⃣ **Subsequent Violations - New Entity** (include entity_data):
+    ```json
+    {
+      "persona_id": "preview-abc123",
+      "entity_type": "category",
+      "entity_name": "Leadership Skills",
+      "violation_type": "above_max",
+      "entity_data": {
+        "name": "Leadership Skills",
+        "weight": 25,
+        "range_min": -2,
+        "range_max": 4,
+        "technologies": []
+      }
+    }
+    ```
+    Response: `{ "persona_id": "preview-abc123", "message": "...", "generated_now": true }`
+    
+    3️⃣ **Cached Lookup - Same Entity** (entity_data optional):
+    ```json
+    {
+      "persona_id": "preview-abc123",
+      "entity_type": "subcategory",
+      "entity_name": "Frontend Development",
+      "violation_type": "above_max"
+      // ✅ NO entity_data needed - already generated!
+    }
+    ```
+    Response: `{ "persona_id": "preview-abc123", "message": "...", "generated_now": false }`
+    
+    **entity_data Requirements**:
+    - ✅ **REQUIRED**: When generating warning for first time
+    - ❌ **OPTIONAL**: When fetching cached warning (same entity violated again)
+    
+    For **Categories**:
+    ```typescript
+    {
+      name: string;           // Required
+      weight: number;         // Required: current weight value
+      range_min: number;      // Required
+      range_max: number;      // Required
+      technologies: []        // Empty array (categories don't have tech)
+    }
+    ```
+    
+    For **Subcategories**:
+    ```typescript
+    {
+      name: string;                // Required
+      weight: number;              // Required: current weight value
+      range_min: number;           // Required
+      range_max: number;           // Required
+      parent_category: string;     // Required: helps LLM with context
+      technologies: string[];      // Required: actual skills/requirements
+      
+    }
+    ```
+    """
+    try:
+        result = handle_query(
+            db,
+            GetOrGenerateWarning(
+                persona_id=payload.persona_id,
+                entity_type=payload.entity_type,
+                entity_name=payload.entity_name,
+                violation_type=payload.violation_type,
+                entity_data=payload.entity_data
+            )
+        )
+        return GetWarningResponse.model_validate(result)
+    except ValueError as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/warnings/query", response_model=GetWarningResponse, summary="Get specific warning message")
+async def get_persona_warning(
+    persona_id: str,
+    entity_type: str,
+    entity_name: str,
+    violation_type: str,
+    db: Session = Depends(db_session),
+    current_user: UserModel = Depends(get_current_user)
+):
+    """
+    Fetch specific warning message for a violated entity.
+    
+    **When to call**: Every time a weight crosses the min/max threshold.
+    
+    **Parameters**:
+    - **persona_id**: The preview ID returned from /warnings/generate (e.g., "preview-a1b2c3d4")
+    - **entity_type**: "category" or "subcategory"
+    - **entity_name**: Exact name (e.g., "Technical Skills", "Python Programming")
+    - **violation_type**: "below_min" or "above_max"
+    
+    **Returns**: The specific warning message to display to the user.
+    """
+    try:
+        result = handle_query(
+            db,
+            GetWarningByEntity(
+                persona_id=persona_id,
+                entity_type=entity_type,
+                entity_name=entity_name,
+                violation_type=violation_type
+            )
+        )
+        return GetWarningResponse.model_validate(result)
+    except ValueError as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get("/warnings/{persona_id}", response_model=list[PersonaWarningRead], summary="List all warnings")
+async def list_persona_warnings(
+    persona_id: str,
+    db: Session = Depends(db_session),
+    current_user: UserModel = Depends(get_current_user)
+):
+    """
+    List all warning messages for a persona (preview or saved).
+    
+    **Use case**: 
+    - Debugging
+    - Showing all potential warnings upfront
+    - Admin dashboard
+    """
+    warnings = handle_query(db, ListWarningsByPersona(persona_id=persona_id))
+    return [PersonaWarningRead.model_validate(w) for w in warnings]
+
+
+@router.post("/warnings/link", response_model=LinkWarningsResponse, summary="Link warnings to saved persona")
+async def link_warnings_to_persona(
+    payload: LinkWarningsRequest,
+    db: Session = Depends(db_session),
+    current_user: UserModel = Depends(get_current_user)
+):
+    """
+    Link preview warnings to a saved persona.
+    
+    **When to call**: Immediately after successfully saving a persona via POST /personas
+    
+    **Flow**:
+    1. User generates warnings → gets preview-xxx ID
+    2. User saves persona → gets real persona ID
+    3. Frontend calls this endpoint to link them
+    
+    **Example**:
+```javascript
+    // After persona save
+    const savedPersona = await savePersona(data);
+    await linkWarnings({
+        temp_persona_id: "preview-a1b2c3d4",
+        saved_persona_id: savedPersona.id
+    });
+```
+    """
+    result = handle_command(
+        db,
+        LinkWarningsToPersona(
+            temp_persona_id=payload.temp_persona_id,
+            saved_persona_id=payload.saved_persona_id
+        )
+    )
+    return LinkWarningsResponse.model_validate(result)
