@@ -101,6 +101,7 @@ class ScoreResponse(BaseModel):
 	final_score: float
 	final_decision: str
 	pipeline_stage_reached: int
+	scored_at: datetime
 	candidate_name: Optional[str] = None
 	file_name: Optional[str] = None
 	persona_name: Optional[str] = None

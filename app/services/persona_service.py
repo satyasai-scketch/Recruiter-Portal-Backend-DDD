@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Optional, Dict, List, Any
 from uuid import uuid4
 from sqlalchemy.orm import Session
+from sqlalchemy.util.typing import NoneFwd
 
 from app.db.models.persona import (
 	PersonaModel, PersonaCategoryModel, PersonaSubcategoryModel,
@@ -109,6 +110,7 @@ class PersonaService:
 			raise ValueError(f"Job description with ID '{data['job_description_id']}' not found")
 		
 		role_name = job_description.job_role.name if job_description.job_role else None
+		role_id = job_description.job_role.id if job_description.job_role else None
 		
 		# Create main persona
 		persona = PersonaModel(
@@ -116,9 +118,11 @@ class PersonaService:
 			job_description_id=data["job_description_id"],
 			name=data["name"],
 			role_name=role_name,
+			role_id = role_id,
 			created_by=created_by,
 			weights=None,  # deprecated
 			intervals=None,  # deprecated
+			persona_notes=data.get("persona_notes"),
 		)
 		created = self.repo.create(db, persona)
 
@@ -257,6 +261,10 @@ class PersonaService:
 			old_persona.name = data['name']
 		if 'role_name' in data:
 			old_persona.role_name = data['role_name']
+		if 'role_id' in data:
+			old_persona.role_id = data['role_id']
+		if 'persona_notes' in data:
+			old_persona.persona_notes = data['persona_notes']
 		
 		# Update categories if provided (includes notes and subcategories with skillsets)
 		if 'categories' in data:

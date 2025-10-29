@@ -15,12 +15,15 @@ class PersonaModel(Base):
 	job_description_id = Column(String, ForeignKey("job_descriptions.id", ondelete="CASCADE"), nullable=False, index=True)
 	name = Column(String, nullable=False)
 	role_name = Column(String, nullable=True)
+	role_id = Column(String, nullable=True)
 	created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 	created_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 	# Deprecated: prefer hierarchical categories
 	weights = Column(JSON, nullable=True)
 	# Deprecated: prefer hierarchical categories
 	intervals = Column(JSON, nullable=True, default=dict)
+	# Persona-level notes
+	persona_notes = Column(Text, nullable=True)
 
 	# Relationships
 	job_description = relationship("JobDescriptionModel", back_populates="personas")

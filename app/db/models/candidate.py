@@ -2,6 +2,7 @@ from sqlalchemy import Column, String, Integer, DateTime, ForeignKey
 from sqlalchemy.dialects.sqlite import JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
+from sqlalchemy.sql import func
 
 from app.db.base import Base
 
@@ -14,8 +15,8 @@ class CandidateModel(Base):
 	email = Column(String, nullable=True, index=True)
 	phone = Column(String, nullable=True, index=True)
 	latest_cv_id = Column(String, ForeignKey("candidate_cvs.id"), nullable=True)
-	created_at = Column(DateTime, default=datetime.now)
-	updated_at = Column(DateTime, default=datetime.now)
+	created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+	updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
 	cvs = relationship("CandidateCVModel", back_populates="candidate", cascade="all, delete-orphan", foreign_keys="[CandidateCVModel.candidate_id]")
 	latest_cv = relationship("CandidateCVModel", foreign_keys="[CandidateModel.latest_cv_id]", post_update=True)
@@ -33,7 +34,7 @@ class CandidateCVModel(Base):
 	file_size = Column(Integer, nullable=True)
 	mime_type = Column(String, nullable=True)
 	status = Column(String, nullable=False, default="uploaded")  # uploaded|pending|failed|parsed
-	uploaded_at = Column(DateTime, default=datetime.now)
+	uploaded_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 	# reserved for later enrichment
 	cv_text = Column(String, nullable=True)       # complete extracted text from CV
