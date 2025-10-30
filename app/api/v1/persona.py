@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-
+import time
 from app.api.deps import db_session, get_current_user
 from app.schemas.persona import PersonaCreate, PersonaRead, PersonaUpdate, PersonaChangeLogRead, PersonaDeletionStats
 from app.cqrs.handlers import handle_command, handle_query
@@ -57,7 +57,7 @@ async def generate_persona_from_jd(
     persona_data['id'] = 'preview'  # Or generate temp UUID
     persona_data['created_by'] = current_user.id
     persona_data['role_name'] = None  # Will be fetched when actually saved
-    
+    persona_data['created_at'] = time.now()
     return PersonaRead.model_validate(persona_data)
 
 @router.get("/", response_model=list[PersonaRead], summary="Get all personas")
