@@ -7,7 +7,7 @@ from .persona_structure_builder import PersonaStructureBuilder
 from .persona_validator import PersonaValidator
 from .persona_self_validator import PersonaSelfValidator
 from app.services.llm.OpenAIClient import OpenAIClient
-
+from .persona_warning_generator import PersonaWarningGenerator
 class OpenAIPersonaGenerator(PersonaGeneratorService):
     """Complete persona generation using OpenAI"""
     
@@ -21,6 +21,7 @@ class OpenAIPersonaGenerator(PersonaGeneratorService):
         self.structure_builder = PersonaStructureBuilder(self.client, model)
         self.validator = PersonaValidator()
         self.self_validator = PersonaSelfValidator(self.client, model)
+        self.warning_generator = PersonaWarningGenerator(self.client, model)
     
     async def generate_persona_from_jd(self, jd_text: str, jd_id: str) -> Dict[str, Any]:
         """
@@ -35,7 +36,7 @@ class OpenAIPersonaGenerator(PersonaGeneratorService):
         """
         print("🔍 Phase 1: Analyzing JD...")
         analysis = await self.analyzer.analyze_jd(jd_text)
-        
+        #print(analysis)
         print("⚖️  Phase 2: Calculating weights...")
         main_weights = self.weight_calculator.calculate_main_weights(analysis)
         edu_split = self.weight_calculator.calculate_education_split(analysis)

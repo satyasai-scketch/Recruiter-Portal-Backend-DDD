@@ -1,5 +1,5 @@
 from typing import Dict, Any
-
+import json
 
 class PersonaPrompts:
     """Centralized prompts for persona generation"""
@@ -459,56 +459,72 @@ Analyze this JD:
     Return ONLY valid JSON, no markdown.
     """
     @staticmethod
-    def self_validation_prompt(
-        persona: Dict,
-        analysis: Dict,
-        jd_text: str
-    ) -> str:
-        """Phase 5: Self-validation prompt"""
-        
-        tech_cat = next((c for c in persona['categories'] if c['name'] == 'Technical Skills'), None)
-        cog_cat = next((c for c in persona['categories'] if c['name'] == 'Cognitive Demands'), None)
-        
-        tech_weight = tech_cat['weight_percentage'] if tech_cat else 0
-        cog_weight = cog_cat['weight_percentage'] if cog_cat else 0
-        
-        tech_intensity = analysis['technical_requirements'].get('technical_intensity', 'medium')
-        primary_cognitive = analysis['cognitive_requirements'].get('primary_cognitive_level', 'apply')
+    def self_validation_prompt(persona: Dict, analysis: Dict, jd_text: str) -> str:
+        """Phase 5: Self-validation prompt - concise version"""
         
         category_weights = {c['name']: c['weight_percentage'] for c in persona['categories']}
         
-        return f"""You generated a persona with these main category weights:
+        tech_weight = category_weights.get('Technical Skills', 0)
+        cog_weight = category_weights.get('Cognitive Demands', 0)
+        val_weight = category_weights.get('Values (Schwartz)', 0)
+        beh_weight = category_weights.get('Foundational Behaviors', 0)
+        lead_weight = category_weights.get('Leadership Skills', 0)
+        edu_weight = category_weights.get('Education and Experience', 0)
+        
+        # Extract key analysis points
+        tech_req = analysis['technical_requirements']
+        cog_req = analysis['cognitive_requirements']
+        val_req = analysis['values_requirements']
+        beh_req = analysis['behavioral_requirements']
+        lead_req = analysis['leadership_requirements']
+        edu_req = analysis['education_requirements']
+        role = analysis['role_understanding']
+        
+        # Calculate emphasis totals
+        total_val = sum(v for v in val_req.values() if isinstance(v, int))
+        total_beh = sum(v for v in beh_req.values() if isinstance(v, int))
+        
+        return f"""You generated a persona with these weights:
     - Technical Skills: {tech_weight}%
     - Cognitive Demands: {cog_weight}%
-    - Values (Schwartz): {category_weights.get('Values (Schwartz)', 0)}%
-    - Foundational Behaviors: {category_weights.get('Foundational Behaviors', 0)}%
-    - Leadership Skills: {category_weights.get('Leadership Skills', 0)}%
-    - Education and Experience: {category_weights.get('Education and Experience', 0)}%
+    - Values (Schwartz): {val_weight}%
+    - Foundational Behaviors: {beh_weight}%
+    - Leadership Skills: {lead_weight}%
+    - Education and Experience: {edu_weight}%
 
-    Original JD Analysis showed:
-    - Technical Intensity: {tech_intensity}
-    - Primary Cognitive Level: {primary_cognitive}
-    - Job Family: {analysis['role_understanding']['job_family']}
-    - Seniority: {analysis['role_understanding']['seniority_level']}
+    Analysis Context:
+    - Technical: intensity="{tech_req.get('technical_intensity')}", depth="{tech_req.get('technical_depth_required')}"
+    - Cognitive: primary_level="{cog_req.get('primary_cognitive_level')}"
+    - Values: total_emphasis={total_val}/400
+    - Behavioral: total_emphasis={total_beh}/400
+    - Leadership: has_component={lead_req.get('has_leadership_component')}, seniority="{role.get('seniority_level')}"
+    - Education: importance="{edu_req.get('education_importance')}", years={edu_req.get('years_experience_required')}
 
-    Quick validation questions:
-    1. Does {tech_weight}% technical match "{tech_intensity}" intensity?
-    2. Does {cog_weight}% cognitive match "{primary_cognitive}" primary level?
-    3. Are the weights reasonable for this role?
+    Validate all 6 categories:
+    1. Does {tech_weight}% match "{tech_req.get('technical_intensity')}" intensity?
+    2. Does {cog_weight}% match "{cog_req.get('primary_cognitive_level')}" level?
+    3. Does {lead_weight}% fit {lead_req.get('has_leadership_component')} leadership + "{role.get('seniority_level')}" seniority?
+    4. Does {val_weight}% fit values emphasis ({total_val}/400)?
+    5. Does {beh_weight}% fit behavioral emphasis ({total_beh}/400)?
+    6. Does {edu_weight}% match "{edu_req.get('education_importance')}" importance?
 
     Return JSON:
     {{
     "is_valid": true/false,
-    "issues": ["list any misalignments"],
+    "issues": ["list problems if any"],
     "recommendations": {{
-        "Technical Skills": {tech_weight} or <corrected value>,
-        "Cognitive Demands": {cog_weight} or <corrected value>,
-        "Leadership Skills": {category_weights.get('Leadership Skills', 0)} or <corrected value>
+        "Technical Skills": 35,
+        "Leadership Skills": 18
     }},
-    "reasoning": "brief explanation"
+    "reasoning": "brief why"
     }}
 
-    Only suggest changes if there's clear misalignment (e.g., technical=20% but intensity='very_high')."""
+    Rules:
+    - Set is_valid=false ONLY if corrections would meaningfully improve alignment
+    - If is_valid=false, provide recommendations
+    - You can suggest any size change (even 1%) if it helps
+    - Be conservative - don't correct minor acceptable variations
+    """
     
     @staticmethod
     def _calculate_range(weight: int) -> tuple:
@@ -516,3 +532,115 @@ Analyze this JD:
         range_min = -min(5, max(2, weight // 7))
         range_max = min(10, max(3, weight // 3.5))
         return (range_min, range_max)
+    
+    @staticmethod
+    def warning_generation_prompt(persona_data: Dict, jd_analysis: Dict = None) -> str:
+        """Generate warning messages for weight violations"""
+        
+        # Extract role info from persona_data itself
+        persona_name = persona_data.get('name', 'this role')
+        
+        categories_info = []
+        for cat in persona_data.get('categories', []):
+            cat_info = {
+                'name': cat['name'],
+                'weight': cat['weight_percentage'],
+                'range_min': cat.get('range_min'),
+                'range_max': cat.get('range_max'),
+                'subcategories': []
+            }
+            
+            for subcat in cat.get('subcategories', []):
+                cat_info['subcategories'].append({
+                    'name': subcat['name'],
+                    'weight': subcat['weight_percentage'],
+                    'range_min': subcat.get('range_min'),
+                    'range_max': subcat.get('range_max')
+                })
+            
+            categories_info.append(cat_info)
+        
+        return f"""Generate warning messages for weight violations in this candidate persona: "{persona_name}"
+
+    Persona Structure:
+    {json.dumps(categories_info, indent=2)}
+
+    For EACH category and subcategory above, generate TWO warning messages:
+
+    1. **below_min_message**: What happens if the weight goes BELOW range_min?
+    - Explain which skills/capabilities get undervalued
+    - What candidate quality might suffer
+    - Real-world impact on hiring
+
+    2. **above_max_message**: What happens if the weight goes ABOVE range_max?
+    - What tradeoff is being made
+    - Which other areas get squeezed
+    - When this might be justified (if ever)
+
+    CRITICAL RULES:
+    - Keep each message to 2-3 sentences max (concise and actionable)
+    - Be specific to the category/subcategory and its weight context
+    - Focus on PRACTICAL hiring impact, not theory
+    - Make warnings meaningful - don't just say "it's important"
+    - Infer role context from the persona structure itself (e.g., high technical weight = tech role)
+
+    Return JSON in this exact format:
+    {{
+    "warnings": [
+        {{
+        "entity_type": "category",
+        "entity_name": "Technical Skills",
+        "below_min_message": "Reducing Technical Skills below this much may result in hiring candidates who lack depth in core technical areas. This could lead to slower development cycles and increased technical debt.",
+        "above_max_message": "Increasing Technical Skills above this much overemphasizes technical depth at the expense of collaboration and communication skills. This may create silos and hinder cross-functional teamwork."
+        }},
+        {{
+        "entity_type": "subcategory",
+        "entity_name": "Python Programming",
+        "below_min_message": "...",
+        "above_max_message": "..."
+        }}
+    ]
+    }}
+
+    Generate warnings for ALL {sum(1 + len(cat.get('subcategories', [])) for cat in persona_data.get('categories', []))} entities (categories + subcategories).
+    """
+
+    @staticmethod
+    def single_entity_warning_prompt(entity_type: str, entity_data: Dict) -> str:
+        """Generate warning for a single entity only (on-demand approach)"""
+        
+        entity_name = entity_data['name']
+        weight = entity_data['weight']
+        range_min = entity_data['range_min']
+        range_max = entity_data['range_max']
+        lower=weight - range_min
+        upper=weight + range_max
+        context = f"Entity Type: {entity_type}\n"
+        context += f"Entity: {entity_name}\n"
+        context += f"Current Weight: {weight}%\n"
+        context += f"Range: {range_min}% to {range_max}%\n"
+        
+        if entity_type == 'subcategory':
+            context += f"Parent Category: {entity_data.get('parent_category', 'N/A')}\n"
+            if entity_data.get('technologies'):
+                context += f"Technologies: {', '.join(entity_data['technologies'])}\n"
+        
+        return f"""{context}
+
+    Generate TWO warning messages for this specific entity:
+
+    1. **below_min_message**: What happens if weight goes BELOW {range_min}%?
+    2. **above_max_message**: What happens if weight goes ABOVE {range_max}%?
+
+    Rules:
+    - Each message: 2 sentences max
+    - Be specific to this entity and its actual range values
+    - Focus on practical hiring impact
+    - Mention the actual {range_min}% and {range_max}% values in messages
+
+    Return JSON (no markdown):
+    {{
+    "below_min_message": "Reducing {entity_name} below lower% may...",
+    "above_max_message": "Increasing {entity_name} above upper% could..."
+    }}
+    """

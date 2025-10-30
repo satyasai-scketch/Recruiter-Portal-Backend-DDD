@@ -120,6 +120,9 @@ import concurrent.futures
 from app.cqrs.commands.refine_jd_with_ai import RefineJDWithAI
 from app.cqrs.queries.jd_queries import GetJDDiff
 from app.cqrs.queries.jd_queries import GetJDInlineMarkup
+from app.cqrs.commands.persona_warning_commands import GeneratePersonaWarnings, GenerateSingleEntityWarning, LinkWarningsToPersona
+from app.cqrs.queries.persona_warning_queries import GetOrGenerateWarning, ListWarningsByPersona, GetWarningByEntity
+from app.services.persona_warning_service import PersonaWarningService
 # Add this handler function before handle_command
 def handle_refine_jd_with_ai(db: Session, command: RefineJDWithAI):
     """Handle JD refinement with AI (sync wrapper for async service)"""
@@ -391,7 +394,7 @@ def handle_command(db: Session, command: Command) -> Any:
 		return JDService().create_from_document(db, command.payload, command.file_content, command.filename)
 	if isinstance(command, CreatePersona):
 		return PersonaService().create_nested(db, command.payload, command.created_by)
-
+    
 	if isinstance(command, GeneratePersonaFromJD):
 		return handle_generate_persona_from_jd(db, command)
 	if isinstance(command, ScoreCandidateWithAI):
@@ -443,6 +446,18 @@ def handle_command(db: Session, command: Command) -> Any:
 		return CandidateService().delete_candidate_cv(db, command.candidate_cv_id)
 	if isinstance(command, UpdateUser):
 		return UserService().update(db, command.user_id, command.payload)
+	if isinstance(command, GeneratePersonaWarnings):
+		service = PersonaWarningService()
+		return service.generate_warnings_sync(db, command.persona_data)
+	if isinstance(command, GenerateSingleEntityWarning):
+		service = PersonaWarningService()
+		return service.generate_single_entity_warning_sync(
+            db, command.persona_id, command.entity_type, command.entity_name, command.entity_data
+        )
+	if isinstance(command, LinkWarningsToPersona):
+		service = PersonaWarningService()
+		return service.link_warnings_to_persona(db, command.temp_persona_id, command.saved_persona_id)
+    
 	raise NotImplementedError(f"No handler for command {type(command).__name__}")
 
 
@@ -539,4 +554,16 @@ def handle_query(db: Session, query: Query) -> Any:
 		return UserService().get_all(db, query.skip, query.limit)
 	if isinstance(query, GetUser):
 		return UserService().get_by_id(db, query.user_id)
+	if isinstance(query, GetWarningByEntity):
+		service= PersonaWarningService()
+		return service.get_warning(db, query.persona_id, query.entity_type, query.entity_name, query.violation_type)
+	if isinstance(query, GetOrGenerateWarning):
+		service= PersonaWarningService()
+		return service.get_or_generate_warning(
+            db, query.persona_id, query.entity_type, query.entity_name, 
+            query.violation_type, query.entity_data
+        )
+	if isinstance(query, ListWarningsByPersona):
+		service= PersonaWarningService()
+		return service.list_warnings(db, query.persona_id)
 	raise NotImplementedError(f"No handler for query {type(query).__name__}")
