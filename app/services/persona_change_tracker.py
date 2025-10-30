@@ -59,7 +59,7 @@ class PersonaChangeTracker:
         changed_by: str
     ) -> None:
         """Track changes to persona-level fields."""
-        fields_to_track = ['name', 'role_name']
+        fields_to_track = ['name', 'role_name', 'role_id', 'persona_notes']
         
         for field in fields_to_track:
             if field in new_data:

@@ -92,6 +92,8 @@ class PersonaCreate(BaseModel):
 	skillsets: List[PersonaSkillsetSchema] = Field(default_factory=list)
 	notes: List[PersonaNotesSchema] = Field(default_factory=list)
 	change_logs: List[PersonaChangeLogSchema] = Field(default_factory=list)
+	# Persona-level notes
+	persona_notes: Optional[str] = None
 
 	model_config = ConfigDict(from_attributes=True)
 
@@ -101,8 +103,11 @@ class PersonaRead(BaseModel):
 	job_description_id: str
 	name: str
 	role_name: Optional[str] = None
+	role_id : Optional[str] = None
+	created_at: datetime
 	created_by: Optional[str] = None
 	categories: List[PersonaCategorySchema] = []
+	persona_notes: Optional[str] = None
 
 	model_config = ConfigDict(from_attributes=True)
 
@@ -134,7 +139,9 @@ class PersonaUpdate(BaseModel):
 	"""Schema for updating persona with change tracking"""
 	name: Optional[str] = None
 	role_name: Optional[str] = None
+	role_id: Optional[str] = None
 	categories: Optional[List[PersonaCategorySchema]] = None
+	persona_notes: Optional[str] = None
 
 	model_config = ConfigDict(from_attributes=True)
 
