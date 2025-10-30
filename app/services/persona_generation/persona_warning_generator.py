@@ -40,7 +40,7 @@ class PersonaWarningGenerator:
                 "model": self.model,
                 "messages": messages,
                 "temperature": 0.3,
-                "max_tokens": 4000  # ✅ Increase token limit for large responses
+                "max_tokens": 6000  # ✅ Increase token limit for large responses
             }
             
             if self.supports_json_mode:

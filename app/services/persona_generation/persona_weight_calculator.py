@@ -126,7 +126,8 @@ class PersonaWeightCalculator:
             education_score += 5
         
         weights['education_experience'] = max(2, min(15, 10 + education_score))
-        
+        #print("Calculated weights before normalization:")
+        #print(weights)
         return PersonaWeightCalculator._normalize_weights(weights)
     
     @staticmethod
@@ -184,7 +185,8 @@ class PersonaWeightCalculator:
         
         factor = 100 / total
         normalized = {cat: int(round(w * factor)) for cat, w in weights.items()}
-        
+        #print("Normalized weights before adjustment:")
+        #print(normalized)
         current_sum = sum(normalized.values())
         difference = 100 - current_sum
         

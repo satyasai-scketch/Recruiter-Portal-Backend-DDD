@@ -36,7 +36,7 @@ class OpenAIPersonaGenerator(PersonaGeneratorService):
         """
         print("🔍 Phase 1: Analyzing JD...")
         analysis = await self.analyzer.analyze_jd(jd_text)
-        
+        #print(analysis)
         print("⚖️  Phase 2: Calculating weights...")
         main_weights = self.weight_calculator.calculate_main_weights(analysis)
         edu_split = self.weight_calculator.calculate_education_split(analysis)
