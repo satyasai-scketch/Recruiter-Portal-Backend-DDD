@@ -47,6 +47,12 @@ async def generate_persona_from_jd(
     Generate persona structure from JD using AI.
     Returns the structure WITHOUT saving to database.
     """
+    # Ensure contextvars are set before calling sync handler
+    # FastAPI preserves contextvars in async->sync calls, but we ensure they're set here
+    from app.core.context import request_user_id, request_db_session
+    request_user_id.set(current_user.id)
+    request_db_session.set(db)
+    
     # Generate persona structure
     persona_data = handle_command(db, GeneratePersonaFromJD(jd_id=jd_id))
     

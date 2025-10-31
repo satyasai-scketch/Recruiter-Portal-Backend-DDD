@@ -634,7 +634,8 @@ async def score_candidate_with_ai(
     persona_id: str,
     cv_id: str,
     force_rescore: bool = Query(False, description="Force re-scoring even if a score already exists"),
-    db: Session = Depends(db_session)
+    db: Session = Depends(db_session),
+    user=Depends(get_current_user)
 ):
     """
     AI-powered automatic scoring with duplicate prevention.
@@ -643,6 +644,12 @@ async def score_candidate_with_ai(
     If a score exists, it returns the existing score instead of performing new AI scoring.
     Use force_rescore=True to bypass this check and force re-scoring.
     """
+    # Ensure contextvars are set before calling sync handler
+    # FastAPI preserves contextvars in async->sync calls, but we ensure they're set here
+    from app.core.context import request_user_id, request_db_session
+    request_user_id.set(user.id)
+    request_db_session.set(db)
+    
     start_time = time.time()
     
     try:
@@ -751,7 +758,8 @@ async def score_candidate_with_ai(
             candidate_name=candidate_name,
             file_name=file_name,
             persona_name=persona_name,
-            role_name=role_name
+            role_name=role_name,
+			scored_at=score.scored_at
         )
         
     except Exception as e:

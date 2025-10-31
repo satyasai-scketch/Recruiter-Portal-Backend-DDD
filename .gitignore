@@ -10,3 +10,14 @@ venv/
 .venv
 
 .env
+
+app.db
+
+# ignore files with .md extension
+*.md    
+
+# uploads folder
+uploads/
+
+# app/tests folder
+app/tests/

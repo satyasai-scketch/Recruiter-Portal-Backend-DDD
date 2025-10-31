@@ -1,5 +1,4 @@
 from typing import Dict, Any
-from openai import AsyncOpenAI
 from app.services.cv_scoring.base import CVScoringServiceBase
 from app.services.cv_scoring.semantic_matcher import SemanticMatcher
 from app.services.cv_scoring.lightweight_screener import LightweightScreener
@@ -7,6 +6,7 @@ from app.services.cv_scoring.detailed_scorer import DetailedScorer
 from app.services.embedding.openai_service import OpenAIEmbeddingService
 from app.core.config import settings
 from app.services.llm.OpenAIClient import OpenAIClient
+from app.services.ai_tracing.action_types import ActionType
 
 
 class CVScoringService(CVScoringServiceBase):
@@ -16,23 +16,20 @@ class CVScoringService(CVScoringServiceBase):
     """
     
     def __init__(self, api_key: str):
-        # Initialize OpenAI client
-        self.client = OpenAIClient(api_key=api_key)
-        
         # Initialize embedding service with config model
         embedding_service = OpenAIEmbeddingService(
             api_key=api_key,
             model=getattr(settings, "CV_SCORING_EMBEDDING_MODEL", "text-embedding-3-small")
         )
         
-        # Initialize all stage components with config models
+        # Initialize all stage components with config models and specific action types
         self.stage1 = SemanticMatcher(embedding_service)
         self.stage2 = LightweightScreener(
-            self.client,
+            OpenAIClient(api_key=api_key, action_type=ActionType.CV_SCREEN),
             model=getattr(settings, "CV_SCORING_SCREENING_MODEL", "gpt-4o-mini")
         )
         self.stage3 = DetailedScorer(
-            self.client,
+            OpenAIClient(api_key=api_key, action_type=ActionType.CV_SCORE),
             model=getattr(settings, "CV_SCORING_DETAILED_MODEL", "gpt-4o")
         )
     

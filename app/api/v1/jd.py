@@ -240,6 +240,12 @@ async def refine_jd_with_ai(
         # Use company_id from request, or from JD, or None
         company_id = request.company_id or jd.company_id  # Can be None
         
+        # Ensure contextvars are set before calling sync handler
+        # FastAPI preserves contextvars in async->sync calls, but we ensure they're set here
+        from app.core.context import request_user_id, request_db_session
+        request_user_id.set(user.id)
+        request_db_session.set(db)
+        
         # Execute refinement (now works with None company_id)
         updated_model, refinement_result = handle_command(
             db, 

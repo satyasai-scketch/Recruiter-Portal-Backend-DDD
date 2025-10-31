@@ -1,13 +1,13 @@
 from typing import Dict, Any
-from openai import AsyncOpenAI
 import json
 from app.services.cv_scoring.scoring_prompts import CVScoringPrompts
+from app.services.llm.OpenAIClient import OpenAIClient
 
 
 class LightweightScreener:
     """Stage 2: Quick LLM screening with skill extraction and role detection"""
 
-    def __init__(self, client: AsyncOpenAI, model: str = "gpt-4o-mini"):
+    def __init__(self, client: OpenAIClient, model: str = "gpt-4o-mini"):
         self.client = client
         self.model = model
         self.min_threshold = 70.0
