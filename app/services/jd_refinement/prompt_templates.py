@@ -41,7 +41,9 @@ class JDPromptTemplates:
     {jd_text}
 
     **Your Task:**
-    Refine and enhance this job description to make it:
+    FIRST, analyze if the provided text is a valid job description or contains JD-related content.
+
+    - **IF the text is a valid/partial JD**: Refine and enhance it to make it:
     1. **Clear & Professional**: Remove ambiguity, improve structure
     2. **Compelling**: Make it attractive to top talent
     3. **Complete**: Ensure all key sections are present
@@ -49,20 +51,29 @@ class JDPromptTemplates:
     5. **Action-Oriented**: Use strong action verbs
     6. **Inclusive**: Use gender-neutral, inclusive language
 
+    - **IF the text is irrelevant/not a JD** (e.g., random text, unrelated content, gibberish):
+    Generate a complete professional job description from scratch for the role "{role}" based on industry standards and the company information provided above.
+
     **Output Format:**
-    Provide the refined JD with clear sections:
+    Provide a well-structured JD. Use sections that make sense for this role. Common sections include:
     - Job Title
-    - About the Role
-    - Key Responsibilities
-    - Required Qualifications
-    - Preferred Qualifications
-    - What We Offer
-    {"- About " + company_name if company_name != 'the company' else ""}
+    - About the Role / Role Overview
+    - Key Responsibilities / What You'll Do
+    - Required Qualifications / Must-Have Skills
+    - Preferred Qualifications / Nice-to-Have Skills
+    - Technical Skills (if applicable)
+    - What We Offer / Benefits / Perks
+    - Work Environment / Team Structure (if relevant)
+    {"- About " + company_name if company_name != 'the company' else "- About the Company"}
+    - Application Process / Next Steps (optional)
 
     **Important:** 
     - Maintain core requirements and intent
     - Don't add unrealistic requirements
     - Keep it concise but comprehensive
+    - Use your judgment to decide: refine or generate from scratch
+    - Add, remove, or rename sections as appropriate for the role and industry
+    - Don't mention this decision-making process in the output
     """
         return prompt
 
@@ -141,7 +152,10 @@ Original:
 Refined:
 {refined}
 
-Focus on:
+If the original was invalid/not a JD** (e.g., random text, unrelated content, gibberish) and a JD was generated from scratch, include that as the first improvement like:
+["Generated complete professional JD from scratch (+100%)"]
+
+Otherwise Focus on:
 - Structural improvements
 - Added sections or details
 - Clarity enhancements

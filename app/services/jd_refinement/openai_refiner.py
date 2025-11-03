@@ -34,7 +34,7 @@ class OpenAIRefinerService(AIRefinerService):
                     }
                 ],
                 temperature=self.temperature,
-                max_tokens=2000
+                max_tokens=5000
             )
             
             refined_jd = response.choices[0].message.content.strip()

@@ -551,7 +551,7 @@ async def upload_cvs_legacy(payloads: List[CandidateCreate], db: Session = Depen
 		)
 		for m in models
 	]
-
+from datetime import datetime, timezone
 
 @router.post("/score", response_model=ScoreResponse, summary="Score candidate against persona (comprehensive)")
 async def score_candidate(body: ScorePayload, db: Session = Depends(db_session)):
@@ -751,7 +751,8 @@ async def score_candidate_with_ai(
             candidate_name=candidate_name,
             file_name=file_name,
             persona_name=persona_name,
-            role_name=role_name
+            role_name=role_name,
+			scored_at=datetime.now()
         )
         
     except Exception as e:
