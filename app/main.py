@@ -15,6 +15,7 @@ from app.api.v1 import mfa as mfa_router
 from app.api.v1 import company as company_router
 from app.api.v1 import job_role as job_role_router
 from app.api.v1 import role as role_router
+from app.api.v1 import ai_usage as ai_usage_router
 from app.core.logger import logger
 from app.core.config import settings
 
@@ -54,6 +55,7 @@ app.include_router(match_router.router, prefix="/api/v1/match", tags=["match"])
 app.include_router(company_router.router, prefix="/api/v1/company", tags=["company"])
 app.include_router(job_role_router.router, prefix="/api/v1/job-role", tags=["job-role"])
 app.include_router(role_router.router, prefix="/api/v1/role", tags=["role"])
+app.include_router(ai_usage_router.router, prefix="/api/v1/ai-usage", tags=["ai-usage"])
 
 # Mount static files for local storage (only when using local storage)
 if settings.STORAGE_TYPE.lower() == "local":

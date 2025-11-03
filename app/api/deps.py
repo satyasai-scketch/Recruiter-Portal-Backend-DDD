@@ -9,15 +9,20 @@ from app.core.security import decode_token
 from app.repositories.user_repo import SQLAlchemyUserRepository
 from app.services.mfa_service import MFAService
 from app.core.config import settings
+from app.core.context import request_db_session, request_user_id
 
 
 def db_session() -> Generator[Session, None, None]:
-	"""Yield a database session (placeholder)."""
+	"""Yield a database session and set it in context."""
 	session = get_session()
 	try:
+		# Set session in context for LLM tracing
+		request_db_session.set(session)
 		yield session
 	finally:
 		session.close()
+		# Clear context after request
+		request_db_session.set(None)
 
 
 # Alias preferred FastAPI convention
@@ -31,6 +36,7 @@ def get_current_user(
 	credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 	db: Session = Depends(get_db),
 ):
+	"""Get current user and set user_id in context for LLM tracing."""
 	if credentials is None or credentials.scheme.lower() != "bearer":
 		raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 	payload = decode_token(credentials.credentials)
@@ -39,6 +45,10 @@ def get_current_user(
 	user = SQLAlchemyUserRepository().get_by_id(db, payload["sub"])
 	if not user or not user.is_active:
 		raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Inactive user")
+	
+	# Set user_id in context for LLM tracing
+	request_user_id.set(user.id)
+	
 	return user
 
 

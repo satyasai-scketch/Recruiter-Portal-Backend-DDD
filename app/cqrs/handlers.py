@@ -117,7 +117,74 @@ from app.cqrs.queries.user_queries import (
 
 import asyncio
 import concurrent.futures
+import contextvars
 from app.cqrs.commands.refine_jd_with_ai import RefineJDWithAI
+
+
+def run_async_with_context(coro, db: Session = None, user_id: str = None):
+    """
+    Helper to run async coroutine while preserving contextvars.
+    This ensures db_session and user_id are available for LLM tracing.
+    
+    Args:
+        coro: The coroutine to run
+        db: Optional database session. If provided, will be set in contextvars.
+            If None, will try to capture from current contextvars.
+        user_id: Optional user ID. If provided, will be set in contextvars.
+            If None, will try to capture from current contextvars.
+    
+    IMPORTANT: Tries to capture user_id from contextvars, but can accept it as parameter
+    if contextvars are not available (e.g., when called from sync handlers).
+    """
+    from app.core.context import request_db_session, request_user_id
+    
+    # Try to capture user_id from contextvars (set by FastAPI dependency)
+    # But also accept it as parameter for cases where contextvars aren't available
+    captured_user_id = user_id if user_id is not None else request_user_id.get()
+    
+    # Use provided db parameter or try to get from contextvars
+    db_to_use = db if db is not None else request_db_session.get()
+    
+    # Capture full context as backup (includes any contextvars set before this point)
+    ctx = contextvars.copy_context()
+    
+    async def run_with_restored_context():
+        """Run coroutine with contextvars restored"""
+        # Set db_session in the new async context (use provided db or captured one)
+        if db_to_use:
+            request_db_session.set(db_to_use)
+        
+        # Set user_id from captured contextvar
+        if captured_user_id:
+            request_user_id.set(captured_user_id)
+        
+        try:
+            return await coro
+        finally:
+            # Clean up after execution
+            request_db_session.set(None)
+            request_user_id.set(None)
+    
+    def run_in_context():
+        """Run async function with preserved context"""
+        # Create new coroutine that restores context
+        restored_coro = run_with_restored_context()
+        return ctx.run(asyncio.run, restored_coro)
+    
+    try:
+        # Try to get running loop
+        try:
+            loop = asyncio.get_running_loop()
+            # Loop exists (FastAPI context), use thread pool
+            # Run async function in new thread with preserved context
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(run_in_context)
+                return future.result()
+        except RuntimeError:
+            # No running loop, create and run with preserved context
+            return run_in_context()
+    except Exception as e:
+        raise ValueError(f"Error running async operation: {str(e)}")
 from app.cqrs.queries.jd_queries import GetJDDiff
 from app.cqrs.queries.jd_queries import GetJDInlineMarkup
 from app.cqrs.commands.persona_warning_commands import GeneratePersonaWarnings, GenerateSingleEntityWarning, LinkWarningsToPersona
@@ -125,43 +192,39 @@ from app.cqrs.queries.persona_warning_queries import GetOrGenerateWarning, ListW
 from app.services.persona_warning_service import PersonaWarningService
 # Add this handler function before handle_command
 def handle_refine_jd_with_ai(db: Session, command: RefineJDWithAI):
-    """Handle JD refinement with AI (sync wrapper for async service)"""
+    """Handle JD refinement with AI (sync wrapper for async service)
     
-    try:
-        # Try to get running loop
-        try:
-            loop = asyncio.get_running_loop()
-            # Loop exists (FastAPI context), use thread pool
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(
-                    asyncio.run,
-                    JDService().apply_refinement_with_ai(
-                        db=db,
-                        jd_id=command.jd_id,
-                        role=command.role,
-                        company_id=command.company_id,
-                        methodology=command.methodology,
-                        min_similarity=command.min_similarity
-                    )
-                )
-                return future.result()
-        except RuntimeError:
-            # No running loop, create and run
-            return asyncio.run(
-                JDService().apply_refinement_with_ai(
-                    db=db,
-                    jd_id=command.jd_id,
-                    role=command.role,
-                    company_id=command.company_id,
-                    methodology=command.methodology,
-                    min_similarity=command.min_similarity
-                )
-            )
-    except Exception as e:
-        raise ValueError(f"Error in AI refinement: {str(e)}")
+    IMPORTANT: Tries to get user_id from contextvars before entering new event loop.
+    Passes both db and user_id to run_async_with_context to ensure they're available.
+    """
+    from app.core.context import get_current_user_id
+    
+    # Try to capture user_id from contextvars BEFORE creating new event loop
+    # This should work because we're still in the FastAPI request context
+    user_id = get_current_user_id()
+    
+    async def run_refinement():
+        """Run refinement - contextvars will be automatically restored by run_async_with_context"""
+        return await JDService().apply_refinement_with_ai(
+            db=db,
+            jd_id=command.jd_id,
+            role=command.role,
+            company_id=command.company_id,
+            methodology=command.methodology,
+            min_similarity=command.min_similarity
+        )
+    
+    coro = run_refinement()
+    # Pass db and user_id so they can be set in contextvars for LLM tracing
+    return run_async_with_context(coro, db=db, user_id=user_id)
 	
 def handle_generate_persona_from_jd(db: Session, command: GeneratePersonaFromJD):
     """Handle persona generation from JD (returns structure, doesn't save)"""
+    from app.core.context import get_current_user_id
+    
+    # Try to capture user_id from contextvars BEFORE creating new event loop
+    user_id = get_current_user_id()
+    
     try:
         # Get JD text
         jd = JDService().get_by_id(db, command.jd_id)
@@ -180,25 +243,17 @@ def handle_generate_persona_from_jd(db: Session, command: GeneratePersonaFromJD)
             model=getattr(settings, "PERSONA_GENERATION_MODEL", "gpt-4o")
         )
         
-        # Run async persona generation (returns dict, doesn't save)
-        try:
-            loop = asyncio.get_running_loop()
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(
-                    asyncio.run,
-                    generator.generate_persona_from_jd(
-                        jd_text=jd_text,
-                        jd_id=command.jd_id
-                    )
-                )
-                return future.result()
-        except RuntimeError:
-            return asyncio.run(
-                generator.generate_persona_from_jd(
-                    jd_text=jd_text,
-                    jd_id=command.jd_id
-                )
+        async def run_persona_generation():
+            """Run persona generation - contextvars will be automatically restored by run_async_with_context"""
+            return await generator.generate_persona_from_jd(
+                jd_text=jd_text,
+                jd_id=command.jd_id
             )
+        
+        # Run async persona generation (returns dict, doesn't save)
+        coro = run_persona_generation()
+        # Pass db and user_id so they can be set in contextvars for LLM tracing
+        return run_async_with_context(coro, db=db, user_id=user_id)
     except Exception as e:
         raise ValueError(f"Error generating persona structure: {str(e)}")
 
@@ -283,8 +338,10 @@ def normalize_ai_scoring_response(ai_response: Dict[str, Any]) -> Dict[str, Any]
 # Add this to your handlers.py
 def handle_score_candidate_with_ai(db: Session, command: ScoreCandidateWithAI):
     """Handle AI-powered CV scoring"""
-    import asyncio
-    import concurrent.futures
+    from app.core.context import get_current_user_id
+    
+    # Try to capture user_id from contextvars BEFORE creating new event loop
+    user_id = get_current_user_id()
     
     try:
         # Get CV text
@@ -305,25 +362,17 @@ def handle_score_candidate_with_ai(db: Session, command: ScoreCandidateWithAI):
         # Convert persona to dict
         persona_dict = _persona_to_dict(persona_model)
         
-        # Run async AI scoring
-        try:
-            loop = asyncio.get_running_loop()
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(
-                    asyncio.run,
-                    CandidateService().score_candidate_with_ai(
-                        cv_text=cv_text,
-                        persona_dict=persona_dict
-                    )
-                )
-                raw_response = future.result()
-        except RuntimeError:
-            raw_response = asyncio.run(
-                CandidateService().score_candidate_with_ai(
-                    cv_text=cv_text,
-                    persona_dict=persona_dict
-                )
+        async def run_scoring():
+            """Run scoring - contextvars will be automatically restored by run_async_with_context"""
+            return await CandidateService().score_candidate_with_ai(
+                cv_text=cv_text,
+                persona_dict=persona_dict
             )
+        
+        # Run async AI scoring
+        coro = run_scoring()
+        # Pass db and user_id so they can be set in contextvars for LLM tracing
+        raw_response = run_async_with_context(coro, db=db, user_id=user_id)
         
         # ⭐ NORMALIZE RESPONSE - Ensures consistent structure for score_candidate
         normalized_response = normalize_ai_scoring_response(raw_response)

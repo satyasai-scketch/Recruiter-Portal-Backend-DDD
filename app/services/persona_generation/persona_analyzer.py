@@ -1,5 +1,4 @@
 from typing import Dict, Any
-from openai import AsyncOpenAI
 import json
 import re
 from .prompts import PersonaPrompts

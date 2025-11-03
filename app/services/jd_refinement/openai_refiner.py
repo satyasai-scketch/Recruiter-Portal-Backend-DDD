@@ -1,9 +1,9 @@
 from typing import Dict, Any, List
 import json
-from openai import AsyncOpenAI
 from .base import AIRefinerService
 from .prompt_templates import JDPromptTemplates
 from app.services.llm.OpenAIClient import OpenAIClient
+from app.services.ai_tracing.action_types import ActionType
 
 class OpenAIRefinerService(AIRefinerService):
     """OpenAI implementation for JD refinement"""
@@ -14,14 +14,16 @@ class OpenAIRefinerService(AIRefinerService):
         model: str = "gpt-4-turbo-preview",
         temperature: float = 0.7
     ):
-        self.client = OpenAIClient(api_key)
+        # Create separate clients for different operations
+        self.refinement_client = OpenAIClient(api_key, action_type=ActionType.JD_REFINE)
+        self.extraction_client = OpenAIClient(api_key, action_type=ActionType.JD_IMPROVEMENT)
         self.model = model
         self.temperature = temperature
     
     async def refine_with_prompt(self, prompt: str) -> str:
         """Send prompt to OpenAI and get refined JD"""
         try:
-            response = await self.client.chat_completion(
+            response = await self.refinement_client.chat_completion(
                 model=self.model,
                 messages=[
                     {
@@ -49,7 +51,7 @@ class OpenAIRefinerService(AIRefinerService):
         try:
             prompt = JDPromptTemplates.extract_improvements_prompt(original, refined)
             
-            response = await self.client.chat_completion(
+            response = await self.extraction_client.chat_completion(
                 model=self.model,
                 messages=[
                     {

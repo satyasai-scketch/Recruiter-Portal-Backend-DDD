@@ -1,14 +1,14 @@
 import asyncio
 from typing import Dict, List, Any
-from openai import AsyncOpenAI
 import json
 from app.services.cv_scoring.scoring_prompts import CVScoringPrompts
+from app.services.llm.OpenAIClient import OpenAIClient
 
 
 class DetailedScorer:
     """Stage 3: Deep scoring with parallel processing and stricter penalties"""
 
-    def __init__(self, client: AsyncOpenAI, model: str = "gpt-4o"):
+    def __init__(self, client: OpenAIClient, model: str = "gpt-4o"):
         self.client = client
         self.model = model
 

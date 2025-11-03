@@ -1,5 +1,4 @@
 from typing import Dict, Any
-from openai import AsyncOpenAI
 from .base import PersonaGeneratorService
 from .persona_analyzer import PersonaAnalyzer
 from .persona_weight_calculator import PersonaWeightCalculator
@@ -7,21 +6,35 @@ from .persona_structure_builder import PersonaStructureBuilder
 from .persona_validator import PersonaValidator
 from .persona_self_validator import PersonaSelfValidator
 from app.services.llm.OpenAIClient import OpenAIClient
+from app.services.ai_tracing.action_types import ActionType
 from .persona_warning_generator import PersonaWarningGenerator
+
 class OpenAIPersonaGenerator(PersonaGeneratorService):
     """Complete persona generation using OpenAI"""
     
     def __init__(self, api_key: str, model: str = "gpt-4o"):
-        self.client = OpenAIClient(api_key=api_key)
         self.model = model
         
-        # Initialize phase components
-        self.analyzer = PersonaAnalyzer(self.client, model)
+        # Initialize phase components with specific action types
+        # Each component gets its own client with the appropriate action type
+        self.analyzer = PersonaAnalyzer(
+            OpenAIClient(api_key=api_key, action_type=ActionType.PERSONA_ANALYZE),
+            model
+        )
         self.weight_calculator = PersonaWeightCalculator()
-        self.structure_builder = PersonaStructureBuilder(self.client, model)
+        self.structure_builder = PersonaStructureBuilder(
+            OpenAIClient(api_key=api_key, action_type=ActionType.PERSONA_GEN),
+            model
+        )
         self.validator = PersonaValidator()
-        self.self_validator = PersonaSelfValidator(self.client, model)
-        self.warning_generator = PersonaWarningGenerator(self.client, model)
+        self.self_validator = PersonaSelfValidator(
+            OpenAIClient(api_key=api_key, action_type=ActionType.PERSONA_VALIDATE),
+            model
+        )
+        self.warning_generator = PersonaWarningGenerator(
+            OpenAIClient(api_key=api_key, action_type=ActionType.PERSONA_WEIGHT),
+            model
+        )
     
     async def generate_persona_from_jd(self, jd_text: str, jd_id: str) -> Dict[str, Any]:
         """
