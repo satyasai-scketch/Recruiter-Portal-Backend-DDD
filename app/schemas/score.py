@@ -26,7 +26,7 @@ class ScoreStageRead(BaseModel):
 	decision: str
 	reason: Optional[str] = None
 	next_stage: Optional[str] = None
-	relevance_score: Optional[int] = None
+	relevance_score: Optional[float] = None
 	quick_assessment: Optional[str] = None
 	skills_detected: Optional[List[str]] = None
 	roles_detected: Optional[List[str]] = None
