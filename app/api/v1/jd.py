@@ -1,20 +1,22 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.deps import get_db, get_current_user
-from app.schemas.jd import JDCreate, JDRead, JDDocumentUpload, JDDocumentUploadResponse
+from app.schemas.jd import JDCreate, JDRead, JDDocumentUpload, JDDocumentUploadResponse, JDListResponse, JDListItem, PersonaListItem, JDDeleteResponse
 from app.cqrs.handlers import handle_command, handle_query
 from app.cqrs.commands.jd_commands import (
 	CreateJobDescription,
 	ApplyJDRefinement,
 	UpdateJobDescription,
+	DeleteJobDescription,
 )
 from app.cqrs.commands.upload_jd_document import UploadJobDescriptionDocument
 from app.cqrs.queries.jd_queries import (
 	ListJobDescriptions,
 	ListAllJobDescriptions,
 	GetJobDescription,
+	CountJobDescriptions,
 )
 from app.utils.error_handlers import handle_service_errors, rollback_on_error
 
@@ -48,17 +50,91 @@ def _convert_jd_model_to_read_schema(jd_model) -> JDRead:
     )
 
 
-@router.get("/", response_model=list[JDRead], summary="List all Job Descriptions (no user filter)")
-async def list_all_jds(db: Session = Depends(get_db), user=Depends(get_current_user)):
+def _convert_jd_model_to_list_item(jd_model) -> JDListItem:
+    """Convert JobDescriptionModel to JDListItem schema (optimized for list view, excludes text fields)."""
+    # Build personas array
+    personas = [
+        PersonaListItem(
+            persona_id=p.id,
+            persona_name=p.name
+        )
+        for p in (jd_model.personas or [])
+    ]
+    
+    # Get creator name
+    creator_name = None
+    if jd_model.creator:
+        creator_name = f"{jd_model.creator.first_name} {jd_model.creator.last_name}".strip()
+    
+    # Get updater name
+    updater_name = None
+    if jd_model.updater:
+        updater_name = f"{jd_model.updater.first_name} {jd_model.updater.last_name}".strip()
+    
+    return JDListItem(
+        id=jd_model.id,
+        title=jd_model.title,
+        role_id=jd_model.role_id,
+        role_name=jd_model.job_role.name if jd_model.job_role else "Unknown Role",
+        company_id=jd_model.company_id,
+        notes=jd_model.notes,
+        tags=jd_model.tags or [],
+        selected_version=jd_model.selected_version,
+        selected_edited=jd_model.selected_edited,
+        created_at=jd_model.created_at,
+        created_by=jd_model.created_by,
+        created_by_name=creator_name,
+        updated_at=jd_model.updated_at,
+        updated_by=jd_model.updated_by,
+        updated_by_name=updater_name,
+        # Document metadata fields
+        original_document_filename=jd_model.original_document_filename,
+        original_document_size=jd_model.original_document_size,
+        original_document_extension=jd_model.original_document_extension,
+        document_word_count=jd_model.document_word_count,
+        document_character_count=jd_model.document_character_count,
+        # Personas array
+        personas=personas
+        # Note: original_text, refined_text, selected_text are intentionally excluded
+    )
+
+
+@router.get("/", response_model=JDListResponse, summary="List all Job Descriptions with pagination (no user filter)")
+async def list_all_jds(
+	page: int = Query(1, ge=1, description="Page number"),
+	size: int = Query(10, ge=1, le=100, description="Page size"),
+	db: Session = Depends(get_db),
+	user=Depends(get_current_user)
+):
 	"""
-	List all job descriptions in the system.
+	List all job descriptions in the system with pagination.
 	
 	This endpoint returns all job descriptions regardless of who created them.
 	No user-based filtering is applied.
 	"""
 	try:
-		models = handle_query(db, ListAllJobDescriptions())
-		return [_convert_jd_model_to_read_schema(m) for m in models]
+		skip = (page - 1) * size
+		
+		# Get job descriptions using optimized query
+		models = handle_query(db, ListAllJobDescriptions(skip, size, optimized=True))
+		
+		# Get total count
+		total = handle_query(db, CountJobDescriptions())
+		
+		# Convert models to list items
+		jd_reads = [_convert_jd_model_to_list_item(m) for m in models]
+		
+		# Build response
+		response = JDListResponse(
+			jds=jd_reads,
+			total=total,
+			page=page,
+			size=size,
+			has_next=(skip + size) < total,
+			has_prev=page > 1
+		)
+		
+		return response
 	except (ValueError, SQLAlchemyError) as e:
 		if isinstance(e, SQLAlchemyError):
 			rollback_on_error(db)
@@ -382,6 +458,43 @@ async def update_jd(jd_id: str, body: dict, db: Session = Depends(get_db), user=
 		# Then update using command handler
 		updated = handle_command(db, UpdateJobDescription(jd_id, body, user.id))
 		return _convert_jd_model_to_read_schema(updated)
+	except (ValueError, SQLAlchemyError) as e:
+		if isinstance(e, SQLAlchemyError):
+			rollback_on_error(db)
+		raise handle_service_errors(e)
+
+
+@router.delete("/{jd_id}", response_model=JDDeleteResponse, summary="Delete Job Description")
+async def delete_jd(
+	jd_id: str,
+	db: Session = Depends(get_db),
+	user=Depends(get_current_user)
+):
+	"""
+	Delete a job description and all associated data.
+	
+	This will delete:
+	- All personas associated with this JD
+	- All candidate scores evaluated against those personas
+	- The job description itself
+	
+	Note: This operation cannot be undone.
+	"""
+	try:
+		# First check if JD exists
+		model = handle_query(db, GetJobDescription(jd_id))
+		if not model:
+			raise HTTPException(status_code=404, detail="Job description not found")
+		
+		# Delete using command handler
+		result = handle_command(db, DeleteJobDescription(jd_id))
+		
+		return JDDeleteResponse(
+			message=result["message"],
+			jd_id=result["jd_id"],
+			personas_deleted=result["personas_deleted"],
+			scores_deleted=result["scores_deleted"]
+		)
 	except (ValueError, SQLAlchemyError) as e:
 		if isinstance(e, SQLAlchemyError):
 			rollback_on_error(db)

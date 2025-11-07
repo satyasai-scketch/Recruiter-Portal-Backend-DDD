@@ -4,6 +4,7 @@ from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from app.db.models.job_description import JobDescriptionModel
+from app.db.models.persona import PersonaModel
 from app.repositories.job_description_repo import SQLAlchemyJobDescriptionRepository
 from app.domain.job_description import services as jd_domain_services
 from app.domain.job_description.entities import DocumentMetadata
@@ -26,8 +27,16 @@ class JDService:
     def list_by_creator(self, db: Session, user_id: str) -> Sequence[JobDescriptionModel]:
         return self.repo.list_by_creator(db, user_id)
     
-    def list_all(self, db: Session) -> Sequence[JobDescriptionModel]:
-        return self.repo.list_all(db)
+    def list_all(self, db: Session, skip: int = 0, limit: int = 100) -> Sequence[JobDescriptionModel]:
+        return self.repo.list_all(db, skip, limit)
+    
+    def list_all_optimized(self, db: Session, skip: int = 0, limit: int = 100) -> Sequence[JobDescriptionModel]:
+        """Optimized list that excludes large text fields for better performance."""
+        return self.repo.list_all_optimized(db, skip, limit)
+
+    def count(self, db: Session) -> int:
+        """Count all job descriptions."""
+        return self.repo.count(db)
 
     def create(self, db: Session, data: dict) -> JobDescriptionModel:
         """Create a new job description with role_id."""
@@ -298,3 +307,127 @@ class JDService:
             'refined_text': marked_refined,
             'stats': stats
         }
+    
+    def delete(self, db: Session, jd_id: str) -> dict:
+        """
+        Delete a job description and all associated data.
+        
+        This will:
+        1. Delete all candidate scores evaluated against personas of this JD
+        2. Delete all personas associated with this JD (cascade)
+        3. Delete the job description itself
+        
+        Returns:
+            Dictionary with deletion statistics
+        """
+        from app.db.models.score import CandidateScoreModel
+        
+        try:
+            # Get the JD first to check if it exists
+            jd = self.get_by_id(db, jd_id)
+            if not jd:
+                raise ValueError(f"Job description with ID '{jd_id}' not found")
+            
+            jd_title = jd.title  # Store title before deletion
+            
+            # Get all personas for this JD with all relationships loaded
+            # Need to eagerly load all relationships to avoid lazy loading issues during deletion
+            from sqlalchemy.orm import joinedload, selectinload
+            from app.db.models.persona import (
+                PersonaCategoryModel, PersonaSubcategoryModel, PersonaSkillsetModel,
+                PersonaNotesModel, PersonaChangeLogModel
+            )
+            
+            personas = (
+                db.query(PersonaModel)
+                .options(
+                    selectinload(PersonaModel.categories).selectinload(PersonaCategoryModel.subcategories),
+                    selectinload(PersonaModel.skillsets),
+                    selectinload(PersonaModel.notes),
+                    selectinload(PersonaModel.change_logs)
+                )
+                .filter(PersonaModel.job_description_id == jd_id)
+                .all()
+            )
+            persona_ids = [p.id for p in personas]
+            
+            # Count and delete all candidate scores for these personas
+            scores_count = 0
+            if persona_ids:
+                scores_count = db.query(CandidateScoreModel).filter(
+                    CandidateScoreModel.persona_id.in_(persona_ids)
+                ).count()
+                
+                # Delete all scores for these personas
+                # Need to delete related data (stages, categories, insights) first
+                # These cascade automatically, but we need to load them first for SQLite
+                # DO NOT flush here - keep everything in one transaction for rollback safety
+                if scores_count > 0:
+                    # Get all scores to delete with their relationships
+                    scores_to_delete = db.query(CandidateScoreModel).filter(
+                        CandidateScoreModel.persona_id.in_(persona_ids)
+                    ).all()
+                    
+                    # Delete each score individually to ensure cascades work properly
+                    for score in scores_to_delete:
+                        db.delete(score)
+            
+            # Manually delete personas using the same logic as delete_persona to avoid circular dependencies
+            # This ensures all persona-related data is deleted before JD deletion
+            # Use flush() only when necessary to clear foreign key references, but keep in transaction
+            for persona in personas:
+                # 1. First, clear all foreign key references that create circular dependencies
+                # Flush after clearing references to ensure database state is updated
+                for category in persona.categories:
+                    # Clear notes_id reference in category
+                    category.notes_id = None
+                    
+                    for subcategory in category.subcategories:
+                        # Clear skillset_id reference in subcategory
+                        subcategory.skillset_id = None
+                
+                # Flush once after clearing all references for this persona
+                db.flush()
+                
+                # 2. Delete change logs first (no circular dependencies)
+                for change_log in persona.change_logs:
+                    db.delete(change_log)
+                
+                # 3. Delete notes (no circular dependencies after clearing references)
+                for note in persona.notes:
+                    db.delete(note)
+                
+                # 4. Delete skillsets (no circular dependencies after clearing references)
+                for skillset in persona.skillsets:
+                    db.delete(skillset)
+                
+                # 5. Delete subcategories (no circular dependencies after clearing references)
+                for category in persona.categories:
+                    for subcategory in category.subcategories:
+                        db.delete(subcategory)
+                
+                # 6. Delete categories (no circular dependencies after clearing references)
+                for category in persona.categories:
+                    db.delete(category)
+                
+                # 7. Finally, delete the persona itself
+                db.delete(persona)
+            
+            # Delete the JD
+            # Use the jd we already fetched
+            db.delete(jd)
+            
+            # Commit all deletions together in a single transaction
+            # If any error occurs before this point, rollback will undo everything
+            db.commit()
+            
+            # Return deletion statistics
+            return {
+                "jd_id": jd_id,
+                "personas_deleted": len(persona_ids),
+                "scores_deleted": scores_count,
+                "message": f"Job description '{jd_title}' and all associated data deleted successfully"
+            }
+        except Exception as e:
+            db.rollback()
+            raise e

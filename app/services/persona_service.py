@@ -42,11 +42,15 @@ class PersonaService:
 	def list_by_jd(self, db: Session, job_description_id: str) -> List[PersonaModel]:
 		return self.repo.list_by_jd(db, job_description_id)
 	
-	def list_all(self, db: Session) -> List[PersonaModel]:
-		return self.repo.list_all(db)
+	def list_all(self, db: Session, skip: int = 0, limit: int = 100) -> List[PersonaModel]:
+		return self.repo.list_all(db, skip, limit)
 	
 	def count(self, db: Session) -> int:
 		return self.repo.count(db)
+	
+	def count_candidates_for_persona(self, db: Session, persona_id: str) -> int:
+		"""Count distinct candidates evaluated against a persona."""
+		return self.repo.count_candidates_for_persona(db, persona_id)
 	
 	def get_change_logs(self, db: Session, persona_id: str) -> List[PersonaChangeLogModel]:
 		"""Get all change logs for a persona, ordered by most recent first."""
@@ -265,6 +269,13 @@ class PersonaService:
 			old_persona.role_id = data['role_id']
 		if 'persona_notes' in data:
 			old_persona.persona_notes = data['persona_notes']
+		if 'is_active' in data:
+			old_persona.is_active = data['is_active']
+		
+		# Set updated_by and updated_at
+		old_persona.updated_by = updated_by
+		from datetime import datetime, timezone
+		old_persona.updated_at = datetime.now(timezone.utc)
 		
 		# Update categories if provided (includes notes and subcategories with skillsets)
 		if 'categories' in data:

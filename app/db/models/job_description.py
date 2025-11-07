@@ -51,6 +51,7 @@ class JobDescriptionModel(Base):
     )
 
     creator = relationship("UserModel", foreign_keys=[created_by])  # specify which foreign key to use
+    updater = relationship("UserModel", foreign_keys=[updated_by])  # specify which foreign key to use
     
     # Company relationship
     company = relationship("CompanyModel", back_populates="job_descriptions")

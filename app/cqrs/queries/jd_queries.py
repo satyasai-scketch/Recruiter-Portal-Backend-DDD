@@ -11,10 +11,12 @@ class ListJobDescriptions(Query):
 
 
 class ListAllJobDescriptions(Query):
-	"""Query to list all job descriptions (no user filter)."""
+	"""Query to list all job descriptions (no user filter) with pagination."""
 	
-	def __init__(self):
-		pass
+	def __init__(self, skip: int = 0, limit: int = 100, optimized: bool = True):
+		self.skip = skip
+		self.limit = limit
+		self.optimized = optimized  # Use optimized query that excludes text fields
 
 
 class GetJobDescription(Query):
@@ -48,3 +50,10 @@ class GetJDInlineMarkup(Query):
 	
 	def __init__(self, jd_id: str):
 		self.jd_id = jd_id
+
+
+class CountJobDescriptions(Query):
+	"""Query to count all job descriptions."""
+	
+	def __init__(self):
+		pass

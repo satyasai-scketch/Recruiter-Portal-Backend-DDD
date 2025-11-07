@@ -3,6 +3,12 @@ from typing import Dict, Optional, List
 from datetime import datetime
 
 
+class PersonaListItem(BaseModel):
+	"""Minimal persona info for candidate list views"""
+	persona_id: str
+	persona_name: str
+
+
 class CandidateCVCreate(BaseModel):
 	file_name: str
 	file_hash: str
@@ -60,7 +66,12 @@ class CandidateRead(BaseModel):
 	phone: Optional[str] = None
 	latest_cv_id: Optional[str] = None
 	created_at: datetime
-	updated_at: datetime
+	created_by: Optional[str] = None
+	created_by_name: Optional[str] = None  # Full name from creator relationship
+	updated_at: Optional[datetime] = None
+	updated_by: Optional[str] = None
+	updated_by_name: Optional[str] = None  # Full name from updater relationship
+	personas: List[PersonaListItem] = []  # Array of personas evaluated against this candidate
 	cvs: Optional[List[CandidateCVRead]] = None
 
 

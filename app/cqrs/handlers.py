@@ -22,6 +22,7 @@ from app.cqrs.commands.jd_commands import (
 	CreateJobDescription,
 	ApplyJDRefinement,
 	UpdateJobDescription,
+	DeleteJobDescription,
 )
 from app.cqrs.commands.upload_jd_document import UploadJobDescriptionDocument
 from app.cqrs.commands.company_commands import (
@@ -53,6 +54,7 @@ from app.cqrs.commands.user_commands import UpdateUser
 
 # Import query classes
 from app.cqrs.queries.jd_queries import (
+	CountJobDescriptions,
 	ListJobDescriptions,
 	ListAllJobDescriptions,
 	GetJobDescription,
@@ -439,6 +441,8 @@ def handle_command(db: Session, command: Command) -> Any:
 		return handle_refine_jd_with_ai(db, command)
 	if isinstance(command, UpdateJobDescription):
 		return JDService().update_partial(db, command.jd_id, command.fields, command.updated_by)
+	if isinstance(command, DeleteJobDescription):
+		return JDService().delete(db, command.jd_id)
 	if isinstance(command, UploadJobDescriptionDocument):
 		return JDService().create_from_document(db, command.payload, command.file_content, command.filename)
 	if isinstance(command, CreatePersona):
@@ -456,7 +460,7 @@ def handle_command(db: Session, command: Command) -> Any:
 	if isinstance(command, UploadCVs):
 		return CandidateService().upload(db, command.payloads)
 	if isinstance(command, UploadCVFile):
-		return CandidateService().upload_cv(db, command.file_bytes, command.filename, command.candidate_info)
+		return CandidateService().upload_cv(db, command.file_bytes, command.filename, command.candidate_info, command.user_id)
 	if isinstance(command, ScoreCandidate):
 		return CandidateService().score_candidate(
 			db,
@@ -486,7 +490,7 @@ def handle_command(db: Session, command: Command) -> Any:
 	if isinstance(command, DeletePersonaLevel):
 		return PersonaLevelService().delete_level(db, command.persona_level_id)
 	if isinstance(command, UpdateCandidate):
-		return CandidateService().update_candidate(db, command.candidate_id, command.update_data)
+		return CandidateService().update_candidate(db, command.candidate_id, command.update_data, command.user_id)
 	if isinstance(command, UpdateCandidateCV):
 		return CandidateService().update_candidate_cv(db, command.cv_id, command.update_data)
 	if isinstance(command, DeleteCandidate):
@@ -514,7 +518,12 @@ def handle_query(db: Session, query: Query) -> Any:
 	if isinstance(query, ListJobDescriptions):
 		return JDService().list_by_creator(db, query.user_id)
 	if isinstance(query, ListAllJobDescriptions):
-		return JDService().list_all(db)
+		if query.optimized:
+			return JDService().list_all_optimized(db, query.skip, query.limit)
+		else:
+			return JDService().list_all(db, query.skip, query.limit)
+	if isinstance(query, CountJobDescriptions):
+		return JDService().count(db)
 	if isinstance(query, GetJobDescription):
 		return JDService().get_by_id(db, query.jd_id)
 	if isinstance(query, PrepareJDRefinementBrief):
@@ -570,7 +579,7 @@ def handle_query(db: Session, query: Query) -> Any:
 	if isinstance(query, ListPersonasByJobDescription):
 		return PersonaService().list_by_jd(db, query.job_description_id)
 	if isinstance(query, ListAllPersonas):
-		return PersonaService().list_all(db)
+		return PersonaService().list_all(db, query.skip, query.limit)
 	if isinstance(query, CountPersonas):
 		return PersonaService().count(db)
 	if isinstance(query, GetPersona):
