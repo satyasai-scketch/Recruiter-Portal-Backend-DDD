@@ -3,12 +3,13 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.deps import get_db, get_current_user
-from app.schemas.jd import JDCreate, JDRead, JDDocumentUpload, JDDocumentUploadResponse, JDListResponse, JDListItem, PersonaListItem
+from app.schemas.jd import JDCreate, JDRead, JDDocumentUpload, JDDocumentUploadResponse, JDListResponse, JDListItem, PersonaListItem, JDDeleteResponse
 from app.cqrs.handlers import handle_command, handle_query
 from app.cqrs.commands.jd_commands import (
 	CreateJobDescription,
 	ApplyJDRefinement,
 	UpdateJobDescription,
+	DeleteJobDescription,
 )
 from app.cqrs.commands.upload_jd_document import UploadJobDescriptionDocument
 from app.cqrs.queries.jd_queries import (
@@ -457,6 +458,43 @@ async def update_jd(jd_id: str, body: dict, db: Session = Depends(get_db), user=
 		# Then update using command handler
 		updated = handle_command(db, UpdateJobDescription(jd_id, body, user.id))
 		return _convert_jd_model_to_read_schema(updated)
+	except (ValueError, SQLAlchemyError) as e:
+		if isinstance(e, SQLAlchemyError):
+			rollback_on_error(db)
+		raise handle_service_errors(e)
+
+
+@router.delete("/{jd_id}", response_model=JDDeleteResponse, summary="Delete Job Description")
+async def delete_jd(
+	jd_id: str,
+	db: Session = Depends(get_db),
+	user=Depends(get_current_user)
+):
+	"""
+	Delete a job description and all associated data.
+	
+	This will delete:
+	- All personas associated with this JD
+	- All candidate scores evaluated against those personas
+	- The job description itself
+	
+	Note: This operation cannot be undone.
+	"""
+	try:
+		# First check if JD exists
+		model = handle_query(db, GetJobDescription(jd_id))
+		if not model:
+			raise HTTPException(status_code=404, detail="Job description not found")
+		
+		# Delete using command handler
+		result = handle_command(db, DeleteJobDescription(jd_id))
+		
+		return JDDeleteResponse(
+			message=result["message"],
+			jd_id=result["jd_id"],
+			personas_deleted=result["personas_deleted"],
+			scores_deleted=result["scores_deleted"]
+		)
 	except (ValueError, SQLAlchemyError) as e:
 		if isinstance(e, SQLAlchemyError):
 			rollback_on_error(db)

@@ -113,3 +113,16 @@ class SQLAlchemyJobDescriptionRepository(JobDescriptionRepository):
 		"""
 		result = db.query(func.count(JobDescriptionModel.id)).scalar()
 		return result or 0
+	
+	def delete(self, db: Session, jd_id: str) -> bool:
+		"""Delete a job description by ID."""
+		try:
+			jd = self.get(db, jd_id)
+			if jd:
+				db.delete(jd)
+				db.commit()
+				return True
+			return False
+		except Exception as e:
+			db.rollback()
+			raise e

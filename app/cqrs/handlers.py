@@ -22,6 +22,7 @@ from app.cqrs.commands.jd_commands import (
 	CreateJobDescription,
 	ApplyJDRefinement,
 	UpdateJobDescription,
+	DeleteJobDescription,
 )
 from app.cqrs.commands.upload_jd_document import UploadJobDescriptionDocument
 from app.cqrs.commands.company_commands import (
@@ -440,6 +441,8 @@ def handle_command(db: Session, command: Command) -> Any:
 		return handle_refine_jd_with_ai(db, command)
 	if isinstance(command, UpdateJobDescription):
 		return JDService().update_partial(db, command.jd_id, command.fields, command.updated_by)
+	if isinstance(command, DeleteJobDescription):
+		return JDService().delete(db, command.jd_id)
 	if isinstance(command, UploadJobDescriptionDocument):
 		return JDService().create_from_document(db, command.payload, command.file_content, command.filename)
 	if isinstance(command, CreatePersona):

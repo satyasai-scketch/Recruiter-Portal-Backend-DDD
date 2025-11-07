@@ -177,3 +177,13 @@ class JDListResponse(BaseModel):
 	has_prev: bool
 
 	model_config = ConfigDict(from_attributes=True)
+
+
+class JDDeleteResponse(BaseModel):
+	"""Response for deleting a job description"""
+	message: str
+	jd_id: str
+	personas_deleted: int
+	scores_deleted: int
+
+	model_config = ConfigDict(from_attributes=True)
