@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from typing import Optional, Sequence, List
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, selectinload, joinedload
+from sqlalchemy import func
 
 from app.db.models.persona import (
 	PersonaModel, PersonaCategoryModel, PersonaSubcategoryModel,
 	PersonaSkillsetModel, PersonaNotesModel, PersonaChangeLogModel
 )
 from app.db.models.job_description import JobDescriptionModel
+from app.db.models.score import CandidateScoreModel
 
 
 class PersonaRepository:
@@ -61,6 +63,11 @@ class SQLAlchemyPersonaRepository(PersonaRepository):
 		return (
 			db.query(PersonaModel)
 			.options(
+				# Load relationships for list view fields
+				joinedload(PersonaModel.job_description),
+				joinedload(PersonaModel.creator),
+				joinedload(PersonaModel.updater),
+				# Load nested relationships
 				selectinload(PersonaModel.categories).selectinload(PersonaCategoryModel.subcategories),
 				selectinload(PersonaModel.skillsets),
 				selectinload(PersonaModel.notes),
@@ -86,6 +93,11 @@ class SQLAlchemyPersonaRepository(PersonaRepository):
 		return (
 			db.query(PersonaModel)
 			.options(
+				# Load relationships for list view fields
+				joinedload(PersonaModel.job_description),
+				joinedload(PersonaModel.creator),
+				joinedload(PersonaModel.updater),
+				# Load nested relationships
 				selectinload(PersonaModel.categories).selectinload(PersonaCategoryModel.subcategories),
 				selectinload(PersonaModel.skillsets),
 				selectinload(PersonaModel.notes),
@@ -99,11 +111,35 @@ class SQLAlchemyPersonaRepository(PersonaRepository):
 	def get_by_job_description(self, db: Session, jd_id: str) -> Sequence[PersonaModel]:
 		return self.list_by_jd(db, jd_id)
 
-	def list_all(self, db: Session) -> Sequence[PersonaModel]:
-		return db.query(PersonaModel).all()
+	def list_all(self, db: Session, skip: int = 0, limit: int = 100) -> Sequence[PersonaModel]:
+		"""List all personas with eagerly loaded relationships for list view."""
+		return (
+			db.query(PersonaModel)
+			.options(
+				# Load job_description for JD name
+				joinedload(PersonaModel.job_description),
+				# Load creator for created_by_name
+				joinedload(PersonaModel.creator),
+				# Load updater for updated_by_name
+				joinedload(PersonaModel.updater)
+			)
+			.order_by(PersonaModel.created_at.desc())
+			.offset(skip)
+			.limit(limit)
+			.all()
+		)
 	
 	def count(self, db: Session) -> int:
 		return db.query(PersonaModel).count()
+	
+	def count_candidates_for_persona(self, db: Session, persona_id: str) -> int:
+		"""Count distinct candidates evaluated against a persona."""
+		result = (
+			db.query(func.count(func.distinct(CandidateScoreModel.candidate_id)))
+			.filter(CandidateScoreModel.persona_id == persona_id)
+			.scalar()
+		)
+		return result or 0
 
 	def add_category(self, db: Session, category: PersonaCategoryModel) -> PersonaCategoryModel:
 		db.add(category)
@@ -151,6 +187,11 @@ class SQLAlchemyPersonaRepository(PersonaRepository):
 			db.query(PersonaModel)
 			.join(JobDescriptionModel, PersonaModel.job_description_id == JobDescriptionModel.id)
 			.options(
+				# Load relationships for list view fields
+				joinedload(PersonaModel.job_description),
+				joinedload(PersonaModel.creator),
+				joinedload(PersonaModel.updater),
+				# Load nested relationships
 				selectinload(PersonaModel.categories).selectinload(PersonaCategoryModel.subcategories),
 				selectinload(PersonaModel.skillsets),
 				selectinload(PersonaModel.notes)

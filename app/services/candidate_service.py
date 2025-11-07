@@ -42,7 +42,8 @@ class CandidateService:
 	             db: Session, 
 	             file_bytes: bytes, 
 	             filename: str,
-	             candidate_info: Optional[Dict[str, str]] = None) -> Dict[str, any]:
+	             candidate_info: Optional[Dict[str, str]] = None,
+	             user_id: Optional[str] = None) -> Dict[str, any]:
 		"""
 		Upload CV with deduplication and versioning logic.
 		
@@ -135,7 +136,7 @@ class CandidateService:
 				extracted_text = ""  # Ensure extracted_text is empty string on failure
 			
 			# Step 5: Find or create candidate
-			candidate = self._find_or_create_candidate(db, baseline_info)
+			candidate = self._find_or_create_candidate(db, baseline_info, user_id)
 			result["candidate_id"] = candidate.id
 			result["is_new_candidate"] = (candidate.created_at == candidate.updated_at)
 			
@@ -173,7 +174,8 @@ class CandidateService:
 				mime_type=validation["mime_type"],
 				status="uploaded",
 				cv_text=extracted_text,  # Store the complete extracted text
-				uploaded_at=datetime.now()
+				uploaded_at=datetime.now(),
+				uploaded_by=user_id
 			)
 			
 			created_cv = self.candidate_cvs.create(db, cv)
@@ -184,6 +186,7 @@ class CandidateService:
 			# Step 9: Update candidate's latest_cv_id
 			candidate.latest_cv_id = created_cv.id
 			candidate.updated_at = datetime.now()
+			candidate.updated_by = user_id
 			self.candidates.update(db, candidate)
 			
 			# Step 10: Publish event
@@ -196,7 +199,7 @@ class CandidateService:
 			result["error"] = f"Unexpected error: {str(e)}"
 			return result
 
-	def _find_or_create_candidate(self, db: Session, candidate_info: Dict[str, str]) -> CandidateModel:
+	def _find_or_create_candidate(self, db: Session, candidate_info: Dict[str, str], user_id: Optional[str] = None) -> CandidateModel:
 		"""Find existing candidate by email/phone or create new one."""
 		email = candidate_info.get("email")
 		phone = candidate_info.get("phone")
@@ -214,7 +217,9 @@ class CandidateService:
 			email=email,
 			phone=phone,
 			created_at=datetime.now(),
-			updated_at=datetime.now()
+			created_by=user_id,
+			updated_at=datetime.now(),
+			updated_by=user_id
 		)
 		
 		return self.candidates.create(db, candidate)
@@ -412,10 +417,18 @@ class CandidateService:
 		return self.candidates.get(db, candidate_id)
 
 	def get_all(self, db: Session, skip: int = 0, limit: int = 100) -> List[CandidateModel]:
-		"""Get all candidates with pagination."""
-		return list(self.candidates.list_all(db)[skip:skip + limit])
+		"""List all candidates with pagination."""
+		return list(self.candidates.list_all(db, skip, limit))
+	
+	def count(self, db: Session) -> int:
+		"""Count total candidates."""
+		return self.candidates.count(db)
+	
+	def get_personas_for_candidate(self, db: Session, candidate_id: str) -> List[dict]:
+		"""Get distinct personas evaluated against a candidate."""
+		return self.candidates.get_personas_for_candidate(db, candidate_id)
 
-	def update_candidate(self, db: Session, candidate_id: str, update_data: Dict[str, any]) -> Optional[CandidateModel]:
+	def update_candidate(self, db: Session, candidate_id: str, update_data: Dict[str, any], user_id: Optional[str] = None) -> Optional[CandidateModel]:
 		"""Update candidate information."""
 		try:
 			candidate = self.candidates.get(db, candidate_id)
@@ -427,8 +440,9 @@ class CandidateService:
 				if hasattr(candidate, field) and value is not None:
 					setattr(candidate, field, value)
 			
-			# Update timestamp
+			# Update timestamp and user
 			candidate.updated_at = datetime.now()
+			candidate.updated_by = user_id
 			
 			# Save changes
 			updated_candidate = self.candidates.update(db, candidate)

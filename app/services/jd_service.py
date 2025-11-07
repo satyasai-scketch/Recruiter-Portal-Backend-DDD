@@ -26,8 +26,16 @@ class JDService:
     def list_by_creator(self, db: Session, user_id: str) -> Sequence[JobDescriptionModel]:
         return self.repo.list_by_creator(db, user_id)
     
-    def list_all(self, db: Session) -> Sequence[JobDescriptionModel]:
-        return self.repo.list_all(db)
+    def list_all(self, db: Session, skip: int = 0, limit: int = 100) -> Sequence[JobDescriptionModel]:
+        return self.repo.list_all(db, skip, limit)
+    
+    def list_all_optimized(self, db: Session, skip: int = 0, limit: int = 100) -> Sequence[JobDescriptionModel]:
+        """Optimized list that excludes large text fields for better performance."""
+        return self.repo.list_all_optimized(db, skip, limit)
+
+    def count(self, db: Session) -> int:
+        """Count all job descriptions."""
+        return self.repo.count(db)
 
     def create(self, db: Session, data: dict) -> JobDescriptionModel:
         """Create a new job description with role_id."""

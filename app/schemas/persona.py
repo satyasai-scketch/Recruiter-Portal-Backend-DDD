@@ -101,11 +101,18 @@ class PersonaCreate(BaseModel):
 class PersonaRead(BaseModel):
 	id: str
 	job_description_id: str
+	jd_name: Optional[str] = None  # JD title/name from job_description relationship
 	name: str
 	role_name: Optional[str] = None
 	role_id : Optional[str] = None
 	created_at: datetime
 	created_by: Optional[str] = None
+	created_by_name: Optional[str] = None  # Full name from creator relationship
+	updated_at: Optional[datetime] = None
+	updated_by: Optional[str] = None
+	updated_by_name: Optional[str] = None  # Full name from updater relationship
+	is_active: str = "true"  # String for SQLite compatibility
+	candidate_count: int = 0  # Number of candidates evaluated against this persona
 	categories: List[PersonaCategorySchema] = []
 	persona_notes: Optional[str] = None
 
@@ -142,6 +149,7 @@ class PersonaUpdate(BaseModel):
 	role_id: Optional[str] = None
 	categories: Optional[List[PersonaCategorySchema]] = None
 	persona_notes: Optional[str] = None
+	is_active: Optional[str] = None  # String for SQLite compatibility
 
 	model_config = ConfigDict(from_attributes=True)
 
@@ -153,5 +161,17 @@ class PersonaDeletionStats(BaseModel):
 	deleted_entities: dict
 	external_references: dict
 	deletion_status: dict
+
+	model_config = ConfigDict(from_attributes=True)
+
+
+class PersonaListResponse(BaseModel):
+	"""Response for listing personas with pagination"""
+	personas: List[PersonaRead]
+	total: int
+	page: int
+	size: int
+	has_next: bool
+	has_prev: bool
 
 	model_config = ConfigDict(from_attributes=True)

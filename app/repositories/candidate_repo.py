@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from typing import Optional, Sequence, List
-from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import and_, func, distinct
 
 from app.db.models.candidate import CandidateModel, CandidateCVModel
+from app.db.models.score import CandidateScoreModel
+from app.db.models.persona import PersonaModel
 
 
 class CandidateRepository:
@@ -64,7 +66,17 @@ class SQLAlchemyCandidateRepository(CandidateRepository):
 	"""SQLAlchemy-backed implementation of CandidateRepository."""
 
 	def get(self, db: Session, candidate_id: str) -> Optional[CandidateModel]:
-		return db.get(CandidateModel, candidate_id)
+		return (
+			db.query(CandidateModel)
+			.options(
+				# Load creator for created_by_name
+				joinedload(CandidateModel.creator),
+				# Load updater for updated_by_name
+				joinedload(CandidateModel.updater)
+			)
+			.filter(CandidateModel.id == candidate_id)
+			.first()
+		)
 
 	def create(self, db: Session, candidate: CandidateModel) -> CandidateModel:
 		db.add(candidate)
@@ -78,8 +90,39 @@ class SQLAlchemyCandidateRepository(CandidateRepository):
 		db.refresh(candidate)
 		return candidate
 
-	def list_all(self, db: Session) -> Sequence[CandidateModel]:
-		return db.query(CandidateModel).order_by(CandidateModel.full_name.asc()).all()
+	def list_all(self, db: Session, skip: int = 0, limit: int = 100) -> Sequence[CandidateModel]:
+		"""List all candidates with eagerly loaded relationships for list view."""
+		return (
+			db.query(CandidateModel)
+			.options(
+				# Load creator for created_by_name
+				joinedload(CandidateModel.creator),
+				# Load updater for updated_by_name
+				joinedload(CandidateModel.updater)
+			)
+			.order_by(CandidateModel.created_at.desc())
+			.offset(skip)
+			.limit(limit)
+			.all()
+		)
+	
+	def count(self, db: Session) -> int:
+		"""Count total candidates."""
+		return db.query(CandidateModel).count()
+	
+	def get_personas_for_candidate(self, db: Session, candidate_id: str) -> List[dict]:
+		"""Get distinct personas evaluated against a candidate."""
+		results = (
+			db.query(
+				PersonaModel.id.label('persona_id'),
+				PersonaModel.name.label('persona_name')
+			)
+			.join(CandidateScoreModel, PersonaModel.id == CandidateScoreModel.persona_id)
+			.filter(CandidateScoreModel.candidate_id == candidate_id)
+			.distinct()
+			.all()
+		)
+		return [{"persona_id": r.persona_id, "persona_name": r.persona_name} for r in results]
 
 	def find_by_email(self, db: Session, email: str) -> Optional[CandidateModel]:
 		return db.query(CandidateModel).filter(CandidateModel.email == email).first()

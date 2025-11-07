@@ -46,8 +46,42 @@ from app.cqrs.queries.job_role_queries import GetJobRole
 router = APIRouter()
 
 
-def _convert_candidate_model_to_read_schema(candidate_model) -> CandidateRead:
-	"""Convert CandidateModel to CandidateRead schema format."""
+def _convert_candidate_model_to_read_schema(candidate_model, db: Session) -> CandidateRead:
+	"""Convert CandidateModel to CandidateRead schema format with all required fields."""
+	from app.services.candidate_service import CandidateService
+	from app.schemas.candidate import PersonaListItem
+	
+	# Get creator name from relationship
+	created_by_name = None
+	if candidate_model.creator:
+		# Construct full name from first_name and last_name
+		if candidate_model.creator.first_name and candidate_model.creator.last_name:
+			created_by_name = f"{candidate_model.creator.first_name} {candidate_model.creator.last_name}".strip()
+		elif candidate_model.creator.first_name:
+			created_by_name = candidate_model.creator.first_name
+		elif candidate_model.creator.last_name:
+			created_by_name = candidate_model.creator.last_name
+		else:
+			created_by_name = candidate_model.creator.email
+	
+	# Get updater name from relationship
+	updated_by_name = None
+	if candidate_model.updater:
+		# Construct full name from first_name and last_name
+		if candidate_model.updater.first_name and candidate_model.updater.last_name:
+			updated_by_name = f"{candidate_model.updater.first_name} {candidate_model.updater.last_name}".strip()
+		elif candidate_model.updater.first_name:
+			updated_by_name = candidate_model.updater.first_name
+		elif candidate_model.updater.last_name:
+			updated_by_name = candidate_model.updater.last_name
+		else:
+			updated_by_name = candidate_model.updater.email
+	
+	# Get personas evaluated against this candidate
+	candidate_service = CandidateService()
+	personas_data = candidate_service.get_personas_for_candidate(db, candidate_model.id)
+	personas = [PersonaListItem(persona_id=p["persona_id"], persona_name=p["persona_name"]) for p in personas_data]
+	
 	return CandidateRead(
 		id=candidate_model.id,
 		full_name=candidate_model.full_name,
@@ -55,7 +89,12 @@ def _convert_candidate_model_to_read_schema(candidate_model) -> CandidateRead:
 		phone=candidate_model.phone,
 		latest_cv_id=candidate_model.latest_cv_id,
 		created_at=candidate_model.created_at,
+		created_by=candidate_model.created_by,
+		created_by_name=created_by_name,
 		updated_at=candidate_model.updated_at,
+		updated_by=candidate_model.updated_by,
+		updated_by_name=updated_by_name,
+		personas=personas,
 		cvs=None  # CVs are loaded separately when needed
 	)
 
@@ -214,13 +253,12 @@ async def list_candidates(
 	# Get candidates
 	candidates = handle_query(db, ListAllCandidates(skip, size))
 	
-	# Get total count (we'll need to add this to the service)
-	# For now, we'll use the length of all candidates
-	all_candidates = handle_query(db, ListAllCandidates(0, 10000))  # Get a large number to count
-	total = len(all_candidates)
+	# Get total count
+	from app.services.candidate_service import CandidateService
+	total = CandidateService().count(db)
 	
-	# Convert to response format
-	candidate_reads = [_convert_candidate_model_to_read_schema(candidate) for candidate in candidates]
+	# Convert to response format with all required fields
+	candidate_reads = [_convert_candidate_model_to_read_schema(candidate, db) for candidate in candidates]
 	
 	return CandidateListResponse(
 		candidates=candidate_reads,
@@ -250,7 +288,7 @@ async def get_candidate(
 	cvs = handle_query(db, GetCandidateCVs(candidate_id))
 	
 	# Convert to response format with CVs included
-	candidate_read = _convert_candidate_model_to_read_schema(candidate)
+	candidate_read = _convert_candidate_model_to_read_schema(candidate, db)
 	candidate_read.cvs = [_convert_cv_model_to_read_schema(cv) for cv in cvs]
 	
 	return candidate_read
@@ -319,7 +357,7 @@ async def update_candidate(
 		raise HTTPException(status_code=400, detail="No fields provided for update")
 	
 	# Update candidate using CQRS
-	updated_candidate = handle_command(db, UpdateCandidate(candidate_id, update_dict))
+	updated_candidate = handle_command(db, UpdateCandidate(candidate_id, update_dict, user.id))
 	
 	if not updated_candidate:
 		raise HTTPException(status_code=404, detail="Candidate not found")
@@ -492,7 +530,8 @@ async def upload_cv_files(
 			command = UploadCVFile(
 				file_bytes=file_content,
 				filename=file.filename,
-				candidate_info={}  # No additional info provided
+				candidate_info={},  # No additional info provided
+				user_id=user.id
 			)
 			
 			# Process upload

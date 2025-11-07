@@ -6,9 +6,10 @@ from .base import Command
 @dataclass
 class UpdateCandidate(Command):
     """Command to update a candidate."""
-    def __init__(self, candidate_id: str, update_data: Dict[str, Any]):
+    def __init__(self, candidate_id: str, update_data: Dict[str, Any], user_id: Optional[str] = None):
         self.candidate_id = candidate_id
         self.update_data = update_data
+        self.user_id = user_id
 
 @dataclass
 class UpdateCandidateCV(Command):

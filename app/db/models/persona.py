@@ -24,6 +24,13 @@ class PersonaModel(Base):
 	intervals = Column(JSON, nullable=True, default=dict)
 	# Persona-level notes
 	persona_notes = Column(Text, nullable=True)
+	
+	# Audit fields
+	updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+	updated_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+	
+	# Status field
+	is_active = Column(String, nullable=False, default="true")  # Store as string for SQLite compatibility
 
 	# Relationships
 	job_description = relationship("JobDescriptionModel", back_populates="personas")
@@ -32,6 +39,7 @@ class PersonaModel(Base):
 	notes = relationship("PersonaNotesModel", back_populates="persona", cascade="all, delete-orphan")
 	change_logs = relationship("PersonaChangeLogModel", back_populates="persona", cascade="all, delete-orphan")
 	creator = relationship("UserModel", foreign_keys=[created_by])
+	updater = relationship("UserModel", foreign_keys=[updated_by])
 
 class PersonaCategoryModel(Base):
 	__tablename__ = "persona_categories"

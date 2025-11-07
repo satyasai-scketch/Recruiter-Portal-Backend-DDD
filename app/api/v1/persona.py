@@ -2,12 +2,14 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from datetime import datetime
 from app.api.deps import db_session, get_current_user
-from app.schemas.persona import PersonaCreate, PersonaRead, PersonaUpdate, PersonaChangeLogRead, PersonaDeletionStats
+from app.schemas.persona import PersonaCreate, PersonaRead, PersonaUpdate, PersonaChangeLogRead, PersonaDeletionStats, PersonaListResponse
 from app.cqrs.handlers import handle_command, handle_query
 from app.services.persona_service import PersonaService
 from app.db.models.user import UserModel
+from app.db.models.persona import PersonaModel
 from app.cqrs.commands.persona_commands import CreatePersona, UpdatePersona, DeletePersona
 from app.cqrs.queries.persona_queries import ListPersonasByJobDescription, ListAllPersonas, CountPersonas, GetPersona, GetPersonaChangeLogs, ListPersonasByJobRole
+from fastapi import Query
 
 from app.cqrs.commands.generate_persona_from_jd import GeneratePersonaFromJD
 from app.schemas.persona_warning import (
@@ -26,6 +28,66 @@ from app.cqrs.queries.persona_warning_queries import GetWarningByEntity, ListWar
 router = APIRouter()
 
 
+def _convert_persona_model_to_read(model: PersonaModel, db: Session) -> PersonaRead:
+	"""Convert PersonaModel to PersonaRead with all required fields."""
+	# Get JD name from relationship
+	jd_name = None
+	if model.job_description:
+		jd_name = model.job_description.title
+	
+	# Get creator name from relationship
+	created_by_name = None
+	if model.creator:
+		# Construct full name from first_name and last_name
+		if model.creator.first_name and model.creator.last_name:
+			created_by_name = f"{model.creator.first_name} {model.creator.last_name}".strip()
+		elif model.creator.first_name:
+			created_by_name = model.creator.first_name
+		elif model.creator.last_name:
+			created_by_name = model.creator.last_name
+		else:
+			created_by_name = model.creator.email
+	
+	# Get updater name from relationship
+	updated_by_name = None
+	if model.updater:
+		# Construct full name from first_name and last_name
+		if model.updater.first_name and model.updater.last_name:
+			updated_by_name = f"{model.updater.first_name} {model.updater.last_name}".strip()
+		elif model.updater.first_name:
+			updated_by_name = model.updater.first_name
+		elif model.updater.last_name:
+			updated_by_name = model.updater.last_name
+		else:
+			updated_by_name = model.updater.email
+	
+	# Count candidates evaluated against this persona
+	persona_service = PersonaService()
+	candidate_count = persona_service.count_candidates_for_persona(db, model.id)
+	
+	# Build PersonaRead dict
+	persona_dict = {
+		"id": model.id,
+		"job_description_id": model.job_description_id,
+		"jd_name": jd_name,
+		"name": model.name,
+		"role_name": model.role_name,
+		"role_id": model.role_id,
+		"created_at": model.created_at,
+		"created_by": model.created_by,
+		"created_by_name": created_by_name,
+		"updated_at": model.updated_at,
+		"updated_by": model.updated_by,
+		"updated_by_name": updated_by_name,
+		"is_active": model.is_active,
+		"candidate_count": candidate_count,
+		"categories": [cat for cat in model.categories] if hasattr(model, 'categories') else [],
+		"persona_notes": model.persona_notes
+	}
+	
+	return PersonaRead.model_validate(persona_dict)
+
+
 @router.post("/", response_model=PersonaRead, summary="Create persona (command)")
 async def create_persona(
 	payload: PersonaCreate, 
@@ -36,7 +98,7 @@ async def create_persona(
 	model = handle_command(db, CreatePersona(payload.model_dump(), current_user.id))
 	# Fetch eagerly to return nested
 	model = handle_query(db, GetPersona(model.id))
-	return PersonaRead.model_validate(model)
+	return _convert_persona_model_to_read(model, db)
 @router.post("/generate-from-jd/{jd_id}", response_model=PersonaRead, summary="Generate persona from JD (preview, not saved)")
 async def generate_persona_from_jd(
     jd_id: str,
@@ -66,10 +128,32 @@ async def generate_persona_from_jd(
     persona_data['created_at'] = datetime.now()
     return PersonaRead.model_validate(persona_data)
 
-@router.get("/", response_model=list[PersonaRead], summary="Get all personas")
-async def get_all_personas(db: Session = Depends(db_session)):
-	models = handle_query(db, ListAllPersonas())
-	return [PersonaRead.model_validate(m) for m in models]
+@router.get("/", response_model=PersonaListResponse, summary="Get all personas with pagination")
+async def get_all_personas(
+	page: int = Query(1, ge=1, description="Page number"),
+	size: int = Query(10, ge=1, le=100, description="Page size"),
+	db: Session = Depends(db_session)
+):
+	"""
+	List all personas with pagination.
+	"""
+	skip = (page - 1) * size
+	
+	# Get personas and total count
+	models = handle_query(db, ListAllPersonas(skip, size))
+	total = handle_query(db, CountPersonas())
+	
+	# Convert to response format with all required fields
+	persona_reads = [_convert_persona_model_to_read(m, db) for m in models]
+	
+	return PersonaListResponse(
+		personas=persona_reads,
+		total=total,
+		page=page,
+		size=size,
+		has_next=(skip + size) < total,
+		has_prev=page > 1
+	)
 
 
 @router.get("/{persona_id}", response_model=PersonaRead, summary="Get persona by ID")
@@ -78,13 +162,13 @@ async def get_persona(persona_id: str, db: Session = Depends(db_session)):
 	if model is None:
 		from fastapi import HTTPException
 		raise HTTPException(status_code=404, detail=f"Persona with ID '{persona_id}' not found")
-	return PersonaRead.model_validate(model)
+	return _convert_persona_model_to_read(model, db)
 
 
 @router.get("/by-jd/{jd_id}", response_model=list[PersonaRead], summary="List personas for a Job Description")
 async def list_personas_by_jd(jd_id: str, db: Session = Depends(db_session)):
 	models = handle_query(db, ListPersonasByJobDescription(jd_id))
-	return [PersonaRead.model_validate(m) for m in models]
+	return [_convert_persona_model_to_read(m, db) for m in models]
 
 
 @router.get("/by-role/{role_id}", response_model=list[PersonaRead], summary="List personas for a Job Role")
@@ -102,7 +186,7 @@ async def list_personas_by_role(role_id: str, db: Session = Depends(db_session))
 		List of PersonaRead objects containing all personas for the specified role
 	"""
 	models = handle_query(db, ListPersonasByJobRole(role_id))
-	return [PersonaRead.model_validate(m) for m in models]
+	return [_convert_persona_model_to_read(m, db) for m in models]
 
 
 @router.patch("/{persona_id}", response_model=PersonaRead, summary="Update persona with change tracking")
@@ -135,7 +219,7 @@ async def update_persona(
 	
 	# Fetch the updated model with all relationships
 	updated_model = handle_query(db, GetPersona(model.id))
-	return PersonaRead.model_validate(updated_model)
+	return _convert_persona_model_to_read(updated_model, db)
 
 
 @router.get("/{persona_id}/change-logs", response_model=list[PersonaChangeLogRead], summary="Get change logs for a persona")
