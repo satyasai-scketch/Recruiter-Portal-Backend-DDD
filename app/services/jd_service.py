@@ -15,6 +15,7 @@ from app.services.jd_refinement.refinement_service import JDRefinementService
 from app.repositories.company_repo import CompanyRepository
 from app.utils.jd_diff import JDDiffGenerator
 from app.utils.jd_inline_diff import JDInlineDiffGenerator
+from types import SimpleNamespace
 
 class JDService:
     """Application service for Job Description operations."""
@@ -139,7 +140,6 @@ class JDService:
         if company_id:
             company = self.company_repo.get_by_id(db, company_id)
             if company:
-                from types import SimpleNamespace
                 company_info = SimpleNamespace(
                     name=company.name,
                     website_url=company.website_url,
@@ -164,7 +164,6 @@ class JDService:
                 company_info = SimpleNamespace(name="Not specified")
         else:
             # No company ID - use generic
-            from types import SimpleNamespace
             company_info = SimpleNamespace(name="Not specified")
         
         # Get company - FIXED: use get_by_id instead of get
