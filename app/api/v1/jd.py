@@ -3,8 +3,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.deps import get_db, get_current_user
+from app.api.deps_authorization import get_accessible_jd_ids_dependency, require_jd_access
 from app.schemas.jd import JDCreate, JDRead, JDDocumentUpload, JDDocumentUploadResponse, JDListResponse, JDListItem, PersonaListItem, JDDeleteResponse, HiringManagerInfo
 from app.cqrs.handlers import handle_command, handle_query
+from app.services.jd_service import JDService
 from app.cqrs.commands.jd_commands import (
 	CreateJobDescription,
 	ApplyJDRefinement,
@@ -114,7 +116,7 @@ def _convert_jd_model_to_list_item(jd_model) -> JDListItem:
     )
 
 
-@router.get("/", response_model=JDListResponse, summary="List all Job Descriptions with pagination (no user filter)")
+@router.get("/", response_model=JDListResponse, summary="List all Job Descriptions with pagination (role-based access)")
 async def list_all_jds(
 	page: int = Query(1, ge=1, description="Page number"),
 	size: int = Query(10, ge=1, le=100, description="Page size"),
@@ -122,19 +124,23 @@ async def list_all_jds(
 	user=Depends(get_current_user)
 ):
 	"""
-	List all job descriptions in the system with pagination.
+	List job descriptions accessible to the current user with pagination.
 	
-	This endpoint returns all job descriptions regardless of who created them.
-	No user-based filtering is applied.
+	Access rules:
+	- Admin/Recruiter: Can see all job descriptions
+	- Hiring Manager: Can only see JDs they created or are assigned to
+	
+	Uses optimized SQL filtering directly in database instead of fetching all accessible IDs first.
 	"""
 	try:
 		skip = (page - 1) * size
 		
-		# Get job descriptions using optimized query
-		models = handle_query(db, ListAllJobDescriptions(skip, size, optimized=True))
+		# Use service with access filtering (pass user directly for optimized SQL filtering)
+		jd_service = JDService()
+		models = jd_service.list_all_optimized(db, skip, size, user)
 		
-		# Get total count
-		total = handle_query(db, CountJobDescriptions())
+		# Get total count with access filtering
+		total = jd_service.count(db, user)
 		
 		# Convert models to list items
 		jd_reads = [_convert_jd_model_to_list_item(m) for m in models]
@@ -352,7 +358,19 @@ class JDRefinementRequest(JDCreate):
 
 
 @router.post("/{jd_id}/refine", summary="Apply refined JD (command)")
-async def refine_jd(jd_id: str, body: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
+async def refine_jd(
+	jd_id: str = Depends(require_jd_access),
+	body: dict = None,
+	db: Session = Depends(get_db),
+	user=Depends(get_current_user)
+):
+	"""
+	Apply refined JD text to a job description.
+	
+	Access rules:
+	- Admin/Recruiter: Can refine any JD
+	- Hiring Manager: Can only refine JDs they created or are assigned to
+	"""
 	try:
 		refined_text = body.get("refined_text")
 		if not refined_text:
@@ -370,8 +388,8 @@ from app.cqrs.commands.refine_jd_with_ai import RefineJDWithAI
 # ADD new endpoint (after the existing /refine endpoint)
 @router.post("/{jd_id}/refine/ai", response_model=JDRefinementResponse, summary="AI-powered JD refinement")
 async def refine_jd_with_ai(
-    jd_id: str, 
     request: JDRefinementRequest,
+    jd_id: str = Depends(require_jd_access), 
     db: Session = Depends(get_db), 
     user=Depends(get_current_user)
 ):
@@ -417,9 +435,9 @@ async def refine_jd_with_ai(
 	 }
 	"""
     try:
-        # Verify JD ownership
+        # Verify JD access (handled by require_jd_access dependency)
         jd = handle_query(db, GetJobDescription(jd_id))
-        if not jd or jd.created_by != user.id:
+        if not jd:
             raise HTTPException(status_code=404, detail="JD not found")
         
         # Use company_id from request, or from JD, or None
@@ -459,10 +477,21 @@ async def refine_jd_with_ai(
         raise handle_service_errors(e)
 
 @router.get("/{jd_id}", response_model=JDRead, summary="Retrieve full Job Description (query)")
-async def get_jd(jd_id: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
+async def get_jd(
+	jd_id: str = Depends(require_jd_access),
+	db: Session = Depends(get_db),
+	user=Depends(get_current_user)
+):
+	"""
+	Retrieve a specific job description.
+	
+	Access rules:
+	- Admin/Recruiter: Can access any JD
+	- Hiring Manager: Can only access JDs they created or are assigned to
+	"""
 	try:
 		model = handle_query(db, GetJobDescription(jd_id))
-		if not model or model.created_by != user.id:
+		if not model:
 			raise HTTPException(status_code=404, detail="JD not found")
 		return _convert_jd_model_to_read_schema(model)
 	except (ValueError, SQLAlchemyError) as e:
@@ -477,7 +506,7 @@ from app.cqrs.queries.jd_queries import GetJDDiff
 # Add new endpoint
 @router.get("/{jd_id}/diff", response_model=JDDiffResponse, summary="Get diff between original and refined JD")
 async def get_jd_diff(
-    jd_id: str,
+    jd_id: str = Depends(require_jd_access),
     format: str = "table",  # Query parameter: table, inline, or simple
     db: Session = Depends(get_db),
     user=Depends(get_current_user)
@@ -495,9 +524,9 @@ async def get_jd_diff(
     - Statistics (words added/removed, similarity ratio)
     """
     try:
-        # Verify JD ownership
+        # Verify JD access (handled by require_jd_access dependency)
         jd = handle_query(db, GetJobDescription(jd_id))
-        if not jd or jd.created_by != user.id:
+        if not jd:
             raise HTTPException(status_code=404, detail="JD not found")
         
         # Get diff
@@ -514,7 +543,7 @@ from app.schemas.jd import JDInlineMarkupResponse
 from app.cqrs.queries.jd_queries import GetJDInlineMarkup
 @router.get("/{jd_id}/markup", response_model=JDInlineMarkupResponse, summary="Get inline markup for original and refined JD")
 async def get_jd_inline_markup(
-    jd_id: str,
+    jd_id: str = Depends(require_jd_access),
     db: Session = Depends(get_db),
     user=Depends(get_current_user)
 ):
@@ -527,9 +556,9 @@ async def get_jd_inline_markup(
     - `stats`: Change statistics
     """
     try:
-        # Verify JD ownership
+        # Verify JD access (handled by require_jd_access dependency)
         jd = handle_query(db, GetJobDescription(jd_id))
-        if not jd or jd.created_by != user.id:
+        if not jd:
             raise HTTPException(status_code=404, detail="JD not found")
 
         # Get inline markup
@@ -545,7 +574,12 @@ async def get_jd_inline_markup(
         raise handle_service_errors(e)
 
 @router.patch("/{jd_id}", response_model=JDRead, summary="Update Job Description (selected_version, selected_text, selected_version, selected_edited.)")
-async def update_jd(jd_id: str, body: dict, db: Session = Depends(get_db), user=Depends(get_current_user)):
+async def update_jd(
+	jd_id: str = Depends(require_jd_access),
+	body: dict = None,
+	db: Session = Depends(get_db),
+	user=Depends(get_current_user)
+):
 	"""
 	Update a job description (JD) with the provided fields.
 	
@@ -560,9 +594,9 @@ async def update_jd(jd_id: str, body: dict, db: Session = Depends(get_db), user=
 	
 	"""
 	try:
-		# First check if JD exists and belongs to user
+		# Verify JD access (handled by require_jd_access dependency)
 		model = handle_query(db, GetJobDescription(jd_id))
-		if not model or model.created_by != user.id:
+		if not model:
 			raise HTTPException(status_code=404, detail="JD not found")
 		# Then update using command handler
 		updated = handle_command(db, UpdateJobDescription(jd_id, body, user.id))
@@ -575,7 +609,7 @@ async def update_jd(jd_id: str, body: dict, db: Session = Depends(get_db), user=
 
 @router.delete("/{jd_id}", response_model=JDDeleteResponse, summary="Delete Job Description")
 async def delete_jd(
-	jd_id: str,
+	jd_id: str = Depends(require_jd_access),
 	db: Session = Depends(get_db),
 	user=Depends(get_current_user)
 ):
@@ -587,9 +621,14 @@ async def delete_jd(
 	- All candidate scores evaluated against those personas
 	- The job description itself
 	
+	Access rules:
+	- Admin/Recruiter: Can delete any JD
+	- Hiring Manager: Can only delete JDs they created or are assigned to
+	
 	Note: This operation cannot be undone.
 	"""
 	try:
+		# JD access is verified by require_jd_access dependency
 		# First check if JD exists
 		model = handle_query(db, GetJobDescription(jd_id))
 		if not model:

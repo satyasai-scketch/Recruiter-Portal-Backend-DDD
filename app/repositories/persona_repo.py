@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Optional, Sequence, List
+from typing import Optional, Sequence, List, Set
 from sqlalchemy.orm import Session, selectinload, joinedload
-from sqlalchemy import func
+from sqlalchemy import func, or_, and_, exists
 
 from app.db.models.persona import (
 	PersonaModel, PersonaCategoryModel, PersonaSubcategoryModel,
@@ -10,6 +10,8 @@ from app.db.models.persona import (
 )
 from app.db.models.job_description import JobDescriptionModel
 from app.db.models.score import CandidateScoreModel
+from app.db.models.user import UserModel
+from app.db.models.jd_hiring_manager import JDHiringManagerMappingModel
 
 
 class PersonaRepository:
@@ -128,6 +130,101 @@ class SQLAlchemyPersonaRepository(PersonaRepository):
 			.limit(limit)
 			.all()
 		)
+	
+	def list_accessible(self, db: Session, user: UserModel, skip: int = 0, limit: int = 100) -> Sequence[PersonaModel]:
+		"""
+		List personas for JDs accessible to a user based on their role.
+		
+		Optimized to use SQL JOIN/subquery filtering instead of fetching all accessible JD IDs first.
+		
+		Args:
+			db: Database session
+			user: User to filter access for
+			skip: Pagination offset
+			limit: Pagination limit
+			
+		Returns:
+			Sequence of accessible PersonaModel instances
+		"""
+		query = (
+			db.query(PersonaModel)
+			.options(
+				joinedload(PersonaModel.job_description),
+				joinedload(PersonaModel.creator),
+				joinedload(PersonaModel.updater)
+			)
+		)
+		
+		# Apply access filter using SQL JOIN/subquery (more efficient than fetching all IDs)
+		role_name = user.role.name if user.role else None
+		if role_name:
+			role_name = role_name.lower().strip()
+		
+		
+		if role_name in ("admin", "recruiter"):
+			# No filter needed - can access all personas
+			pass
+		elif role_name in ("hiring manager", "hiring_manager"):
+			# Filter: Personas for JDs created by user OR assigned to user
+			query = query.join(JobDescriptionModel, PersonaModel.job_description_id == JobDescriptionModel.id).filter(
+				or_(
+					JobDescriptionModel.created_by == user.id,
+					exists().where(
+						and_(
+							JDHiringManagerMappingModel.job_description_id == JobDescriptionModel.id,
+							JDHiringManagerMappingModel.hiring_manager_id == user.id
+						)
+					)
+				)
+			)
+		else:
+			# Unknown role - no access
+			return []
+		
+		return query.order_by(PersonaModel.created_at.desc()).offset(skip).limit(limit).all()
+	
+	def count_accessible(self, db: Session, user: UserModel) -> int:
+		"""
+		Count personas for JDs accessible to a user based on their role.
+		
+		Optimized to use SQL JOIN/subquery filtering instead of fetching all accessible JD IDs first.
+		
+		Args:
+			db: Database session
+			user: User to filter access for
+			
+		Returns:
+			Count of accessible personas
+		"""
+		query = db.query(func.count(PersonaModel.id))
+		
+		# Apply access filter using SQL JOIN/subquery (more efficient than fetching all IDs)
+		role_name = user.role.name if user.role else None
+		if role_name:
+			role_name = role_name.lower().strip()
+		
+		if role_name in ("admin", "recruiter"):
+			# No filter needed - can access all personas
+			pass
+		elif role_name in ("hiring manager", "hiring_manager"):
+			# Filter: Personas for JDs created by user OR assigned to user
+			query = query.join(JobDescriptionModel, PersonaModel.job_description_id == JobDescriptionModel.id).filter(
+				or_(
+					JobDescriptionModel.created_by == user.id,
+					exists().where(
+						and_(
+							JDHiringManagerMappingModel.job_description_id == JobDescriptionModel.id,
+							JDHiringManagerMappingModel.hiring_manager_id == user.id
+						)
+					)
+				)
+			)
+		else:
+			# Unknown role - no access
+			return 0
+		
+		result = query.scalar()
+		return result or 0
 	
 	def count(self, db: Session) -> int:
 		return db.query(PersonaModel).count()

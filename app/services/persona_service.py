@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Set
+from app.db.models.user import UserModel
 from uuid import uuid4
 from sqlalchemy.orm import Session
 from sqlalchemy.util.typing import NoneFwd
@@ -42,10 +43,16 @@ class PersonaService:
 	def list_by_jd(self, db: Session, job_description_id: str) -> List[PersonaModel]:
 		return self.repo.list_by_jd(db, job_description_id)
 	
-	def list_all(self, db: Session, skip: int = 0, limit: int = 100) -> List[PersonaModel]:
+	def list_all(self, db: Session, skip: int = 0, limit: int = 100, user: Optional[UserModel] = None) -> List[PersonaModel]:
+		"""List all personas, optionally filtered by user access."""
+		if user is not None:
+			return list(self.repo.list_accessible(db, user, skip, limit))
 		return self.repo.list_all(db, skip, limit)
 	
-	def count(self, db: Session) -> int:
+	def count(self, db: Session, user: Optional[UserModel] = None) -> int:
+		"""Count all personas, optionally filtered by user access."""
+		if user is not None:
+			return self.repo.count_accessible(db, user)
 		return self.repo.count(db)
 	
 	def count_candidates_for_persona(self, db: Session, persona_id: str) -> int:

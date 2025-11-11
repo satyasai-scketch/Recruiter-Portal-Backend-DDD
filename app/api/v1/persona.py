@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from datetime import datetime
 from app.api.deps import db_session, get_current_user
+from app.api.deps_authorization import require_jd_access
+from app.core.authorization import can_access_jd
 from app.schemas.persona import PersonaCreate, PersonaRead, PersonaUpdate, PersonaChangeLogRead, PersonaDeletionStats, PersonaListResponse
 from app.cqrs.handlers import handle_command, handle_query
 from app.services.persona_service import PersonaService
@@ -128,20 +130,28 @@ async def generate_persona_from_jd(
     persona_data['created_at'] = datetime.now()
     return PersonaRead.model_validate(persona_data)
 
-@router.get("/", response_model=PersonaListResponse, summary="Get all personas with pagination")
+@router.get("/", response_model=PersonaListResponse, summary="Get all personas with pagination (role-based access)")
 async def get_all_personas(
 	page: int = Query(1, ge=1, description="Page number"),
 	size: int = Query(10, ge=1, le=100, description="Page size"),
-	db: Session = Depends(db_session)
+	db: Session = Depends(db_session),
+	user: UserModel = Depends(get_current_user)
 ):
 	"""
-	List all personas with pagination.
+	List personas accessible to the current user with pagination.
+	
+	Access rules:
+	- Admin/Recruiter: Can see all personas
+	- Hiring Manager: Can only see personas for JDs they created or are assigned to
+	
+	Uses optimized SQL filtering directly in database instead of fetching all accessible IDs first.
 	"""
 	skip = (page - 1) * size
 	
-	# Get personas and total count
-	models = handle_query(db, ListAllPersonas(skip, size))
-	total = handle_query(db, CountPersonas())
+	# Use service with access filtering (pass user directly for optimized SQL filtering)
+	persona_service = PersonaService()
+	models = persona_service.list_all(db, skip, size, user)
+	total = persona_service.count(db, user)
 	
 	# Convert to response format with all required fields
 	persona_reads = [_convert_persona_model_to_read(m, db) for m in models]
@@ -157,23 +167,73 @@ async def get_all_personas(
 
 
 @router.get("/{persona_id}", response_model=PersonaRead, summary="Get persona by ID")
-async def get_persona(persona_id: str, db: Session = Depends(db_session)):
+async def get_persona(
+	persona_id: str,
+	db: Session = Depends(db_session),
+	user=Depends(get_current_user)
+):
+	"""
+	Get a specific persona by ID.
+	
+	Access rules:
+	- Admin/Recruiter: Can access any persona
+	- Hiring Manager: Can only access personas for JDs they created or are assigned to
+	"""
 	model = handle_query(db, GetPersona(persona_id))
 	if model is None:
 		from fastapi import HTTPException
 		raise HTTPException(status_code=404, detail=f"Persona with ID '{persona_id}' not found")
+	
+	# Check if user can access the JD associated with this persona
+	# First verify JD exists, then check access
+	from app.repositories.job_description_repo import SQLAlchemyJobDescriptionRepository
+	jd_repo = SQLAlchemyJobDescriptionRepository()
+	jd = jd_repo.get(db, model.job_description_id)
+	
+	if not jd:
+		# JD doesn't exist (shouldn't happen if persona exists, but handle gracefully)
+		from fastapi import HTTPException
+		raise HTTPException(status_code=404, detail="Associated job description not found")
+	
+	if not can_access_jd(db, user, model.job_description_id):
+		# JD exists but user doesn't have access
+		from fastapi import HTTPException, status
+		raise HTTPException(
+			status_code=status.HTTP_403_FORBIDDEN,
+			detail="Access denied. You do not have permission to access this persona."
+		)
+	
 	return _convert_persona_model_to_read(model, db)
 
 
 @router.get("/by-jd/{jd_id}", response_model=list[PersonaRead], summary="List personas for a Job Description")
-async def list_personas_by_jd(jd_id: str, db: Session = Depends(db_session)):
+async def list_personas_by_jd(
+	jd_id: str = Depends(require_jd_access),
+	db: Session = Depends(db_session),
+	user=Depends(get_current_user)
+):
+	"""
+	List personas for a specific job description.
+	
+	Access rules:
+	- Admin/Recruiter: Can access personas for any JD
+	- Hiring Manager: Can only access personas for JDs they created or are assigned to
+	"""
 	models = handle_query(db, ListPersonasByJobDescription(jd_id))
 	return [_convert_persona_model_to_read(m, db) for m in models]
 
 
 @router.get("/by-role/{role_id}", response_model=list[PersonaRead], summary="List personas for a Job Role")
-async def list_personas_by_role(role_id: str, db: Session = Depends(db_session)):
+async def list_personas_by_role(
+	role_id: str,
+	db: Session = Depends(db_session),
+	user: UserModel = Depends(get_current_user)
+):
 	"""List all personas associated with a specific job role.
+	
+	Access rules:
+	- Admin/Recruiter: Can see all personas for any role
+	- Hiring Manager: Can only see personas for JDs they created or are assigned to
 	
 	This endpoint retrieves all personas that are linked to job descriptions
 	that use the specified job role. The query uses an optimized JOIN between
@@ -185,8 +245,17 @@ async def list_personas_by_role(role_id: str, db: Session = Depends(db_session))
 	Returns:
 		List of PersonaRead objects containing all personas for the specified role
 	"""
-	models = handle_query(db, ListPersonasByJobRole(role_id))
-	return [_convert_persona_model_to_read(m, db) for m in models]
+	# Apply access filtering based on user role
+	persona_service = PersonaService()
+	all_models = handle_query(db, ListPersonasByJobRole(role_id))
+	
+	# Filter based on user access
+	accessible_models = []
+	for model in all_models:
+		if can_access_jd(db, user, model.job_description_id):
+			accessible_models.append(model)
+	
+	return [_convert_persona_model_to_read(m, db) for m in accessible_models]
 
 
 @router.patch("/{persona_id}", response_model=PersonaRead, summary="Update persona with change tracking")
@@ -197,6 +266,10 @@ async def update_persona(
 	current_user: UserModel = Depends(get_current_user)
 ):
 	"""Update a persona with comprehensive change tracking.
+	
+	Access rules:
+	- Admin/Recruiter: Can update any persona
+	- Hiring Manager: Can only update personas for JDs they created or are assigned to
 	
 	This endpoint tracks all changes made to the persona and its nested entities:
 	- Persona-level fields (name, role_name)
@@ -211,6 +284,20 @@ async def update_persona(
 	
 	All changes are logged in the persona_change_logs table for audit purposes.
 	"""
+	# First check if persona exists
+	persona = handle_query(db, GetPersona(persona_id))
+	if persona is None:
+		from fastapi import HTTPException
+		raise HTTPException(status_code=404, detail=f"Persona with ID '{persona_id}' not found")
+	
+	# Check if user can access the JD associated with this persona
+	if not can_access_jd(db, current_user, persona.job_description_id):
+		from fastapi import HTTPException, status
+		raise HTTPException(
+			status_code=status.HTTP_403_FORBIDDEN,
+			detail="Access denied. You do not have permission to update this persona."
+		)
+	
 	# Convert Pydantic model to dict, excluding None values
 	update_data = payload.model_dump(exclude_unset=True)
 	
@@ -225,9 +312,14 @@ async def update_persona(
 @router.get("/{persona_id}/change-logs", response_model=list[PersonaChangeLogRead], summary="Get change logs for a persona")
 async def get_persona_change_logs(
 	persona_id: str,
-	db: Session = Depends(db_session)
+	db: Session = Depends(db_session),
+	user: UserModel = Depends(get_current_user)
 ):
 	"""Get all change logs for a persona.
+	
+	Access rules:
+	- Admin/Recruiter: Can access change logs for any persona
+	- Hiring Manager: Can only access change logs for personas they have access to
 	
 	Returns a list of all changes made to the persona and its nested entities,
 	ordered by most recent changes first. Each change log entry includes:
@@ -243,6 +335,14 @@ async def get_persona_change_logs(
 	if persona is None:
 		from fastapi import HTTPException
 		raise HTTPException(status_code=404, detail=f"Persona with ID '{persona_id}' not found")
+	
+	# Check if user can access the JD associated with this persona
+	if not can_access_jd(db, user, persona.job_description_id):
+		from fastapi import HTTPException, status
+		raise HTTPException(
+			status_code=status.HTTP_403_FORBIDDEN,
+			detail="Access denied. You do not have permission to access this persona's change logs."
+		)
 	
 	change_logs = handle_query(db, GetPersonaChangeLogs(persona_id))
 	
@@ -283,6 +383,10 @@ async def delete_persona(
 ):
 	"""Delete a persona and all its associated data with comprehensive feedback.
 	
+	Access rules:
+	- Admin/Recruiter: Can delete any persona
+	- Hiring Manager: Can only delete personas for JDs they created or are assigned to
+	
 	This endpoint will:
 	1. Delete the persona and all its nested entities (categories, subcategories, skillsets, notes, change logs)
 	2. Delete any external references (e.g., scores)
@@ -299,6 +403,20 @@ async def delete_persona(
 	Returns detailed statistics about what was deleted for verification.
 	"""
 	try:
+		# First check if persona exists
+		persona = handle_query(db, GetPersona(persona_id))
+		if persona is None:
+			from fastapi import HTTPException
+			raise HTTPException(status_code=404, detail=f"Persona with ID '{persona_id}' not found")
+		
+		# Check if user can access the JD associated with this persona
+		if not can_access_jd(db, current_user, persona.job_description_id):
+			from fastapi import HTTPException, status
+			raise HTTPException(
+				status_code=status.HTTP_403_FORBIDDEN,
+				detail="Access denied. You do not have permission to delete this persona."
+			)
+		
 		# Use the command handler to delete the persona
 		deletion_stats = handle_command(db, DeletePersona(persona_id))
 		
@@ -307,6 +425,9 @@ async def delete_persona(
 	except ValueError as e:
 		from fastapi import HTTPException
 		raise HTTPException(status_code=404, detail=str(e))
+	except HTTPException:
+		# Re-raise HTTP exceptions (like 403 Forbidden)
+		raise
 	except Exception as e:
 		from fastapi import HTTPException
 		raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
