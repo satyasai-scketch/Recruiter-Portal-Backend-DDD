@@ -58,3 +58,10 @@ class JobDescriptionModel(Base):
     
     # Job role relationship
     job_role = relationship("JobRoleModel", back_populates="job_descriptions")
+    
+    # Hiring Manager mappings relationship
+    hiring_manager_mappings = relationship(
+        "JDHiringManagerMappingModel",
+        back_populates="job_description",
+        cascade="all, delete-orphan",
+    )

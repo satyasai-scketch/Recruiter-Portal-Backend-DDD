@@ -1,10 +1,12 @@
 # app/services/jd_service_updated.py
-from typing import Sequence, Optional
+from typing import Sequence, Optional, Set
 from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from app.db.models.job_description import JobDescriptionModel
 from app.db.models.persona import PersonaModel
+from app.db.models.jd_hiring_manager import JDHiringManagerMappingModel
+from app.db.models.user import UserModel
 from app.repositories.job_description_repo import SQLAlchemyJobDescriptionRepository
 from app.domain.job_description import services as jd_domain_services
 from app.domain.job_description.entities import DocumentMetadata
@@ -28,16 +30,38 @@ class JDService:
     def list_by_creator(self, db: Session, user_id: str) -> Sequence[JobDescriptionModel]:
         return self.repo.list_by_creator(db, user_id)
     
-    def list_all(self, db: Session, skip: int = 0, limit: int = 100) -> Sequence[JobDescriptionModel]:
+    def list_all(self, db: Session, skip: int = 0, limit: int = 100, user: Optional[UserModel] = None) -> Sequence[JobDescriptionModel]:
+        """List all JDs, optionally filtered by user access."""
+        if user is not None:
+            return self.repo.list_accessible(db, user, skip, limit)
         return self.repo.list_all(db, skip, limit)
     
-    def list_all_optimized(self, db: Session, skip: int = 0, limit: int = 100) -> Sequence[JobDescriptionModel]:
+    def list_all_optimized(self, db: Session, skip: int = 0, limit: int = 100, user: Optional[UserModel] = None) -> Sequence[JobDescriptionModel]:
         """Optimized list that excludes large text fields for better performance."""
+        if user is not None:
+            return self.repo.list_accessible(db, user, skip, limit)
         return self.repo.list_all_optimized(db, skip, limit)
 
-    def count(self, db: Session) -> int:
-        """Count all job descriptions."""
+    def count(self, db: Session, user: Optional[UserModel] = None) -> int:
+        """Count all job descriptions, optionally filtered by user access."""
+        if user is not None:
+            return self.repo.count_accessible(db, user)
         return self.repo.count(db)
+
+    def _create_hiring_manager_mappings(self, db: Session, jd_id: str, hiring_manager_ids: list[str], created_by: str) -> None:
+        """Create hiring manager mappings for a job description."""
+        if not hiring_manager_ids:
+            return
+        
+        for hm_id in hiring_manager_ids:
+            mapping = JDHiringManagerMappingModel(
+                id=str(uuid4()),
+                job_description_id=jd_id,
+                hiring_manager_id=hm_id,
+                created_by=created_by
+            )
+            db.add(mapping)
+        db.commit()
 
     def create(self, db: Session, data: dict) -> JobDescriptionModel:
         """Create a new job description with role_id."""
@@ -57,6 +81,12 @@ class JDService:
             updated_by=data.get("created_by") or data.get("user_id") or data.get("owner_id") or "",
         )
         created = self.repo.create(db, model)
+        
+        # Create hiring manager mappings if provided
+        hiring_manager_ids = data.get("hiring_manager_ids", [])
+        if hiring_manager_ids:
+            self._create_hiring_manager_mappings(db, created.id, hiring_manager_ids, created.created_by)
+        
         event_bus.publish_event(JDCreatedEvent(id=created.id, title=created.title, role=created.role_id, company_id=created.company_id))
         return created
 
@@ -88,6 +118,12 @@ class JDService:
         )
         
         created = self.repo.create(db, model)
+        
+        # Create hiring manager mappings if provided
+        hiring_manager_ids = data.get("hiring_manager_ids", [])
+        if hiring_manager_ids:
+            self._create_hiring_manager_mappings(db, created.id, hiring_manager_ids, created.created_by)
+        
         event_bus.publish_event(JDCreatedEvent(id=created.id, title=created.title, role=created.role_id, company_id=created.company_id))
         return created
 

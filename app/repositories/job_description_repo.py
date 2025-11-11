@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Set
+from app.db.models.user import UserModel
 from sqlalchemy.orm import Session, joinedload, selectinload, defer
 from sqlalchemy import select, func
 import time
@@ -9,6 +10,7 @@ from app.db.models.job_description import JobDescriptionModel
 from app.db.models.persona import PersonaModel
 from app.db.models.user import UserModel
 from app.core.logger import logger
+from app.core.authorization import get_jd_access_filter
 
 
 class JobDescriptionRepository:
@@ -112,6 +114,65 @@ class SQLAlchemyJobDescriptionRepository(JobDescriptionRepository):
 		and doesn't require a full table scan.
 		"""
 		result = db.query(func.count(JobDescriptionModel.id)).scalar()
+		return result or 0
+	
+	def list_accessible(self, db: Session, user: UserModel, skip: int = 0, limit: int = 100) -> Sequence[JobDescriptionModel]:
+		"""
+		List JDs accessible to a user based on their role.
+		
+		Optimized to use SQL JOIN/subquery filtering instead of fetching all accessible IDs first.
+		This is more efficient, especially for users with many accessible JDs.
+		
+		Args:
+			db: Database session
+			user: User to filter access for
+			skip: Pagination offset
+			limit: Pagination limit
+			
+		Returns:
+			Sequence of accessible JobDescriptionModel instances
+		"""
+		query = (
+			db.query(JobDescriptionModel)
+			.options(
+				defer(JobDescriptionModel.original_text),
+				defer(JobDescriptionModel.refined_text),
+				defer(JobDescriptionModel.selected_text),
+				joinedload(JobDescriptionModel.job_role),
+				joinedload(JobDescriptionModel.creator),
+				joinedload(JobDescriptionModel.updater),
+				selectinload(JobDescriptionModel.personas),
+			)
+		)
+		
+		# Apply access filter using SQL JOIN/subquery (more efficient than fetching all IDs)
+		access_filter = get_jd_access_filter(db, user)
+		if access_filter is not None:
+			query = query.filter(access_filter)
+		
+		return query.order_by(JobDescriptionModel.created_at.desc()).offset(skip).limit(limit).all()
+	
+	def count_accessible(self, db: Session, user: UserModel) -> int:
+		"""
+		Count JDs accessible to a user based on their role.
+		
+		Optimized to use SQL JOIN/subquery filtering instead of fetching all accessible IDs first.
+		
+		Args:
+			db: Database session
+			user: User to filter access for
+			
+		Returns:
+			Count of accessible JDs
+		"""
+		query = db.query(func.count(JobDescriptionModel.id))
+		
+		# Apply access filter using SQL JOIN/subquery (more efficient than fetching all IDs)
+		access_filter = get_jd_access_filter(db, user)
+		if access_filter is not None:
+			query = query.filter(access_filter)
+		
+		result = query.scalar()
 		return result or 0
 	
 	def delete(self, db: Session, jd_id: str) -> bool:

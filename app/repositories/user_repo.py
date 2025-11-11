@@ -20,6 +20,9 @@ class UserRepository:
 
 	def get_all(self, db: Session, skip: int = 0, limit: int = 100) -> List[UserModel]:
 		raise NotImplementedError
+	
+	def get_by_role_name(self, db: Session, role_name: str, skip: int = 0, limit: int = 100) -> List[UserModel]:
+		raise NotImplementedError
 
 	def update(self, db: Session, user_id: str, update_data: dict) -> Optional[UserModel]:
 		raise NotImplementedError
@@ -54,6 +57,20 @@ class SQLAlchemyUserRepository(UserRepository):
 		return (
 			db.query(UserModel)
 			.options(joinedload(UserModel.role))
+			.offset(skip)
+			.limit(limit)
+			.all()
+		)
+	
+	def get_by_role_name(self, db: Session, role_name: str, skip: int = 0, limit: int = 100) -> List[UserModel]:
+		"""Get users by role name."""
+		from app.db.models.role import RoleModel
+		return (
+			db.query(UserModel)
+			.join(RoleModel, UserModel.role_id == RoleModel.id)
+			.options(joinedload(UserModel.role))
+			.filter(RoleModel.name == role_name)
+			.filter(UserModel.is_active == True)
 			.offset(skip)
 			.limit(limit)
 			.all()

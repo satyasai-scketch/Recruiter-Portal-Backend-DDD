@@ -10,12 +10,23 @@ class JDCreate(BaseModel):
 	company_id: Optional[str] = None
 	notes: Optional[str] = None
 	tags: List[str] = []
+	hiring_manager_ids: List[str] = []  # List of hiring manager user IDs
 	# frontend may optionally send selection metadata on creation
 	selected_version: Optional[str] = None
 	selected_text: Optional[str] = None
 	selected_edited: Optional[bool] = None
 	created_by: Optional[str] = None
 
+	model_config = ConfigDict(from_attributes=True)
+
+class HiringManagerInfo(BaseModel):
+	"""Hiring manager information for JD response."""
+	id: str
+	first_name: str
+	last_name: str
+	email: str
+	full_name: str  # Computed from first_name and last_name
+	
 	model_config = ConfigDict(from_attributes=True)
 
 
@@ -29,6 +40,7 @@ class JDRead(BaseModel):
 	company_id: Optional[str] = None
 	notes: Optional[str] = None
 	tags: List[str] = []
+	hiring_managers: List[HiringManagerInfo] = []  # Hiring managers assigned to this JD
 	selected_version: Optional[str] = None
 	selected_text: Optional[str] = None
 	selected_edited: Optional[bool] = None
@@ -66,6 +78,7 @@ class JDDocumentUploadResponse(BaseModel):
 	role_name: str
 	original_text: str
 	extracted_metadata: dict
+	hiring_managers: List[HiringManagerInfo] = []
 	message: str
 	
 	model_config = ConfigDict(from_attributes=True)
