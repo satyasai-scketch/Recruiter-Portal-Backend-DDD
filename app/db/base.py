@@ -13,3 +13,4 @@ import app.db.models.company  # noqa
 import app.db.models.job_role  # noqa
 import app.db.models.mfa  # noqa
 import app.db.models.llm_usage  # noqa
+import app.db.models.jd_hiring_manager  # noqa

@@ -8,6 +8,7 @@ from app.schemas.user import (
 	MFALoginRequest
 )
 from app.services.auth_service import AuthService
+from app.services.user_service import UserService
 from app.cqrs.handlers import handle_command, handle_query
 from app.cqrs.commands.user_commands import UpdateUser
 from app.cqrs.queries.user_queries import ListAllUsers, GetUser
@@ -148,6 +149,40 @@ async def get_all_users(
 	"""Get all users with pagination."""
 	try:
 		users = handle_query(db, ListAllUsers(skip=skip, limit=limit))
+		return [
+			UserRead(
+				id=user.id,
+				email=user.email,
+				first_name=user.first_name,
+				last_name=user.last_name,
+				phone=user.phone,
+				is_active=user.is_active,
+				role_id=user.role_id,
+				role_name=(user.role.name if user.role else None),
+				created_at=user.created_at,
+				updated_at=user.updated_at
+			)
+			for user in users
+		]
+	except Exception as e:
+		raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/hiring-managers", response_model=list[UserRead], summary="Get all Hiring Managers")
+async def get_hiring_managers(
+	skip: int = 0,
+	limit: int = 100,
+	db: Session = Depends(db_session),
+	current_user: UserModel = Depends(get_current_user)
+):
+	"""
+	Get all users with the "Hiring Manager" role.
+	
+	Returns a list of active hiring managers with pagination.
+	"""
+	try:
+		user_service = UserService()
+		users = user_service.get_by_role_name(db, "Hiring Manager", skip=skip, limit=limit)
 		return [
 			UserRead(
 				id=user.id,

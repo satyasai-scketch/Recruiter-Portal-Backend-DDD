@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api.deps import get_db, get_current_user
-from app.schemas.jd import JDCreate, JDRead, JDDocumentUpload, JDDocumentUploadResponse, JDListResponse, JDListItem, PersonaListItem, JDDeleteResponse
+from app.schemas.jd import JDCreate, JDRead, JDDocumentUpload, JDDocumentUploadResponse, JDListResponse, JDListItem, PersonaListItem, JDDeleteResponse, HiringManagerInfo
 from app.cqrs.handlers import handle_command, handle_query
 from app.cqrs.commands.jd_commands import (
 	CreateJobDescription,
@@ -23,7 +23,21 @@ from app.utils.error_handlers import handle_service_errors, rollback_on_error
 router = APIRouter()
 
 def _convert_jd_model_to_read_schema(jd_model) -> JDRead:
-    """Convert JobDescriptionModel to JDRead schema with role_name."""
+    """Convert JobDescriptionModel to JDRead schema with role_name and hiring managers."""
+    # Fetch hiring managers from the mappings
+    hiring_managers = []
+    if hasattr(jd_model, 'hiring_manager_mappings') and jd_model.hiring_manager_mappings:
+        for mapping in jd_model.hiring_manager_mappings:
+            if mapping.hiring_manager:
+                hm = mapping.hiring_manager
+                hiring_managers.append(HiringManagerInfo(
+                    id=hm.id,
+                    first_name=hm.first_name,
+                    last_name=hm.last_name,
+                    email=hm.email,
+                    full_name=f"{hm.first_name} {hm.last_name}".strip()
+                ))
+    
     return JDRead(
         id=jd_model.id,
         title=jd_model.title,
@@ -34,6 +48,7 @@ def _convert_jd_model_to_read_schema(jd_model) -> JDRead:
         company_id=jd_model.company_id,
         notes=jd_model.notes,
         tags=jd_model.tags or [],
+        hiring_managers=hiring_managers,
         selected_version=jd_model.selected_version,
         selected_text=jd_model.selected_text,
         selected_edited=jd_model.selected_edited,
@@ -143,10 +158,42 @@ async def list_all_jds(
 
 @router.post("/", response_model=JDRead, summary="Create job description (command)")
 async def create_jd(payload: JDCreate, db: Session = Depends(get_db), user=Depends(get_current_user)):
+	"""
+	Create a new job description.
+	
+	The endpoint accepts:
+	- title: Job title (required)
+	- role_id: Job role ID (required)
+	- original_text: Job description text (required)
+	- company_id: Company identifier (optional)
+	- notes: Additional notes (optional)
+	- tags: List of tags (optional)
+	- hiring_manager_ids: List of hiring manager user IDs (optional)
+	- selected_version: Selected version (optional)
+	- selected_text: Selected text (optional)
+	- selected_edited: Whether selected text was edited (optional)
+	"""
 	try:
 		data = payload.model_dump()
 		data["created_by"] = user.id
 		model = handle_command(db, CreateJobDescription(data))
+		
+		# Eager load hiring manager relationships
+		from sqlalchemy.orm import joinedload
+		from app.db.models.job_description import JobDescriptionModel
+		from app.db.models.jd_hiring_manager import JDHiringManagerMappingModel
+		
+		# Reload the model with relationships
+		model = (
+			db.query(JobDescriptionModel)
+			.options(
+				joinedload(JobDescriptionModel.hiring_manager_mappings).joinedload(JDHiringManagerMappingModel.hiring_manager),
+				joinedload(JobDescriptionModel.job_role)
+			)
+			.filter(JobDescriptionModel.id == model.id)
+			.first()
+		)
+		
 		return _convert_jd_model_to_read_schema(model)
 	except (ValueError, SQLAlchemyError) as e:
 		if isinstance(e, SQLAlchemyError):
@@ -161,6 +208,7 @@ async def upload_jd_document(
 	notes: str = Form(None),
 	company_id: str = Form(None),
 	tags: str = Form("[]"),  # JSON string
+	hiring_manager_ids: str = Form("[]"),  # JSON string array of hiring manager IDs
 	file: UploadFile = File(...),
 	db: Session = Depends(get_db),
 	user=Depends(get_current_user)
@@ -174,6 +222,7 @@ async def upload_jd_document(
 	- notes: Additional notes (optional)
 	- company_id: Company identifier (optional)
 	- tags: JSON array of tags (optional, defaults to empty array)
+	- hiring_manager_ids: JSON array of hiring manager user IDs (optional, defaults to empty array)
 	- file: Document file (PDF, DOCX, or DOC, max 10MB)
 	"""
 	try:
@@ -195,6 +244,34 @@ async def upload_jd_document(
 		except (json.JSONDecodeError, ValueError):
 			raise HTTPException(status_code=400, detail="Invalid tags format. Must be a JSON array.")
 		
+		# Parse hiring_manager_ids from JSON string
+		# Try to handle various input formats for better user experience
+		try:
+			hm_ids_list = []
+			if hiring_manager_ids and hiring_manager_ids.strip():
+				try:
+					# First, try parsing as JSON
+					hm_ids_list = json.loads(hiring_manager_ids)
+				except json.JSONDecodeError:
+					# If JSON parsing fails, try to handle Python list format or comma-separated values
+					# Remove brackets and quotes, then split by comma
+					cleaned = hiring_manager_ids.strip()
+					# Remove leading/trailing brackets if present
+					if cleaned.startswith('[') and cleaned.endswith(']'):
+						cleaned = cleaned[1:-1]
+					# Split by comma and clean up each item
+					hm_ids_list = [item.strip().strip("'\"") for item in cleaned.split(',') if item.strip()]
+				
+				# Validate the result
+				if not isinstance(hm_ids_list, list):
+					raise ValueError("hiring_manager_ids must be a list")
+				# Validate that all items are strings and not empty
+				hm_ids_list = [str(hm_id).strip() for hm_id in hm_ids_list if str(hm_id).strip()]
+				if not all(hm_id for hm_id in hm_ids_list):
+					raise ValueError("All hiring_manager_ids must be non-empty strings")
+		except ValueError as e:
+			raise HTTPException(status_code=400, detail=f"Invalid hiring_manager_ids format. Must be a JSON array of strings or comma-separated values. Error: {str(e)}")
+		
 		# Prepare payload
 		payload = {
 			"title": title.strip(),
@@ -202,11 +279,42 @@ async def upload_jd_document(
 			"notes": notes.strip() if notes else None,
 			"company_id": company_id.strip() if company_id else None,
 			"tags": tags_list,
+			"hiring_manager_ids": hm_ids_list,
 			"created_by": user.id
 		}
 		
 		# Process document upload
 		model = handle_command(db, UploadJobDescriptionDocument(payload, file_content, file.filename))
+		
+		# Eager load hiring manager relationships
+		from sqlalchemy.orm import joinedload
+		from app.db.models.job_description import JobDescriptionModel
+		from app.db.models.jd_hiring_manager import JDHiringManagerMappingModel
+		
+		# Reload the model with relationships
+		model = (
+			db.query(JobDescriptionModel)
+			.options(
+				joinedload(JobDescriptionModel.hiring_manager_mappings).joinedload(JDHiringManagerMappingModel.hiring_manager),
+				joinedload(JobDescriptionModel.job_role)
+			)
+			.filter(JobDescriptionModel.id == model.id)
+			.first()
+		)
+		
+		# Fetch hiring managers from the mappings
+		hiring_managers = []
+		if model and model.hiring_manager_mappings:
+			for mapping in model.hiring_manager_mappings:
+				if mapping.hiring_manager:
+					hm = mapping.hiring_manager
+					hiring_managers.append(HiringManagerInfo(
+						id=hm.id,
+						first_name=hm.first_name,
+						last_name=hm.last_name,
+						email=hm.email,
+						full_name=f"{hm.first_name} {hm.last_name}".strip()
+					))
 		
 		# Prepare response
 		extracted_metadata = {
@@ -224,6 +332,7 @@ async def upload_jd_document(
 			role_name=model.job_role.name if model.job_role else "Unknown Role",
 			original_text=model.original_text,
 			extracted_metadata=extracted_metadata,
+			hiring_managers=hiring_managers,
 			message=f"Successfully uploaded and processed {file.filename}"
 		)
 		
