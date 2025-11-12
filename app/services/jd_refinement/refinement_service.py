@@ -71,6 +71,7 @@ class JDRefinementService:
     
     async def refine_direct(
         self,
+        notes: str,
         jd_text: str,
         role: str,
         company_info: Any
@@ -93,7 +94,9 @@ class JDRefinementService:
             company_dict = self._convert_company_to_dict(company_info)
             
             # Generate prompt
+            print(notes)
             prompt = JDPromptTemplates.direct_refinement_prompt(
+                notes=notes,
                 jd_text=jd_text,
                 role=role,
                 company_info=company_dict

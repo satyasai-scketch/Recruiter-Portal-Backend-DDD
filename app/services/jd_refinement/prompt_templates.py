@@ -23,7 +23,7 @@ class JDPromptTemplates:
     """
     
     @staticmethod
-    def direct_refinement_prompt(jd_text: str, role: str, company_info: Dict[str, Any]) -> str:
+    def direct_refinement_prompt(notes: str,jd_text: str, role: str, company_info: Dict[str, Any]) -> str:
         """Generate prompt for direct JD refinement"""
         
         company_context = JDPromptTemplates._format_company_context(company_info)
@@ -39,7 +39,8 @@ class JDPromptTemplates:
 
     **Original Job Description:**
     {jd_text}
-
+    **Please incorporate the following notes when refining the job description:**
+    {notes}
     **Your Task:**
     FIRST, analyze if the provided text is a valid job description or contains JD-related content.
 
@@ -50,6 +51,7 @@ class JDPromptTemplates:
     4. **Keyword-Optimized**: Include relevant technical terms
     5. **Action-Oriented**: Use strong action verbs
     6. **Inclusive**: Use gender-neutral, inclusive language
+    7. Consider 
 
     - **IF the text is irrelevant/not a JD** (e.g., random text, unrelated content, gibberish):
     Generate a complete professional job description from scratch for the role "{role}" based on industry standards and the company information provided above.
@@ -74,6 +76,7 @@ class JDPromptTemplates:
     - Use your judgment to decide: refine or generate from scratch
     - Add, remove, or rename sections as appropriate for the role and industry
     - Don't mention this decision-making process in the output
+    - Take the notes provided into consideration without fail
     """
         return prompt
 

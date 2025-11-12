@@ -506,7 +506,7 @@ Analyze this JD:
     3. Does {lead_weight}% fit {lead_req.get('has_leadership_component')} leadership + "{role.get('seniority_level')}" seniority?
     4. Does {val_weight}% fit values emphasis ({total_val}/400)?
     5. Does {beh_weight}% fit behavioral emphasis ({total_beh}/400)?
-    6. Does {edu_weight}% match "{edu_req.get('education_importance')}" importance?
+    6. Does {edu_weight}% match education "{edu_req.get('education_importance')}" and {edu_req.get('years_experience_required')} years experience importance?
 
     Return JSON:
     {{

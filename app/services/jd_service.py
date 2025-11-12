@@ -195,6 +195,7 @@ class JDService:
             )
         else:
             result = await self.refinement_service.refine_direct(
+                notes=jd.notes or "",
                 jd_text=jd.original_text,
                 role=role,
                 company_info=company_info

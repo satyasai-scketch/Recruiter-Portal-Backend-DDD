@@ -231,14 +231,15 @@ def handle_generate_persona_from_jd(db: Session, command: GeneratePersonaFromJD)
         if not jd:
             raise ValueError(f"Job description {command.jd_id} not found")
         
-        jd_text = jd.refined_text or jd.original_text
+        jd_text = jd.selected_text or jd.refined_text or jd.original_text
         
         # Import here to avoid circular dependency
         from app.services.persona_generation import OpenAIPersonaGenerator
         from app.core.config import settings
+        from app.services.persona_generation_v2 import OpenAIPersonaGeneratorV2
         
         # Initialize generator
-        generator = OpenAIPersonaGenerator(
+        generator = OpenAIPersonaGeneratorV2(
             api_key=settings.OPENAI_API_KEY,
             model=getattr(settings, "PERSONA_GENERATION_MODEL", "gpt-4o")
         )
