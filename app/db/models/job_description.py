@@ -51,9 +51,17 @@ class JobDescriptionModel(Base):
     )
 
     creator = relationship("UserModel", foreign_keys=[created_by])  # specify which foreign key to use
+    updater = relationship("UserModel", foreign_keys=[updated_by])  # specify which foreign key to use
     
     # Company relationship
     company = relationship("CompanyModel", back_populates="job_descriptions")
     
     # Job role relationship
     job_role = relationship("JobRoleModel", back_populates="job_descriptions")
+    
+    # Hiring Manager mappings relationship
+    hiring_manager_mappings = relationship(
+        "JDHiringManagerMappingModel",
+        back_populates="job_description",
+        cascade="all, delete-orphan",
+    )

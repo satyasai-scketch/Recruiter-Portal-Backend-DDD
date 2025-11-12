@@ -13,7 +13,9 @@ def handle_service_errors(exc: Exception) -> HTTPException:
 	if isinstance(exc, ValueError):
 		return HTTPException(status_code=400, detail=str(exc))
 	if isinstance(exc, SQLAlchemyError):
-		return HTTPException(status_code=500, detail="Database error")
+		# Log the actual error for debugging
+		logger.error(f"SQLAlchemyError: {str(exc)}", exc_info=True)
+		return HTTPException(status_code=500, detail=f"Database error: {str(exc)}")
 	return HTTPException(status_code=500, detail="Internal server error")
 
 

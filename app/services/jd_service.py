@@ -1,9 +1,12 @@
 # app/services/jd_service_updated.py
-from typing import Sequence, Optional
+from typing import Sequence, Optional, Set
 from uuid import uuid4
 from sqlalchemy.orm import Session
 
 from app.db.models.job_description import JobDescriptionModel
+from app.db.models.persona import PersonaModel
+from app.db.models.jd_hiring_manager import JDHiringManagerMappingModel
+from app.db.models.user import UserModel
 from app.repositories.job_description_repo import SQLAlchemyJobDescriptionRepository
 from app.domain.job_description import services as jd_domain_services
 from app.domain.job_description.entities import DocumentMetadata
@@ -14,6 +17,7 @@ from app.services.jd_refinement.refinement_service import JDRefinementService
 from app.repositories.company_repo import CompanyRepository
 from app.utils.jd_diff import JDDiffGenerator
 from app.utils.jd_inline_diff import JDInlineDiffGenerator
+from types import SimpleNamespace
 
 class JDService:
     """Application service for Job Description operations."""
@@ -26,8 +30,38 @@ class JDService:
     def list_by_creator(self, db: Session, user_id: str) -> Sequence[JobDescriptionModel]:
         return self.repo.list_by_creator(db, user_id)
     
-    def list_all(self, db: Session) -> Sequence[JobDescriptionModel]:
-        return self.repo.list_all(db)
+    def list_all(self, db: Session, skip: int = 0, limit: int = 100, user: Optional[UserModel] = None) -> Sequence[JobDescriptionModel]:
+        """List all JDs, optionally filtered by user access."""
+        if user is not None:
+            return self.repo.list_accessible(db, user, skip, limit)
+        return self.repo.list_all(db, skip, limit)
+    
+    def list_all_optimized(self, db: Session, skip: int = 0, limit: int = 100, user: Optional[UserModel] = None) -> Sequence[JobDescriptionModel]:
+        """Optimized list that excludes large text fields for better performance."""
+        if user is not None:
+            return self.repo.list_accessible(db, user, skip, limit)
+        return self.repo.list_all_optimized(db, skip, limit)
+
+    def count(self, db: Session, user: Optional[UserModel] = None) -> int:
+        """Count all job descriptions, optionally filtered by user access."""
+        if user is not None:
+            return self.repo.count_accessible(db, user)
+        return self.repo.count(db)
+
+    def _create_hiring_manager_mappings(self, db: Session, jd_id: str, hiring_manager_ids: list[str], created_by: str) -> None:
+        """Create hiring manager mappings for a job description."""
+        if not hiring_manager_ids:
+            return
+        
+        for hm_id in hiring_manager_ids:
+            mapping = JDHiringManagerMappingModel(
+                id=str(uuid4()),
+                job_description_id=jd_id,
+                hiring_manager_id=hm_id,
+                created_by=created_by
+            )
+            db.add(mapping)
+        db.commit()
 
     def create(self, db: Session, data: dict) -> JobDescriptionModel:
         """Create a new job description with role_id."""
@@ -47,6 +81,12 @@ class JDService:
             updated_by=data.get("created_by") or data.get("user_id") or data.get("owner_id") or "",
         )
         created = self.repo.create(db, model)
+        
+        # Create hiring manager mappings if provided
+        hiring_manager_ids = data.get("hiring_manager_ids", [])
+        if hiring_manager_ids:
+            self._create_hiring_manager_mappings(db, created.id, hiring_manager_ids, created.created_by)
+        
         event_bus.publish_event(JDCreatedEvent(id=created.id, title=created.title, role=created.role_id, company_id=created.company_id))
         return created
 
@@ -78,6 +118,12 @@ class JDService:
         )
         
         created = self.repo.create(db, model)
+        
+        # Create hiring manager mappings if provided
+        hiring_manager_ids = data.get("hiring_manager_ids", [])
+        if hiring_manager_ids:
+            self._create_hiring_manager_mappings(db, created.id, hiring_manager_ids, created.created_by)
+        
         event_bus.publish_event(JDCreatedEvent(id=created.id, title=created.title, role=created.role_id, company_id=created.company_id))
         return created
 
@@ -130,7 +176,6 @@ class JDService:
         if company_id:
             company = self.company_repo.get_by_id(db, company_id)
             if company:
-                from types import SimpleNamespace
                 company_info = SimpleNamespace(
                     name=company.name,
                     website_url=company.website_url,
@@ -155,7 +200,6 @@ class JDService:
                 company_info = SimpleNamespace(name="Not specified")
         else:
             # No company ID - use generic
-            from types import SimpleNamespace
             company_info = SimpleNamespace(name="Not specified")
         
         # Get company - FIXED: use get_by_id instead of get
@@ -299,3 +343,127 @@ class JDService:
             'refined_text': marked_refined,
             'stats': stats
         }
+    
+    def delete(self, db: Session, jd_id: str) -> dict:
+        """
+        Delete a job description and all associated data.
+        
+        This will:
+        1. Delete all candidate scores evaluated against personas of this JD
+        2. Delete all personas associated with this JD (cascade)
+        3. Delete the job description itself
+        
+        Returns:
+            Dictionary with deletion statistics
+        """
+        from app.db.models.score import CandidateScoreModel
+        
+        try:
+            # Get the JD first to check if it exists
+            jd = self.get_by_id(db, jd_id)
+            if not jd:
+                raise ValueError(f"Job description with ID '{jd_id}' not found")
+            
+            jd_title = jd.title  # Store title before deletion
+            
+            # Get all personas for this JD with all relationships loaded
+            # Need to eagerly load all relationships to avoid lazy loading issues during deletion
+            from sqlalchemy.orm import joinedload, selectinload
+            from app.db.models.persona import (
+                PersonaCategoryModel, PersonaSubcategoryModel, PersonaSkillsetModel,
+                PersonaNotesModel, PersonaChangeLogModel
+            )
+            
+            personas = (
+                db.query(PersonaModel)
+                .options(
+                    selectinload(PersonaModel.categories).selectinload(PersonaCategoryModel.subcategories),
+                    selectinload(PersonaModel.skillsets),
+                    selectinload(PersonaModel.notes),
+                    selectinload(PersonaModel.change_logs)
+                )
+                .filter(PersonaModel.job_description_id == jd_id)
+                .all()
+            )
+            persona_ids = [p.id for p in personas]
+            
+            # Count and delete all candidate scores for these personas
+            scores_count = 0
+            if persona_ids:
+                scores_count = db.query(CandidateScoreModel).filter(
+                    CandidateScoreModel.persona_id.in_(persona_ids)
+                ).count()
+                
+                # Delete all scores for these personas
+                # Need to delete related data (stages, categories, insights) first
+                # These cascade automatically, but we need to load them first for SQLite
+                # DO NOT flush here - keep everything in one transaction for rollback safety
+                if scores_count > 0:
+                    # Get all scores to delete with their relationships
+                    scores_to_delete = db.query(CandidateScoreModel).filter(
+                        CandidateScoreModel.persona_id.in_(persona_ids)
+                    ).all()
+                    
+                    # Delete each score individually to ensure cascades work properly
+                    for score in scores_to_delete:
+                        db.delete(score)
+            
+            # Manually delete personas using the same logic as delete_persona to avoid circular dependencies
+            # This ensures all persona-related data is deleted before JD deletion
+            # Use flush() only when necessary to clear foreign key references, but keep in transaction
+            for persona in personas:
+                # 1. First, clear all foreign key references that create circular dependencies
+                # Flush after clearing references to ensure database state is updated
+                for category in persona.categories:
+                    # Clear notes_id reference in category
+                    category.notes_id = None
+                    
+                    for subcategory in category.subcategories:
+                        # Clear skillset_id reference in subcategory
+                        subcategory.skillset_id = None
+                
+                # Flush once after clearing all references for this persona
+                db.flush()
+                
+                # 2. Delete change logs first (no circular dependencies)
+                for change_log in persona.change_logs:
+                    db.delete(change_log)
+                
+                # 3. Delete notes (no circular dependencies after clearing references)
+                for note in persona.notes:
+                    db.delete(note)
+                
+                # 4. Delete skillsets (no circular dependencies after clearing references)
+                for skillset in persona.skillsets:
+                    db.delete(skillset)
+                
+                # 5. Delete subcategories (no circular dependencies after clearing references)
+                for category in persona.categories:
+                    for subcategory in category.subcategories:
+                        db.delete(subcategory)
+                
+                # 6. Delete categories (no circular dependencies after clearing references)
+                for category in persona.categories:
+                    db.delete(category)
+                
+                # 7. Finally, delete the persona itself
+                db.delete(persona)
+            
+            # Delete the JD
+            # Use the jd we already fetched
+            db.delete(jd)
+            
+            # Commit all deletions together in a single transaction
+            # If any error occurs before this point, rollback will undo everything
+            db.commit()
+            
+            # Return deletion statistics
+            return {
+                "jd_id": jd_id,
+                "personas_deleted": len(persona_ids),
+                "scores_deleted": scores_count,
+                "message": f"Job description '{jd_title}' and all associated data deleted successfully"
+            }
+        except Exception as e:
+            db.rollback()
+            raise e

@@ -19,9 +19,10 @@ class ListPersonasByJobDescription(Query):
 
 @dataclass
 class ListAllPersonas(Query):
-    """Query to list all personas."""
-    def __init__(self):
-        pass
+    """Query to list all personas with pagination."""
+    def __init__(self, skip: int = 0, limit: int = 100):
+        self.skip = skip
+        self.limit = limit
 
 @dataclass
 class CountPersonas(Query):

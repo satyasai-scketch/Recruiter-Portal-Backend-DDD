@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, File, UploadFile, Form, HTTPException, Q
 from sqlalchemy.orm import Session
 
 from app.api.deps import db_session, get_current_user
+from app.core.authorization import can_access_jd
+from app.db.models.user import UserModel
 from app.schemas.candidate import (
 	CandidateCreate, 
 	CandidateUpdate,
@@ -46,8 +48,42 @@ from app.cqrs.queries.job_role_queries import GetJobRole
 router = APIRouter()
 
 
-def _convert_candidate_model_to_read_schema(candidate_model) -> CandidateRead:
-	"""Convert CandidateModel to CandidateRead schema format."""
+def _convert_candidate_model_to_read_schema(candidate_model, db: Session) -> CandidateRead:
+	"""Convert CandidateModel to CandidateRead schema format with all required fields."""
+	from app.services.candidate_service import CandidateService
+	from app.schemas.candidate import PersonaListItem
+	
+	# Get creator name from relationship
+	created_by_name = None
+	if candidate_model.creator:
+		# Construct full name from first_name and last_name
+		if candidate_model.creator.first_name and candidate_model.creator.last_name:
+			created_by_name = f"{candidate_model.creator.first_name} {candidate_model.creator.last_name}".strip()
+		elif candidate_model.creator.first_name:
+			created_by_name = candidate_model.creator.first_name
+		elif candidate_model.creator.last_name:
+			created_by_name = candidate_model.creator.last_name
+		else:
+			created_by_name = candidate_model.creator.email
+	
+	# Get updater name from relationship
+	updated_by_name = None
+	if candidate_model.updater:
+		# Construct full name from first_name and last_name
+		if candidate_model.updater.first_name and candidate_model.updater.last_name:
+			updated_by_name = f"{candidate_model.updater.first_name} {candidate_model.updater.last_name}".strip()
+		elif candidate_model.updater.first_name:
+			updated_by_name = candidate_model.updater.first_name
+		elif candidate_model.updater.last_name:
+			updated_by_name = candidate_model.updater.last_name
+		else:
+			updated_by_name = candidate_model.updater.email
+	
+	# Get personas evaluated against this candidate
+	candidate_service = CandidateService()
+	personas_data = candidate_service.get_personas_for_candidate(db, candidate_model.id)
+	personas = [PersonaListItem(persona_id=p["persona_id"], persona_name=p["persona_name"]) for p in personas_data]
+	
 	return CandidateRead(
 		id=candidate_model.id,
 		full_name=candidate_model.full_name,
@@ -55,7 +91,12 @@ def _convert_candidate_model_to_read_schema(candidate_model) -> CandidateRead:
 		phone=candidate_model.phone,
 		latest_cv_id=candidate_model.latest_cv_id,
 		created_at=candidate_model.created_at,
+		created_by=candidate_model.created_by,
+		created_by_name=created_by_name,
 		updated_at=candidate_model.updated_at,
+		updated_by=candidate_model.updated_by,
+		updated_by_name=updated_by_name,
+		personas=personas,
 		cvs=None  # CVs are loaded separately when needed
 	)
 
@@ -214,13 +255,12 @@ async def list_candidates(
 	# Get candidates
 	candidates = handle_query(db, ListAllCandidates(skip, size))
 	
-	# Get total count (we'll need to add this to the service)
-	# For now, we'll use the length of all candidates
-	all_candidates = handle_query(db, ListAllCandidates(0, 10000))  # Get a large number to count
-	total = len(all_candidates)
+	# Get total count
+	from app.services.candidate_service import CandidateService
+	total = CandidateService().count(db)
 	
-	# Convert to response format
-	candidate_reads = [_convert_candidate_model_to_read_schema(candidate) for candidate in candidates]
+	# Convert to response format with all required fields
+	candidate_reads = [_convert_candidate_model_to_read_schema(candidate, db) for candidate in candidates]
 	
 	return CandidateListResponse(
 		candidates=candidate_reads,
@@ -250,7 +290,7 @@ async def get_candidate(
 	cvs = handle_query(db, GetCandidateCVs(candidate_id))
 	
 	# Convert to response format with CVs included
-	candidate_read = _convert_candidate_model_to_read_schema(candidate)
+	candidate_read = _convert_candidate_model_to_read_schema(candidate, db)
 	candidate_read.cvs = [_convert_cv_model_to_read_schema(cv) for cv in cvs]
 	
 	return candidate_read
@@ -319,7 +359,7 @@ async def update_candidate(
 		raise HTTPException(status_code=400, detail="No fields provided for update")
 	
 	# Update candidate using CQRS
-	updated_candidate = handle_command(db, UpdateCandidate(candidate_id, update_dict))
+	updated_candidate = handle_command(db, UpdateCandidate(candidate_id, update_dict, user.id))
 	
 	if not updated_candidate:
 		raise HTTPException(status_code=404, detail="Candidate not found")
@@ -492,7 +532,8 @@ async def upload_cv_files(
 			command = UploadCVFile(
 				file_bytes=file_content,
 				filename=file.filename,
-				candidate_info={}  # No additional info provided
+				candidate_info={},  # No additional info provided
+				user_id=user.id
 			)
 			
 			# Process upload
@@ -554,7 +595,29 @@ async def upload_cvs_legacy(payloads: List[CandidateCreate], db: Session = Depen
 from datetime import datetime, timezone
 
 @router.post("/score", response_model=ScoreResponse, summary="Score candidate against persona (comprehensive)")
-async def score_candidate(body: ScorePayload, db: Session = Depends(db_session)):
+async def score_candidate(
+	body: ScorePayload,
+	db: Session = Depends(db_session),
+	user: UserModel = Depends(get_current_user)
+):
+	"""
+	Score a candidate against a persona.
+	
+	Access rules:
+	- Admin/Recruiter: Can score against any persona
+	- Hiring Manager: Can only score against personas for JDs they created or are assigned to
+	"""
+	# Check if persona exists and user has access
+	persona = handle_query(db, GetPersona(body.persona_id))
+	if persona is None:
+		raise HTTPException(status_code=404, detail="Persona not found")
+	
+	if not can_access_jd(db, user, persona.job_description_id):
+		raise HTTPException(
+			status_code=403,
+			detail="Access denied. You do not have permission to score against this persona."
+		)
+	
 	score = handle_command(db, ScoreCandidate(
 		candidate_id=body.candidate_id,
 		persona_id=body.persona_id,
@@ -608,10 +671,14 @@ async def score_candidate(body: ScorePayload, db: Session = Depends(db_session))
 async def get_candidate_score(
 	score_id: str,
 	db: Session = Depends(db_session),
-	user=Depends(get_current_user)
+	user: UserModel = Depends(get_current_user)
 ):
 	"""
 	Get detailed scoring information for a specific score ID.
+	
+	Access rules:
+	- Admin/Recruiter: Can access any score
+	- Hiring Manager: Can only access scores for personas they have access to
 	"""
 	score = handle_query(db, GetCandidateScore(score_id))
 	
@@ -622,6 +689,17 @@ async def get_candidate_score(
 	candidate = handle_query(db, GetCandidate(score.candidate_id))
 	if not candidate:
 		raise HTTPException(status_code=404, detail="Score not found - associated candidate has been deleted")
+	
+	# Check if user has access to the persona associated with this score
+	persona = handle_query(db, GetPersona(score.persona_id))
+	if persona is None:
+		raise HTTPException(status_code=404, detail="Persona not found")
+	
+	if not can_access_jd(db, user, persona.job_description_id):
+		raise HTTPException(
+			status_code=403,
+			detail="Access denied. You do not have permission to access this score."
+		)
 	
 	# Convert to response format
 	return _convert_candidate_score_to_read_schema(score, db)
@@ -635,15 +713,29 @@ async def score_candidate_with_ai(
     cv_id: str,
     force_rescore: bool = Query(False, description="Force re-scoring even if a score already exists"),
     db: Session = Depends(db_session),
-    user=Depends(get_current_user)
+    user: UserModel = Depends(get_current_user)
 ):
     """
     AI-powered automatic scoring with duplicate prevention.
+    
+    Access rules:
+    - Admin/Recruiter: Can score against any persona
+    - Hiring Manager: Can only score against personas for JDs they created or are assigned to
     
     This endpoint checks if a score already exists for the given CV and persona combination.
     If a score exists, it returns the existing score instead of performing new AI scoring.
     Use force_rescore=True to bypass this check and force re-scoring.
     """
+    # Check if persona exists and user has access
+    persona = handle_query(db, GetPersona(persona_id))
+    if persona is None:
+        raise HTTPException(status_code=404, detail="Persona not found")
+    
+    if not can_access_jd(db, user, persona.job_description_id):
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied. You do not have permission to score against this persona."
+        )
     # Ensure contextvars are set before calling sync handler
     # FastAPI preserves contextvars in async->sync calls, but we ensure they're set here
     from app.core.context import request_user_id, request_db_session
@@ -771,10 +863,14 @@ async def get_candidate_scores(
 	size: int = Query(10, ge=1, le=100, description="Page size"),
 	latest_only: bool = Query(True, description="Show only the latest score per persona"),
 	db: Session = Depends(db_session),
-	user=Depends(get_current_user)
+	user: UserModel = Depends(get_current_user)
 ):
 	"""
 	Get scores for a specific candidate.
+	
+	Access rules:
+	- Admin/Recruiter: Can see all scores for any candidate
+	- Hiring Manager: Can only see scores for personas they have access to
 	
 	By default, returns only the latest score for each persona to avoid duplicates.
 	Set latest_only=False to get all scores for the candidate.
@@ -792,11 +888,18 @@ async def get_candidate_scores(
 	else:
 		scores = handle_query(db, ListCandidateScores(candidate_id, skip, size))
 	
-	# Convert to response format
-	score_reads = [_convert_candidate_score_to_read_schema(score, db) for score in scores]
+	# Filter scores based on user access to personas
+	accessible_scores = []
+	for score in scores:
+		persona = handle_query(db, GetPersona(score.persona_id))
+		if persona and can_access_jd(db, user, persona.job_description_id):
+			accessible_scores.append(score)
 	
-	# Get total count (simplified for now)
-	total = len(score_reads)  # This should be improved with proper counting
+	# Convert to response format
+	score_reads = [_convert_candidate_score_to_read_schema(score, db) for score in accessible_scores]
+	
+	# Get total count
+	total = len(score_reads)
 	
 	return ScoreListResponse(
 		scores=score_reads,
@@ -815,15 +918,30 @@ async def get_candidate_scores_for_persona(
 	page: int = Query(1, ge=1, description="Page number"),
 	size: int = Query(10, ge=1, le=100, description="Page size"),
 	db: Session = Depends(db_session),
-	user=Depends(get_current_user)
+	user: UserModel = Depends(get_current_user)
 ):
 	"""
 	Get scores for a candidate against a specific persona.
+	
+	Access rules:
+	- Admin/Recruiter: Can access scores for any persona
+	- Hiring Manager: Can only access scores for personas they have access to
 	"""
 	# First check if candidate exists
 	candidate = handle_query(db, GetCandidate(candidate_id))
 	if not candidate:
 		raise HTTPException(status_code=404, detail="Candidate not found")
+	
+	# Check if persona exists and user has access
+	persona = handle_query(db, GetPersona(persona_id))
+	if persona is None:
+		raise HTTPException(status_code=404, detail="Persona not found")
+	
+	if not can_access_jd(db, user, persona.job_description_id):
+		raise HTTPException(
+			status_code=403,
+			detail="Access denied. You do not have permission to access scores for this persona."
+		)
 	
 	skip = (page - 1) * size
 	scores = handle_query(db, ListScoresForCandidatePersona(candidate_id, persona_id, skip, size))
@@ -831,8 +949,8 @@ async def get_candidate_scores_for_persona(
 	# Convert to response format
 	score_reads = [_convert_candidate_score_to_read_schema(score, db) for score in scores]
 	
-	# Get total count (simplified for now)
-	total = len(score_reads)  # This should be improved with proper counting
+	# Get total count
+	total = len(score_reads)
 	
 	return ScoreListResponse(
 		scores=score_reads,

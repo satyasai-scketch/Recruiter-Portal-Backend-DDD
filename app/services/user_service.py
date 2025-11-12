@@ -21,6 +21,10 @@ class UserService:
 		"""Get a user by ID."""
 		return self.users.get_by_id(db, user_id)
 
+	def get_by_role_name(self, db: Session, role_name: str, skip: int = 0, limit: int = 100) -> List[UserModel]:
+		"""Get users by role name."""
+		return self.users.get_by_role_name(db, role_name, skip, limit)
+
 	def update(self, db: Session, user_id: str, update_data: Dict[str, Any]) -> Optional[UserModel]:
 		"""Update a user."""
 		# Validate role_id if provided

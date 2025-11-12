@@ -16,10 +16,14 @@ class CandidateModel(Base):
 	phone = Column(String, nullable=True, index=True)
 	latest_cv_id = Column(String, ForeignKey("candidate_cvs.id"), nullable=True)
 	created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+	created_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 	updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+	updated_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
 	cvs = relationship("CandidateCVModel", back_populates="candidate", cascade="all, delete-orphan", foreign_keys="[CandidateCVModel.candidate_id]")
 	latest_cv = relationship("CandidateCVModel", foreign_keys="[CandidateModel.latest_cv_id]", post_update=True)
+	creator = relationship("UserModel", foreign_keys=[created_by])
+	updater = relationship("UserModel", foreign_keys=[updated_by])
 
 
 class CandidateCVModel(Base):
@@ -35,6 +39,7 @@ class CandidateCVModel(Base):
 	mime_type = Column(String, nullable=True)
 	status = Column(String, nullable=False, default="uploaded")  # uploaded|pending|failed|parsed
 	uploaded_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+	uploaded_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
 	# reserved for later enrichment
 	cv_text = Column(String, nullable=True)       # complete extracted text from CV
@@ -42,3 +47,4 @@ class CandidateCVModel(Base):
 	roles_detected = Column(JSON, nullable=True)  # list of strings
 
 	candidate = relationship("CandidateModel", back_populates="cvs", foreign_keys="[CandidateCVModel.candidate_id]")
+	uploader = relationship("UserModel", foreign_keys=[uploaded_by])

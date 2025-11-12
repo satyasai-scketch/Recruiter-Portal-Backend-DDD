@@ -10,12 +10,23 @@ class JDCreate(BaseModel):
 	company_id: Optional[str] = None
 	notes: Optional[str] = None
 	tags: List[str] = []
+	hiring_manager_ids: List[str] = []  # List of hiring manager user IDs
 	# frontend may optionally send selection metadata on creation
 	selected_version: Optional[str] = None
 	selected_text: Optional[str] = None
 	selected_edited: Optional[bool] = None
 	created_by: Optional[str] = None
 
+	model_config = ConfigDict(from_attributes=True)
+
+class HiringManagerInfo(BaseModel):
+	"""Hiring manager information for JD response."""
+	id: str
+	first_name: str
+	last_name: str
+	email: str
+	full_name: str  # Computed from first_name and last_name
+	
 	model_config = ConfigDict(from_attributes=True)
 
 
@@ -29,12 +40,13 @@ class JDRead(BaseModel):
 	company_id: Optional[str] = None
 	notes: Optional[str] = None
 	tags: List[str] = []
+	hiring_managers: List[HiringManagerInfo] = []  # Hiring managers assigned to this JD
 	selected_version: Optional[str] = None
 	selected_text: Optional[str] = None
 	selected_edited: Optional[bool] = None
 	created_at: datetime
 	created_by: str
-	updated_at: datetime
+	updated_at: Optional[datetime] = None
 	updated_by: Optional[str] = None
 	
 	# Document metadata
@@ -66,6 +78,7 @@ class JDDocumentUploadResponse(BaseModel):
 	role_name: str
 	original_text: str
 	extracted_metadata: dict
+	hiring_managers: List[HiringManagerInfo] = []
 	message: str
 	
 	model_config = ConfigDict(from_attributes=True)
@@ -124,3 +137,66 @@ class JDInlineMarkupResponse(BaseModel):
     stats: Dict[str, Any]
     
     model_config = ConfigDict(from_attributes=True)
+
+
+class PersonaListItem(BaseModel):
+	"""Minimal persona info for list views"""
+	persona_id: str
+	persona_name: str
+	
+	model_config = ConfigDict(from_attributes=True)
+
+
+class JDListItem(BaseModel):
+	"""Optimized schema for JD list view - excludes large text fields"""
+	id: str
+	title: str
+	role_id: str
+	role_name: str
+	company_id: Optional[str] = None
+	notes: Optional[str] = None
+	tags: List[str] = []
+	selected_version: Optional[str] = None
+	selected_edited: Optional[bool] = None
+	created_at: datetime
+	created_by: str
+	created_by_name: Optional[str] = None  # Full name from creator relationship
+	updated_at: Optional[datetime] = None
+	updated_by: Optional[str] = None
+	updated_by_name: Optional[str] = None  # Full name from updater relationship
+	
+	# Document metadata
+	original_document_filename: Optional[str] = None
+	original_document_size: Optional[str] = None
+	original_document_extension: Optional[str] = None
+	document_word_count: Optional[str] = None
+	document_character_count: Optional[str] = None
+	
+	# Personas array (from relationship)
+	personas: List[PersonaListItem] = []
+	
+	# Note: original_text, refined_text, selected_text are EXCLUDED for performance
+	
+	model_config = ConfigDict(from_attributes=True)
+
+
+class JDListResponse(BaseModel):
+	"""Response for listing job descriptions with pagination"""
+	jds: List[JDListItem]  # Changed from JDRead to JDListItem
+	total: int
+	page: int
+	size: int
+	has_next: bool
+	has_prev: bool
+
+	model_config = ConfigDict(from_attributes=True)
+
+
+class JDDeleteResponse(BaseModel):
+	"""Response for deleting a job description"""
+	message: str
+	jd_id: str
+	personas_deleted: int
+	scores_deleted: int
+
+	model_config = ConfigDict(from_attributes=True)
