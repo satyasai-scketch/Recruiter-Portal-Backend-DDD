@@ -592,7 +592,7 @@ async def upload_cvs_legacy(payloads: List[CandidateCreate], db: Session = Depen
 		)
 		for m in models
 	]
-
+from datetime import datetime, timezone
 
 @router.post("/score", response_model=ScoreResponse, summary="Score candidate against persona (comprehensive)")
 async def score_candidate(

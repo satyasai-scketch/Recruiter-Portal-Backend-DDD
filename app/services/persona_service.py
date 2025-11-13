@@ -23,7 +23,7 @@ from app.core.config import settings
 
 from app.services.persona_change_tracker import PersonaChangeTracker
 
-
+from app.services.persona_generation_v2 import OpenAIPersonaGeneratorV2
 
 class PersonaService:
 	"""Orchestrates persona workflows at the application layer."""
@@ -33,7 +33,7 @@ class PersonaService:
 		self.level_repo = level_repo or SQLAlchemyPersonaLevelRepository()
 		self.jd_repo = jd_repo or SQLAlchemyJobDescriptionRepository()
 		# Add persona generator
-		self.persona_generator = OpenAIPersonaGenerator(
+		self.persona_generator = OpenAIPersonaGeneratorV2(
 			api_key=settings.OPENAI_API_KEY,
 			model=getattr(settings, "PERSONA_GENERATION_MODEL", "gpt-4o")
 		)

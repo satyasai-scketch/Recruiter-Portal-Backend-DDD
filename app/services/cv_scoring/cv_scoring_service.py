@@ -49,7 +49,19 @@ class CVScoringService(CVScoringServiceBase):
         print("=" * 80)
         
         # ========== STAGE 1: EMBEDDING PRE-FILTER ==========
-        stage1_result = await self.stage1.calculate_semantic_match(cv_text, persona)
+        #stage1_result = await self.stage1.calculate_semantic_match(cv_text, persona)
+        stage1_result = {
+            'stage': 1,
+            'method': 'skipped',
+            'score': 0,
+            'best_chunk': None,
+            'all_chunks': [],
+            'threshold': 0,
+            'decision': 'PASS_TO_STAGE2',
+            'reason': 'Stage 1 temporarily skipped',
+            'next_stage': 'lightweight_screening'
+        }
+        print(f"\n⊘ Stage 1: SKIPPED - Proceeding directly to Stage 2")
         print(f"\n✓ Stage 1: {stage1_result['score']}% - {stage1_result['decision']}")
         
         if stage1_result['decision'] == 'REJECT':
@@ -103,7 +115,10 @@ class CVScoringService(CVScoringServiceBase):
         print(f"✓ Stage 3: {stage3_result['overall_score']:.2f}% - {stage3_result['recommendation']}")
         print(f"\n✅ COMPLETE")
         print("=" * 80)
-        
+        print("\n🔍 DEBUG - Final return data:")
+        print(f"  final_score: {stage3_result['overall_score']}")
+        print(f"  final_decision: {stage3_result['recommendation']}")
+        print(f"  score_progression: {{'embedding': {stage1_result['score']}, 'lightweight_llm': {stage2_result['relevance_score']}, 'detailed_llm': {stage3_result['overall_score']}}}")
         return {
             'pipeline_stage_reached': 3,
             'stage1': stage1_result,
