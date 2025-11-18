@@ -30,6 +30,10 @@ class JDService:
     def list_by_creator(self, db: Session, user_id: str) -> Sequence[JobDescriptionModel]:
         return self.repo.list_by_creator(db, user_id)
     
+    def list_by_role_id(self, db: Session, role_id: str, skip: int = 0, limit: int = 100, optimized: bool = True) -> Sequence[JobDescriptionModel]:
+        """List job descriptions filtered by role_id."""
+        return self.repo.list_by_role_id(db, role_id, skip, limit, optimized)
+    
     def list_all(self, db: Session, skip: int = 0, limit: int = 100, user: Optional[UserModel] = None) -> Sequence[JobDescriptionModel]:
         """List all JDs, optionally filtered by user access."""
         if user is not None:

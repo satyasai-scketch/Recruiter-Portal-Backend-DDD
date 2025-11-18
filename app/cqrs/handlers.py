@@ -59,6 +59,7 @@ from app.cqrs.queries.jd_queries import (
 	ListAllJobDescriptions,
 	GetJobDescription,
 	PrepareJDRefinementBrief,
+	ListJobDescriptionsByRoleId,
 )
 from app.cqrs.queries.get_persona import GetPersona
 from app.cqrs.queries.list_candidates import ListCandidates
@@ -537,6 +538,11 @@ def handle_query(db: Session, query: Query) -> Any:
 		return JDService().count(db)
 	if isinstance(query, GetJobDescription):
 		return JDService().get_by_id(db, query.jd_id)
+	if isinstance(query, ListJobDescriptionsByRoleId):
+		if query.optimized:
+			return JDService().list_by_role_id(db, query.role_id, query.skip, query.limit, optimized=True)
+		else:
+			return JDService().list_by_role_id(db, query.role_id, query.skip, query.limit, optimized=False)
 	if isinstance(query, PrepareJDRefinementBrief):
 		return JDService().prepare_refinement_brief(db, query.jd_id, query.required_sections, query.template_text)
 	if isinstance(query, Recommendations):
