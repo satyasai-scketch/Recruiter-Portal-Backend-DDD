@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import Optional, Sequence, List
+from typing import Optional, Sequence, List, Tuple
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, func, distinct
 
-from app.db.models.candidate import CandidateModel, CandidateCVModel
+from app.db.models.candidate import CandidateModel, CandidateCVModel, CandidateSelectionModel
 from app.db.models.score import CandidateScoreModel
 from app.db.models.persona import PersonaModel
 
@@ -200,6 +200,156 @@ class SQLAlchemyCandidateCVRepository(CandidateCVRepository):
 				db.commit()
 				return True
 			return False
+		except Exception as e:
+			db.rollback()
+			raise e
+
+
+class CandidateSelectionRepository:
+	"""Repository interface for Candidate Selection aggregates."""
+
+	def create(self, db: Session, selection: CandidateSelectionModel) -> CandidateSelectionModel:
+		raise NotImplementedError
+
+	def get(self, db: Session, selection_id: str) -> Optional[CandidateSelectionModel]:
+		raise NotImplementedError
+
+	def get_by_candidate_persona(self, db: Session, candidate_id: str, persona_id: str) -> Optional[CandidateSelectionModel]:
+		raise NotImplementedError
+
+	def list_selections(
+		self, 
+		db: Session, 
+		persona_id: Optional[str] = None,
+		job_description_id: Optional[str] = None,
+		status: Optional[str] = None,
+		skip: int = 0,
+		limit: int = 100
+	) -> Tuple[Sequence[CandidateSelectionModel], int]:
+		raise NotImplementedError
+
+	def update(self, db: Session, selection: CandidateSelectionModel) -> CandidateSelectionModel:
+		raise NotImplementedError
+
+	def delete(self, db: Session, selection_id: str) -> bool:
+		raise NotImplementedError
+
+	def bulk_create(self, db: Session, selections: List[CandidateSelectionModel]) -> List[CandidateSelectionModel]:
+		raise NotImplementedError
+
+
+class SQLAlchemyCandidateSelectionRepository(CandidateSelectionRepository):
+	"""SQLAlchemy-backed implementation of CandidateSelectionRepository."""
+
+	def create(self, db: Session, selection: CandidateSelectionModel) -> CandidateSelectionModel:
+		"""Create a new candidate selection."""
+		db.add(selection)
+		db.commit()
+		db.refresh(selection)
+		return selection
+
+	def get(self, db: Session, selection_id: str) -> Optional[CandidateSelectionModel]:
+		"""Get a candidate selection by ID with relationships loaded."""
+		return (
+			db.query(CandidateSelectionModel)
+			.options(
+				joinedload(CandidateSelectionModel.candidate),
+				joinedload(CandidateSelectionModel.persona),
+				joinedload(CandidateSelectionModel.job_description),
+				joinedload(CandidateSelectionModel.selector)
+			)
+			.filter(CandidateSelectionModel.id == selection_id)
+			.first()
+		)
+
+	def get_by_candidate_persona(self, db: Session, candidate_id: str, persona_id: str) -> Optional[CandidateSelectionModel]:
+		"""Get a selection by candidate_id and persona_id."""
+		return (
+			db.query(CandidateSelectionModel)
+			.options(
+				joinedload(CandidateSelectionModel.candidate),
+				joinedload(CandidateSelectionModel.persona),
+				joinedload(CandidateSelectionModel.job_description),
+				joinedload(CandidateSelectionModel.selector)
+			)
+			.filter(
+				CandidateSelectionModel.candidate_id == candidate_id,
+				CandidateSelectionModel.persona_id == persona_id
+			)
+			.first()
+		)
+
+	def list_selections(
+		self, 
+		db: Session, 
+		persona_id: Optional[str] = None,
+		job_description_id: Optional[str] = None,
+		status: Optional[str] = None,
+		skip: int = 0,
+		limit: int = 100
+	) -> Tuple[Sequence[CandidateSelectionModel], int]:
+		"""List candidate selections with optional filtering and pagination.
+		
+		Returns:
+			Tuple of (list of selections, total count)
+		"""
+		query = db.query(CandidateSelectionModel).options(
+			joinedload(CandidateSelectionModel.candidate),
+			joinedload(CandidateSelectionModel.persona),
+			joinedload(CandidateSelectionModel.job_description),
+			joinedload(CandidateSelectionModel.selector)
+		)
+		
+		# Apply filters
+		if persona_id:
+			query = query.filter(CandidateSelectionModel.persona_id == persona_id)
+		if job_description_id:
+			query = query.filter(CandidateSelectionModel.job_description_id == job_description_id)
+		if status:
+			query = query.filter(CandidateSelectionModel.status == status)
+		
+		# Get total count before pagination
+		total = query.count()
+		
+		# Apply pagination and ordering
+		selections = (
+			query
+			.order_by(CandidateSelectionModel.created_at.desc())
+			.offset(skip)
+			.limit(limit)
+			.all()
+		)
+		
+		return selections, total
+
+	def update(self, db: Session, selection: CandidateSelectionModel) -> CandidateSelectionModel:
+		"""Update a candidate selection."""
+		db.add(selection)
+		db.commit()
+		db.refresh(selection)
+		return selection
+
+	def delete(self, db: Session, selection_id: str) -> bool:
+		"""Delete a candidate selection by ID."""
+		try:
+			selection = self.get(db, selection_id)
+			if selection:
+				db.delete(selection)
+				db.commit()
+				return True
+			return False
+		except Exception as e:
+			db.rollback()
+			raise e
+
+	def bulk_create(self, db: Session, selections: List[CandidateSelectionModel]) -> List[CandidateSelectionModel]:
+		"""Bulk create candidate selections."""
+		try:
+			db.add_all(selections)
+			db.commit()
+			for selection in selections:
+				db.refresh(selection)
+			return selections
 		except Exception as e:
 			db.rollback()
 			raise e

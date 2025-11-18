@@ -5,9 +5,9 @@ from uuid import uuid4
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from app.db.models.candidate import CandidateModel, CandidateCVModel
+from app.db.models.candidate import CandidateModel, CandidateCVModel, CandidateSelectionModel
 from app.db.models.score import CandidateScoreModel, ScoreStageModel, ScoreCategoryModel, ScoreSubcategoryModel, ScoreInsightModel
-from app.repositories.candidate_repo import SQLAlchemyCandidateRepository
+from app.repositories.candidate_repo import SQLAlchemyCandidateRepository, SQLAlchemyCandidateSelectionRepository
 from app.repositories.candidate_cv_repo import SQLAlchemyCandidateCVRepository
 from app.repositories.score_repo import SQLAlchemyScoreRepository
 from app.domain.candidate import services as cand_domain_services
@@ -33,10 +33,12 @@ class CandidateService:
 		candidates: Optional[SQLAlchemyCandidateRepository] = None,
 		candidate_cvs: Optional[SQLAlchemyCandidateCVRepository] = None,
 		scores: Optional[SQLAlchemyScoreRepository] = None,
+		selections: Optional[SQLAlchemyCandidateSelectionRepository] = None,
 	):
 		self.candidates = candidates or SQLAlchemyCandidateRepository()
 		self.candidate_cvs = candidate_cvs or SQLAlchemyCandidateCVRepository()
 		self.scores = scores or SQLAlchemyScoreRepository()
+		self.selections = selections or SQLAlchemyCandidateSelectionRepository()
 		self.cv_scoring_service = CVScoringService(api_key=settings.OPENAI_API_KEY)
 	def upload_cv(self, 
 	             db: Session, 
@@ -611,3 +613,80 @@ class CandidateService:
 		except Exception as e:
 			db.rollback()
 			raise e
+	
+	def select_candidates(
+		self,
+		db: Session,
+		candidate_ids: List[str],
+		persona_id: str,
+		job_description_id: str,
+		selected_by: str,
+		selection_notes: Optional[str] = None,
+		priority: Optional[str] = None
+	) -> List[CandidateSelectionModel]:
+		"""
+		Select multiple candidates for interview.
+		
+		Args:
+			db: Database session
+			candidate_ids: List of candidate IDs to select
+			persona_id: Persona ID
+			job_description_id: Job description ID
+			selected_by: User ID who is selecting
+			selection_notes: Optional notes
+			priority: Optional priority ('high', 'medium', 'low')
+			
+		Returns:
+			List of created selection models
+		"""
+		selections = []
+		
+		for candidate_id in candidate_ids:
+			# Check if selection already exists
+			existing = self.selections.get_by_candidate_persona(db, candidate_id, persona_id)
+			
+			if existing:
+				# Update existing selection
+				existing.selection_notes = selection_notes or existing.selection_notes
+				existing.priority = priority or existing.priority
+				existing.status = 'selected'  # Reset to selected if it was in another state
+				selections.append(self.selections.update(db, existing))
+			else:
+				# Create new selection
+				selection = CandidateSelectionModel(
+					id=str(uuid4()),
+					candidate_id=candidate_id,
+					persona_id=persona_id,
+					job_description_id=job_description_id,
+					selected_by=selected_by,
+					selection_notes=selection_notes,
+					priority=priority,
+					status='selected'
+				)
+				selections.append(self.selections.create(db, selection))
+		
+		return selections
+	
+	def list_selected_candidates(
+		self,
+		db: Session,
+		persona_id: Optional[str] = None,
+		job_description_id: Optional[str] = None,
+		status: Optional[str] = None,
+		skip: int = 0,
+		limit: int = 100
+	) -> Tuple[List[CandidateSelectionModel], int]:
+		"""
+		List selected candidates with optional filtering.
+		
+		Returns:
+			Tuple of (list of selections, total count)
+		"""
+		return self.selections.list_selections(
+			db,
+			persona_id=persona_id,
+			job_description_id=job_description_id,
+			status=status,
+			skip=skip,
+			limit=limit
+		)

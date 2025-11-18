@@ -16,7 +16,12 @@ from app.schemas.candidate import (
 	CandidateCVRead,
 	CandidateCVListResponse,
 	CandidateDeleteResponse,
-	CandidateCVDeleteResponse
+	CandidateCVDeleteResponse,
+	SelectCandidatesRequest,
+	SelectCandidatesResponse,
+	SelectedCandidatesListResponse,
+	CandidateSelectionItem,
+	CandidateInfo
 )
 from app.schemas.score import (
 	ScorePayload, ScoreResponse, CandidateScoreRead, ScoreListResponse,
@@ -24,12 +29,13 @@ from app.schemas.score import (
 )
 from app.cqrs.handlers import UploadCVs, ScoreCandidate, handle_command, handle_query
 from app.cqrs.commands.upload_cv_file import UploadCVFile
-from app.cqrs.commands.candidate_commands import UpdateCandidate, UpdateCandidateCV, DeleteCandidate, DeleteCandidateCV
+from app.cqrs.commands.candidate_commands import UpdateCandidate, UpdateCandidateCV, DeleteCandidate, DeleteCandidateCV, SelectCandidates
 from app.cqrs.queries.candidate_queries import (
 	GetCandidate,
 	ListAllCandidates,
 	GetCandidateCV,
-	GetCandidateCVs
+	GetCandidateCVs,
+	ListSelectedCandidates
 )
 from app.cqrs.queries.score_queries import (
 	GetCandidateScore,
@@ -189,6 +195,7 @@ def _convert_candidate_score_to_read_schema(score_model, db: Session = None) -> 
 	file_name = None
 	persona_name = None
 	role_name = None
+	is_selected = 0
 	
 	if db:
 		try:
@@ -212,6 +219,12 @@ def _convert_candidate_score_to_read_schema(score_model, db: Session = None) -> 
 						job_role = handle_query(db, GetJobRole(job_description.role_id))
 						if job_role:
 							role_name = job_role.name
+			
+			# Check if candidate is selected for this persona
+			from app.services.candidate_service import CandidateService
+			selection = CandidateService().selections.get_by_candidate_persona(db, score_model.candidate_id, score_model.persona_id)
+			if selection:
+				is_selected = 1
 		except Exception:
 			# If there's an error fetching the data, continue without it
 			pass
@@ -234,6 +247,7 @@ def _convert_candidate_score_to_read_schema(score_model, db: Session = None) -> 
 		file_name=file_name,
 		persona_name=persona_name,
 		role_name=role_name,
+		is_selected=is_selected,
 		score_stages=[_convert_score_stage_to_read_schema(stage) for stage in score_model.score_stages],
 		categories=[_convert_score_category_to_read_schema(cat) for cat in score_model.categories],
 		insights=[_convert_score_insight_to_read_schema(insight) for insight in score_model.insights]
@@ -269,6 +283,107 @@ async def list_candidates(
 		size=size,
 		has_next=(skip + size) < total,
 		has_prev=page > 1
+	)
+
+
+@router.get("/selected", response_model=SelectedCandidatesListResponse, summary="Get Selected Candidates")
+async def get_selected_candidates(
+	persona_id: Optional[str] = Query(None, description="Filter by persona ID"),
+	job_description_id: Optional[str] = Query(None, alias="jd_id", description="Filter by job description ID"),
+	status: Optional[str] = Query(None, description="Filter by status (selected, interview_scheduled, interviewed, rejected, hired)"),
+	db: Session = Depends(db_session),
+	user: UserModel = Depends(get_current_user)
+):
+	"""
+	Get list of selected candidates with optional filtering.
+	
+	Access rules:
+	- Admin/Recruiter: Can see all selections
+	- Hiring Manager: Can only see selections for personas they have access to
+	
+	Filters:
+	- persona_id: Filter by specific persona
+	- job_description_id: Filter by job description
+	- status: Filter by selection status
+	"""
+	# If persona_id is provided, verify access
+	if persona_id:
+		persona = handle_query(db, GetPersona(persona_id))
+		if persona is None:
+			raise HTTPException(status_code=404, detail="Persona not found")
+		
+		if not can_access_jd(db, user, persona.job_description_id):
+			raise HTTPException(
+				status_code=403,
+				detail="Access denied. You do not have permission to view selections for this persona."
+			)
+	
+	# Get selected candidates
+	selections, total = handle_query(db, ListSelectedCandidates(
+		persona_id=persona_id,
+		job_description_id=job_description_id,
+		status=status,
+		skip=0,
+		limit=1000  # Large limit to get all, can add pagination later if needed
+	))
+	
+	# Filter selections based on user access if not already filtered by persona_id
+	filtered_selections = []
+	for selection in selections:
+		# Check if user has access to this persona's job description
+		if persona_id:
+			# Already verified access above
+			filtered_selections.append(selection)
+		else:
+			persona = handle_query(db, GetPersona(selection.persona_id))
+			if persona and can_access_jd(db, user, persona.job_description_id):
+				filtered_selections.append(selection)
+	
+	# Convert to response format
+	selection_items = []
+	for selection in filtered_selections:
+		try:
+			# Get candidate info
+			if not hasattr(selection, 'candidate') or selection.candidate is None:
+				# Try to get candidate_id from selection
+				candidate_id = getattr(selection, 'candidate_id', None)
+				if candidate_id:
+					candidate = handle_query(db, GetCandidate(candidate_id))
+					if not candidate:
+						continue
+				else:
+					continue
+			else:
+				candidate = selection.candidate
+			
+			candidate_info = CandidateInfo(
+				id=candidate.id,
+				full_name=candidate.full_name,
+				email=candidate.email,
+				phone=candidate.phone
+			)
+			
+			# Get persona name
+			persona_name = selection.persona.name if selection.persona else None
+			
+			selection_items.append(CandidateSelectionItem(
+				id=selection.id,
+				candidate=candidate_info,
+				persona_id=selection.persona_id,
+				persona_name=persona_name,
+				job_description_id=selection.job_description_id,
+				status=selection.status,
+				priority=selection.priority,
+				selection_notes=selection.selection_notes,
+				created_at=selection.created_at
+			))
+		except Exception as e:
+			# Continue processing other selections instead of failing completely
+			continue
+	
+	return SelectedCandidatesListResponse(
+		selections=selection_items,
+		total=len(selection_items)
 	)
 
 
@@ -652,6 +767,11 @@ async def score_candidate(
 	candidate_name = candidate.full_name if candidate else None
 	file_name = cv.file_name if cv else None
 	
+	# Check if candidate is selected for this persona
+	from app.services.candidate_service import CandidateService
+	selection = CandidateService().selections.get_by_candidate_persona(db, body.candidate_id, body.persona_id)
+	is_selected = 1 if selection else 0
+	
 	return ScoreResponse(
 		score_id=score.id,
 		candidate_id=score.candidate_id,
@@ -663,7 +783,8 @@ async def score_candidate(
 		candidate_name=candidate_name,
 		file_name=file_name,
 		persona_name=persona_name,
-		role_name=role_name
+		role_name=role_name,
+		is_selected=is_selected
 	)
 
 
@@ -780,6 +901,11 @@ async def score_candidate_with_ai(
                 candidate_name = candidate.full_name if candidate else None
                 file_name = cv.file_name if cv else None
                 
+                # Check if candidate is selected for this persona
+                from app.services.candidate_service import CandidateService
+                selection = CandidateService().selections.get_by_candidate_persona(db, candidate_id, persona_id)
+                is_selected = 1 if selection else 0
+                
                 return ScoreResponse(
                     score_id=existing_score.id,
                     candidate_id=existing_score.candidate_id,
@@ -791,7 +917,8 @@ async def score_candidate_with_ai(
                     candidate_name=candidate_name,
                     file_name=file_name,
                     persona_name=persona_name,
-                    role_name=role_name
+                    role_name=role_name,
+                    is_selected=is_selected
                 )
         
         # No existing score found, proceed with AI scoring
@@ -840,6 +967,11 @@ async def score_candidate_with_ai(
         candidate_name = candidate.full_name if candidate else None
         file_name = cv.file_name if cv else None
         
+        # Check if candidate is selected for this persona
+        from app.services.candidate_service import CandidateService
+        selection = CandidateService().selections.get_by_candidate_persona(db, candidate_id, persona_id)
+        is_selected = 1 if selection else 0
+        
         return ScoreResponse(
             score_id=score.id,
             candidate_id=score.candidate_id,
@@ -851,7 +983,8 @@ async def score_candidate_with_ai(
             file_name=file_name,
             persona_name=persona_name,
             role_name=role_name,
-			scored_at=score.scored_at
+			scored_at=score.scored_at,
+            is_selected=is_selected
         )
         
     except Exception as e:
@@ -908,6 +1041,93 @@ async def get_candidate_scores(
 		size=size,
 		has_next=(skip + size) < total,
 		has_prev=page > 1
+	)
+
+
+@router.post("/select", response_model=SelectCandidatesResponse, summary="Select Candidates for Interview")
+async def select_candidates(
+	request: SelectCandidatesRequest,
+	db: Session = Depends(db_session),
+	user: UserModel = Depends(get_current_user)
+):
+	"""
+	Select multiple candidates for interview.
+	
+	Access rules:
+	- Admin/Recruiter: Can select candidates for any persona
+	- Hiring Manager: Can only select candidates for personas they have access to
+	
+	This endpoint allows bulk selection of candidates. If a candidate is already
+	selected for the same persona, the selection will be updated instead of creating a duplicate.
+	"""
+	# Validate that persona exists and user has access
+	persona = handle_query(db, GetPersona(request.persona_id))
+	if persona is None:
+		raise HTTPException(status_code=404, detail="Persona not found")
+	
+	# Check access control
+	if not can_access_jd(db, user, persona.job_description_id):
+		raise HTTPException(
+			status_code=403,
+			detail="Access denied. You do not have permission to select candidates for this persona."
+		)
+	
+	# Validate that job_description_id matches persona's job_description_id
+	if persona.job_description_id != request.job_description_id:
+		raise HTTPException(
+			status_code=400,
+			detail="Job description ID does not match the persona's job description"
+		)
+	
+	# Validate all candidates exist
+	for candidate_id in request.candidate_ids:
+		candidate = handle_query(db, GetCandidate(candidate_id))
+		if not candidate:
+			raise HTTPException(
+				status_code=404,
+				detail=f"Candidate not found: {candidate_id}"
+			)
+	
+	# Select candidates using command
+	selections = handle_command(db, SelectCandidates(
+		candidate_ids=request.candidate_ids,
+		persona_id=request.persona_id,
+		job_description_id=request.job_description_id,
+		selected_by=user.id,
+		selection_notes=request.selection_notes,
+		priority=request.priority
+	))
+	
+	# Convert to response format
+	selection_items = []
+	for selection in selections:
+		# Get candidate info
+		candidate = selection.candidate
+		candidate_info = CandidateInfo(
+			id=candidate.id,
+			full_name=candidate.full_name,
+			email=candidate.email,
+			phone=candidate.phone
+		)
+		
+		# Get persona name
+		persona_name = selection.persona.name if selection.persona else None
+		
+		selection_items.append(CandidateSelectionItem(
+			id=selection.id,
+			candidate=candidate_info,
+			persona_id=selection.persona_id,
+			persona_name=persona_name,
+			job_description_id=selection.job_description_id,
+			status=selection.status,
+			priority=selection.priority,
+			selection_notes=selection.selection_notes,
+			created_at=selection.created_at
+		))
+	
+	return SelectCandidatesResponse(
+		selected_count=len(selection_items),
+		selections=selection_items
 	)
 
 

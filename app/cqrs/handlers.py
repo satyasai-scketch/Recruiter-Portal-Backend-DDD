@@ -48,7 +48,7 @@ from app.cqrs.commands.persona_commands import (
 )
 from app.cqrs.commands.upload_cv import UploadCVs
 from app.cqrs.commands.upload_cv_file import UploadCVFile
-from app.cqrs.commands.candidate_commands import UpdateCandidate, UpdateCandidateCV, DeleteCandidate, DeleteCandidateCV
+from app.cqrs.commands.candidate_commands import UpdateCandidate, UpdateCandidateCV, DeleteCandidate, DeleteCandidateCV, SelectCandidates
 from app.cqrs.commands.score_candidates import ScoreCandidate
 from app.cqrs.commands.user_commands import UpdateUser
 
@@ -66,7 +66,8 @@ from app.cqrs.queries.candidate_queries import (
 	GetCandidate,
 	ListAllCandidates,
 	GetCandidateCV,
-	GetCandidateCVs
+	GetCandidateCVs,
+	ListSelectedCandidates
 )
 from app.cqrs.queries.score_queries import (
 	GetCandidateScore,
@@ -497,6 +498,16 @@ def handle_command(db: Session, command: Command) -> Any:
 		return CandidateService().delete_candidate(db, command.candidate_id)
 	if isinstance(command, DeleteCandidateCV):
 		return CandidateService().delete_candidate_cv(db, command.candidate_cv_id)
+	if isinstance(command, SelectCandidates):
+		return CandidateService().select_candidates(
+			db,
+			command.candidate_ids,
+			command.persona_id,
+			command.job_description_id,
+			command.selected_by,
+			command.selection_notes,
+			command.priority
+		)
 	if isinstance(command, UpdateUser):
 		return UserService().update(db, command.user_id, command.payload)
 	if isinstance(command, GeneratePersonaWarnings):
@@ -596,6 +607,15 @@ def handle_query(db: Session, query: Query) -> Any:
 		return CandidateService().get_candidate_cv(db, query.candidate_cv_id)
 	if isinstance(query, GetCandidateCVs):
 		return CandidateService().get_candidate_cvs(db, query.candidate_id)
+	if isinstance(query, ListSelectedCandidates):
+		return CandidateService().list_selected_candidates(
+			db,
+			query.persona_id,
+			query.job_description_id,
+			query.status,
+			query.skip,
+			query.limit
+		)
 	if isinstance(query, GetCandidateScore):
 		return CandidateService().get_candidate_score(db, query.score_id)
 	if isinstance(query, ListCandidateScores):

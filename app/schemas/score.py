@@ -86,6 +86,7 @@ class CandidateScoreRead(BaseModel):
 	file_name: Optional[str] = None
 	persona_name: Optional[str] = None
 	role_name: Optional[str] = None
+	is_selected: int = 0  # 1 if candidate is selected for this persona, 0 otherwise
 	
 	# Related data
 	score_stages: List[ScoreStageRead] = []
@@ -106,6 +107,7 @@ class ScoreResponse(BaseModel):
 	file_name: Optional[str] = None
 	persona_name: Optional[str] = None
 	role_name: Optional[str] = None
+	is_selected: int = 0  # 1 if candidate is selected for this persona, 0 otherwise
 
 
 class ScoreListResponse(BaseModel):

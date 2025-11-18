@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, DateTime, ForeignKey
+from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Text, UniqueConstraint, Index
 from sqlalchemy.dialects.sqlite import JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -48,3 +48,39 @@ class CandidateCVModel(Base):
 
 	candidate = relationship("CandidateModel", back_populates="cvs", foreign_keys="[CandidateCVModel.candidate_id]")
 	uploader = relationship("UserModel", foreign_keys=[uploaded_by])
+
+
+class CandidateSelectionModel(Base):
+	__tablename__ = "candidate_selections"
+
+	id = Column(String, primary_key=True)
+	candidate_id = Column(String, ForeignKey("candidates.id", ondelete="CASCADE"), nullable=False, index=True)
+	persona_id = Column(String, ForeignKey("personas.id", ondelete="CASCADE"), nullable=False, index=True)
+	job_description_id = Column(String, ForeignKey("job_descriptions.id", ondelete="CASCADE"), nullable=False, index=True)
+	selected_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+	
+	# Selection Metadata
+	selection_notes = Column(Text, nullable=True)
+	priority = Column(String, nullable=True)  # 'high', 'medium', 'low'
+	
+	# Status
+	status = Column(String, nullable=False, default="selected")  # 'selected', 'interview_scheduled', 'interviewed', 'rejected', 'hired'
+	
+	# Audit Fields
+	created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+	updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+	
+	# Relationships
+	candidate = relationship("CandidateModel", foreign_keys=[candidate_id])
+	persona = relationship("PersonaModel", foreign_keys=[persona_id])
+	job_description = relationship("JobDescriptionModel", foreign_keys=[job_description_id])
+	selector = relationship("UserModel", foreign_keys=[selected_by])
+	
+	# Table constraints
+	__table_args__ = (
+		UniqueConstraint("candidate_id", "persona_id", name="uq_candidate_persona_selection"),
+		Index("idx_candidate_selections_candidate", "candidate_id"),
+		Index("idx_candidate_selections_persona", "persona_id"),
+		Index("idx_candidate_selections_status", "status"),
+		Index("idx_candidate_selections_jd", "job_description_id"),
+	)
