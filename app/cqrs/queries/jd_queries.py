@@ -57,3 +57,13 @@ class CountJobDescriptions(Query):
 	
 	def __init__(self):
 		pass
+
+
+class ListJobDescriptionsByRoleId(Query):
+	"""Query to list job descriptions filtered by role_id."""
+	
+	def __init__(self, role_id: str, skip: int = 0, limit: int = 100, optimized: bool = True):
+		self.role_id = role_id
+		self.skip = skip
+		self.limit = limit
+		self.optimized = optimized  # Use optimized query that excludes text fields

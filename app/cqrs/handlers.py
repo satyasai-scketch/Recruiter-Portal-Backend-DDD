@@ -48,7 +48,7 @@ from app.cqrs.commands.persona_commands import (
 )
 from app.cqrs.commands.upload_cv import UploadCVs
 from app.cqrs.commands.upload_cv_file import UploadCVFile
-from app.cqrs.commands.candidate_commands import UpdateCandidate, UpdateCandidateCV, DeleteCandidate, DeleteCandidateCV
+from app.cqrs.commands.candidate_commands import UpdateCandidate, UpdateCandidateCV, DeleteCandidate, DeleteCandidateCV, SelectCandidates, UpdateCandidateSelection
 from app.cqrs.commands.score_candidates import ScoreCandidate
 from app.cqrs.commands.user_commands import UpdateUser
 
@@ -59,6 +59,7 @@ from app.cqrs.queries.jd_queries import (
 	ListAllJobDescriptions,
 	GetJobDescription,
 	PrepareJDRefinementBrief,
+	ListJobDescriptionsByRoleId,
 )
 from app.cqrs.queries.get_persona import GetPersona
 from app.cqrs.queries.list_candidates import ListCandidates
@@ -66,7 +67,9 @@ from app.cqrs.queries.candidate_queries import (
 	GetCandidate,
 	ListAllCandidates,
 	GetCandidateCV,
-	GetCandidateCVs
+	GetCandidateCVs,
+	ListSelectedCandidates,
+	GetCandidateSelection
 )
 from app.cqrs.queries.score_queries import (
 	GetCandidateScore,
@@ -498,6 +501,26 @@ def handle_command(db: Session, command: Command) -> Any:
 		return CandidateService().delete_candidate(db, command.candidate_id)
 	if isinstance(command, DeleteCandidateCV):
 		return CandidateService().delete_candidate_cv(db, command.candidate_cv_id)
+	if isinstance(command, SelectCandidates):
+		return CandidateService().select_candidates(
+			db,
+			command.candidate_ids,
+			command.persona_id,
+			command.job_description_id,
+			command.selected_by,
+			command.selection_notes,
+			command.priority
+		)
+	if isinstance(command, UpdateCandidateSelection):
+		return CandidateService().update_selection(
+			db,
+			command.selection_id,
+			command.updated_by,
+			command.status,
+			command.priority,
+			command.selection_notes,
+			command.change_notes
+		)
 	if isinstance(command, UpdateUser):
 		return UserService().update(db, command.user_id, command.payload)
 	if isinstance(command, GeneratePersonaWarnings):
@@ -527,6 +550,11 @@ def handle_query(db: Session, query: Query) -> Any:
 		return JDService().count(db)
 	if isinstance(query, GetJobDescription):
 		return JDService().get_by_id(db, query.jd_id)
+	if isinstance(query, ListJobDescriptionsByRoleId):
+		if query.optimized:
+			return JDService().list_by_role_id(db, query.role_id, query.skip, query.limit, optimized=True)
+		else:
+			return JDService().list_by_role_id(db, query.role_id, query.skip, query.limit, optimized=False)
 	if isinstance(query, PrepareJDRefinementBrief):
 		return JDService().prepare_refinement_brief(db, query.jd_id, query.required_sections, query.template_text)
 	if isinstance(query, Recommendations):
@@ -597,6 +625,17 @@ def handle_query(db: Session, query: Query) -> Any:
 		return CandidateService().get_candidate_cv(db, query.candidate_cv_id)
 	if isinstance(query, GetCandidateCVs):
 		return CandidateService().get_candidate_cvs(db, query.candidate_id)
+	if isinstance(query, ListSelectedCandidates):
+		return CandidateService().list_selected_candidates(
+			db,
+			query.persona_id,
+			query.job_description_id,
+			query.status,
+			query.skip,
+			query.limit
+		)
+	if isinstance(query, GetCandidateSelection):
+		return CandidateService().get_selection(db, query.selection_id)
 	if isinstance(query, GetCandidateScore):
 		return CandidateService().get_candidate_score(db, query.score_id)
 	if isinstance(query, ListCandidateScores):

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Dict, Optional, List
 from datetime import datetime
 
@@ -124,3 +124,139 @@ class CandidateCVDeleteResponse(BaseModel):
 	message: str
 	candidate_cv_id: str
 	candidate_id: str
+
+
+# ========== Candidate Selection Schemas ==========
+
+class CandidateSelectionCreate(BaseModel):
+	"""Schema for creating a candidate selection"""
+	candidate_id: str
+	persona_id: str
+	job_description_id: str
+	selection_notes: Optional[str] = None
+	priority: Optional[str] = Field(None, description="Priority: 'high', 'medium', or 'low'")
+	
+	model_config = ConfigDict(from_attributes=True)
+
+
+class CandidateSelectionRead(BaseModel):
+	"""Schema for reading a candidate selection"""
+	id: str
+	candidate_id: str
+	persona_id: str
+	job_description_id: str
+	selected_by: str
+	selection_notes: Optional[str] = None
+	priority: Optional[str] = None
+	status: str
+	created_at: datetime
+	updated_at: datetime
+	
+	# Nested candidate info
+	candidate: Optional[Dict] = None  # Will be populated from relationship
+	persona: Optional[Dict] = None  # Will be populated from relationship
+	job_description: Optional[Dict] = None  # Will be populated from relationship
+	selector: Optional[Dict] = None  # Will be populated from relationship
+	
+	model_config = ConfigDict(from_attributes=True)
+
+
+class CandidateInfo(BaseModel):
+	"""Minimal candidate information for selection responses"""
+	id: str
+	full_name: Optional[str] = None
+	email: Optional[str] = None
+	phone: Optional[str] = None
+	
+	model_config = ConfigDict(from_attributes=True)
+
+
+class CandidateSelectionItem(BaseModel):
+	"""Schema for a single selection item in list responses"""
+	id: str
+	candidate: CandidateInfo = Field(..., description="Candidate information")
+	persona_id: str
+	persona_name: Optional[str] = None
+	job_description_id: Optional[str] = None
+	status: str
+	priority: Optional[str] = None
+	selection_notes: Optional[str] = None
+	selected_by: Optional[str] = None
+	selected_by_name: Optional[str] = None  # Full name from selector relationship
+	created_at: datetime
+	
+	model_config = ConfigDict(from_attributes=True)
+
+
+class SelectCandidatesRequest(BaseModel):
+	"""Request schema for selecting multiple candidates"""
+	candidate_ids: List[str] = Field(..., description="List of candidate IDs to select")
+	persona_id: str
+	job_description_id: str
+	selection_notes: Optional[str] = None
+	priority: Optional[str] = Field(None, description="Priority: 'high', 'medium', or 'low'")
+	
+	model_config = ConfigDict(from_attributes=True)
+
+
+class SelectCandidatesResponse(BaseModel):
+	"""Response schema for bulk candidate selection"""
+	selected_count: int
+	selections: List[CandidateSelectionItem]
+	
+	model_config = ConfigDict(from_attributes=True)
+
+
+class SelectedCandidatesListResponse(BaseModel):
+	"""Response schema for listing selected candidates"""
+	selections: List[CandidateSelectionItem]
+	total: int
+	
+	model_config = ConfigDict(from_attributes=True)
+
+
+class CandidateSelectionUpdate(BaseModel):
+	"""Schema for updating a candidate selection"""
+	status: Optional[str] = Field(None, description="New status: 'selected', 'interview_scheduled', 'interviewed', 'rejected', 'hired'")
+	priority: Optional[str] = Field(None, description="Priority: 'high', 'medium', or 'low'")
+	selection_notes: Optional[str] = Field(None, description="Selection notes")
+	change_notes: Optional[str] = Field(None, description="Optional notes about this change")
+	
+	model_config = ConfigDict(from_attributes=True)
+
+
+class CandidateSelectionAuditLogRead(BaseModel):
+	"""Schema for reading a candidate selection audit log entry"""
+	id: str
+	selection_id: str
+	action: str
+	changed_by: Optional[str] = None
+	changed_by_name: Optional[str] = None  # Full name from changer relationship
+	field_name: Optional[str] = None
+	old_value: Optional[str] = None
+	new_value: Optional[str] = None
+	change_notes: Optional[str] = None
+	created_at: datetime
+	
+	model_config = ConfigDict(from_attributes=True)
+
+
+class CandidateSelectionAuditLogListResponse(BaseModel):
+	"""Response schema for listing selection audit logs"""
+	logs: List[CandidateSelectionAuditLogRead]
+	total: int
+	page: int
+	size: int
+	has_next: bool
+	has_prev: bool
+	
+	model_config = ConfigDict(from_attributes=True)
+
+
+class CandidateSelectionWithAuditLogsResponse(BaseModel):
+	"""Response schema for selection details with audit logs"""
+	selection: CandidateSelectionItem
+	audit_logs: List[CandidateSelectionAuditLogRead]
+	total_logs: int
+	
+	model_config = ConfigDict(from_attributes=True)

@@ -34,6 +34,9 @@ class JobDescriptionRepository:
 	def list_by_creator(self, db: Session, user_id: str) -> Sequence[JobDescriptionModel]:
 		raise NotImplementedError
 
+	def list_by_role_id(self, db: Session, role_id: str, skip: int = 0, limit: int = 100, optimized: bool = True) -> Sequence[JobDescriptionModel]:
+		raise NotImplementedError
+
 	def count(self, db: Session) -> int:
 		raise NotImplementedError
 
@@ -106,6 +109,45 @@ class SQLAlchemyJobDescriptionRepository(JobDescriptionRepository):
 			.order_by(JobDescriptionModel.created_at.desc())
 			.all()
 		)
+
+	def list_by_role_id(self, db: Session, role_id: str, skip: int = 0, limit: int = 100, optimized: bool = True) -> Sequence[JobDescriptionModel]:
+		"""
+		List job descriptions filtered by role_id.
+		
+		Args:
+			db: Database session
+			role_id: Job role ID to filter by
+			skip: Pagination offset
+			limit: Pagination limit
+			optimized: Whether to use optimized query (excludes large text fields)
+			
+		Returns:
+			Sequence of JobDescriptionModel instances filtered by role_id
+		"""
+		query = db.query(JobDescriptionModel).filter(JobDescriptionModel.role_id == role_id)
+		
+		if optimized:
+			query = query.options(
+				# Defer loading large text fields
+				defer(JobDescriptionModel.original_text),
+				defer(JobDescriptionModel.refined_text),
+				defer(JobDescriptionModel.selected_text),
+				# Use joinedload for many-to-one relationships
+				joinedload(JobDescriptionModel.job_role),
+				joinedload(JobDescriptionModel.creator),
+				joinedload(JobDescriptionModel.updater),
+				# Use selectinload for one-to-many relationships
+				selectinload(JobDescriptionModel.personas),
+			)
+		else:
+			query = query.options(
+				joinedload(JobDescriptionModel.job_role),
+				joinedload(JobDescriptionModel.creator),
+				joinedload(JobDescriptionModel.updater),
+				selectinload(JobDescriptionModel.personas),
+			)
+		
+		return query.order_by(JobDescriptionModel.created_at.desc()).offset(skip).limit(limit).all()
 
 	def count(self, db: Session) -> int:
 		"""

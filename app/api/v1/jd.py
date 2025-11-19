@@ -19,6 +19,7 @@ from app.cqrs.queries.jd_queries import (
 	ListAllJobDescriptions,
 	GetJobDescription,
 	CountJobDescriptions,
+	ListJobDescriptionsByRoleId,
 )
 from app.utils.error_handlers import handle_service_errors, rollback_on_error
 
@@ -141,6 +142,59 @@ async def list_all_jds(
 		
 		# Get total count with access filtering
 		total = jd_service.count(db, user)
+		
+		# Convert models to list items
+		jd_reads = [_convert_jd_model_to_list_item(m) for m in models]
+		
+		# Build response
+		response = JDListResponse(
+			jds=jd_reads,
+			total=total,
+			page=page,
+			size=size,
+			has_next=(skip + size) < total,
+			has_prev=page > 1
+		)
+		
+		return response
+	except (ValueError, SQLAlchemyError) as e:
+		if isinstance(e, SQLAlchemyError):
+			rollback_on_error(db)
+		raise handle_service_errors(e)
+
+
+@router.get("/by-role/{role_id}", response_model=JDListResponse, summary="List Job Descriptions by Role ID")
+async def list_jds_by_role_id(
+	role_id: str,
+	page: int = Query(1, ge=1, description="Page number"),
+	size: int = Query(10, ge=1, le=100, description="Page size"),
+	db: Session = Depends(get_db),
+	user=Depends(get_current_user)
+):
+	"""
+	List job descriptions filtered by role_id with pagination.
+	
+	This endpoint returns all job descriptions that match the given role_id.
+	The results are paginated and use optimized queries (excluding large text fields).
+	
+	Args:
+		role_id: The job role ID to filter by
+		page: Page number (default: 1)
+		size: Page size (default: 10, max: 100)
+	"""
+	try:
+		skip = (page - 1) * size
+		
+		# Query job descriptions by role_id
+		models = handle_query(db, ListJobDescriptionsByRoleId(role_id, skip, size, optimized=True))
+		
+		# Count total job descriptions for this role_id
+		# We need to count separately since we're filtering by role_id
+		from app.db.models.job_description import JobDescriptionModel
+		from sqlalchemy import func
+		total = db.query(func.count(JobDescriptionModel.id)).filter(
+			JobDescriptionModel.role_id == role_id
+		).scalar() or 0
 		
 		# Convert models to list items
 		jd_reads = [_convert_jd_model_to_list_item(m) for m in models]
