@@ -48,3 +48,22 @@ class SelectCandidates(Command):
         self.selected_by = selected_by
         self.selection_notes = selection_notes
         self.priority = priority
+
+@dataclass
+class UpdateCandidateSelection(Command):
+    """Command to update a candidate selection."""
+    def __init__(
+        self,
+        selection_id: str,
+        updated_by: str,
+        status: Optional[str] = None,
+        priority: Optional[str] = None,
+        selection_notes: Optional[str] = None,
+        change_notes: Optional[str] = None
+    ):
+        self.selection_id = selection_id
+        self.updated_by = updated_by
+        self.status = status
+        self.priority = priority
+        self.selection_notes = selection_notes
+        self.change_notes = change_notes

@@ -4,7 +4,7 @@ from typing import Optional, Sequence, List, Tuple
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, func, distinct
 
-from app.db.models.candidate import CandidateModel, CandidateCVModel, CandidateSelectionModel
+from app.db.models.candidate import CandidateModel, CandidateCVModel, CandidateSelectionModel, CandidateSelectionAuditLogModel
 from app.db.models.score import CandidateScoreModel
 from app.db.models.persona import PersonaModel
 
@@ -353,3 +353,61 @@ class SQLAlchemyCandidateSelectionRepository(CandidateSelectionRepository):
 		except Exception as e:
 			db.rollback()
 			raise e
+
+
+class CandidateSelectionAuditLogRepository:
+	"""Repository interface for Candidate Selection Audit Log aggregates."""
+
+	def create(self, db: Session, audit_log: CandidateSelectionAuditLogModel) -> CandidateSelectionAuditLogModel:
+		raise NotImplementedError
+
+	def get_by_selection_id(
+		self, 
+		db: Session, 
+		selection_id: str,
+		skip: int = 0,
+		limit: int = 100
+	) -> Sequence[CandidateSelectionAuditLogModel]:
+		raise NotImplementedError
+
+	def count_by_selection_id(self, db: Session, selection_id: str) -> int:
+		raise NotImplementedError
+
+
+class SQLAlchemyCandidateSelectionAuditLogRepository(CandidateSelectionAuditLogRepository):
+	"""SQLAlchemy-backed implementation of CandidateSelectionAuditLogRepository."""
+
+	def create(self, db: Session, audit_log: CandidateSelectionAuditLogModel) -> CandidateSelectionAuditLogModel:
+		"""Create a new audit log entry."""
+		db.add(audit_log)
+		db.commit()
+		db.refresh(audit_log)
+		return audit_log
+
+	def get_by_selection_id(
+		self, 
+		db: Session, 
+		selection_id: str,
+		skip: int = 0,
+		limit: int = 100
+	) -> Sequence[CandidateSelectionAuditLogModel]:
+		"""Get audit logs for a specific selection, ordered by creation time (oldest first)."""
+		return (
+			db.query(CandidateSelectionAuditLogModel)
+			.options(
+				joinedload(CandidateSelectionAuditLogModel.changer)
+			)
+			.filter(CandidateSelectionAuditLogModel.selection_id == selection_id)
+			.order_by(CandidateSelectionAuditLogModel.created_at.asc())
+			.offset(skip)
+			.limit(limit)
+			.all()
+		)
+
+	def count_by_selection_id(self, db: Session, selection_id: str) -> int:
+		"""Count audit logs for a specific selection."""
+		return (
+			db.query(CandidateSelectionAuditLogModel)
+			.filter(CandidateSelectionAuditLogModel.selection_id == selection_id)
+			.count()
+		)

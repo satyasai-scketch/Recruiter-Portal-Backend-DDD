@@ -48,7 +48,7 @@ from app.cqrs.commands.persona_commands import (
 )
 from app.cqrs.commands.upload_cv import UploadCVs
 from app.cqrs.commands.upload_cv_file import UploadCVFile
-from app.cqrs.commands.candidate_commands import UpdateCandidate, UpdateCandidateCV, DeleteCandidate, DeleteCandidateCV, SelectCandidates
+from app.cqrs.commands.candidate_commands import UpdateCandidate, UpdateCandidateCV, DeleteCandidate, DeleteCandidateCV, SelectCandidates, UpdateCandidateSelection
 from app.cqrs.commands.score_candidates import ScoreCandidate
 from app.cqrs.commands.user_commands import UpdateUser
 
@@ -68,7 +68,8 @@ from app.cqrs.queries.candidate_queries import (
 	ListAllCandidates,
 	GetCandidateCV,
 	GetCandidateCVs,
-	ListSelectedCandidates
+	ListSelectedCandidates,
+	GetCandidateSelection
 )
 from app.cqrs.queries.score_queries import (
 	GetCandidateScore,
@@ -509,6 +510,16 @@ def handle_command(db: Session, command: Command) -> Any:
 			command.selection_notes,
 			command.priority
 		)
+	if isinstance(command, UpdateCandidateSelection):
+		return CandidateService().update_selection(
+			db,
+			command.selection_id,
+			command.updated_by,
+			command.status,
+			command.priority,
+			command.selection_notes,
+			command.change_notes
+		)
 	if isinstance(command, UpdateUser):
 		return UserService().update(db, command.user_id, command.payload)
 	if isinstance(command, GeneratePersonaWarnings):
@@ -622,6 +633,8 @@ def handle_query(db: Session, query: Query) -> Any:
 			query.skip,
 			query.limit
 		)
+	if isinstance(query, GetCandidateSelection):
+		return CandidateService().get_selection(db, query.selection_id)
 	if isinstance(query, GetCandidateScore):
 		return CandidateService().get_candidate_score(db, query.score_id)
 	if isinstance(query, ListCandidateScores):

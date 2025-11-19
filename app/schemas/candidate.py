@@ -181,6 +181,8 @@ class CandidateSelectionItem(BaseModel):
 	status: str
 	priority: Optional[str] = None
 	selection_notes: Optional[str] = None
+	selected_by: Optional[str] = None
+	selected_by_name: Optional[str] = None  # Full name from selector relationship
 	created_at: datetime
 	
 	model_config = ConfigDict(from_attributes=True)
@@ -209,5 +211,52 @@ class SelectedCandidatesListResponse(BaseModel):
 	"""Response schema for listing selected candidates"""
 	selections: List[CandidateSelectionItem]
 	total: int
+	
+	model_config = ConfigDict(from_attributes=True)
+
+
+class CandidateSelectionUpdate(BaseModel):
+	"""Schema for updating a candidate selection"""
+	status: Optional[str] = Field(None, description="New status: 'selected', 'interview_scheduled', 'interviewed', 'rejected', 'hired'")
+	priority: Optional[str] = Field(None, description="Priority: 'high', 'medium', or 'low'")
+	selection_notes: Optional[str] = Field(None, description="Selection notes")
+	change_notes: Optional[str] = Field(None, description="Optional notes about this change")
+	
+	model_config = ConfigDict(from_attributes=True)
+
+
+class CandidateSelectionAuditLogRead(BaseModel):
+	"""Schema for reading a candidate selection audit log entry"""
+	id: str
+	selection_id: str
+	action: str
+	changed_by: Optional[str] = None
+	changed_by_name: Optional[str] = None  # Full name from changer relationship
+	field_name: Optional[str] = None
+	old_value: Optional[str] = None
+	new_value: Optional[str] = None
+	change_notes: Optional[str] = None
+	created_at: datetime
+	
+	model_config = ConfigDict(from_attributes=True)
+
+
+class CandidateSelectionAuditLogListResponse(BaseModel):
+	"""Response schema for listing selection audit logs"""
+	logs: List[CandidateSelectionAuditLogRead]
+	total: int
+	page: int
+	size: int
+	has_next: bool
+	has_prev: bool
+	
+	model_config = ConfigDict(from_attributes=True)
+
+
+class CandidateSelectionWithAuditLogsResponse(BaseModel):
+	"""Response schema for selection details with audit logs"""
+	selection: CandidateSelectionItem
+	audit_logs: List[CandidateSelectionAuditLogRead]
+	total_logs: int
 	
 	model_config = ConfigDict(from_attributes=True)

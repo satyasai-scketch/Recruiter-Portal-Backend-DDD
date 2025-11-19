@@ -49,3 +49,10 @@ class ListSelectedCandidates(Query):
         self.status = status
         self.skip = skip
         self.limit = limit
+
+
+class GetCandidateSelection(Query):
+    """Query to get a candidate selection by ID."""
+    
+    def __init__(self, selection_id: str):
+        self.selection_id = selection_id

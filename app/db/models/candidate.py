@@ -84,3 +84,40 @@ class CandidateSelectionModel(Base):
 		Index("idx_candidate_selections_status", "status"),
 		Index("idx_candidate_selections_jd", "job_description_id"),
 	)
+	
+	# Relationship to audit logs
+	audit_logs = relationship("CandidateSelectionAuditLogModel", back_populates="selection", cascade="all, delete-orphan", order_by="CandidateSelectionAuditLogModel.created_at")
+
+
+class CandidateSelectionAuditLogModel(Base):
+	"""Audit log for tracking all changes to candidate selections."""
+	__tablename__ = "candidate_selection_audit_logs"
+	
+	id = Column(String, primary_key=True)
+	selection_id = Column(String, ForeignKey("candidate_selections.id", ondelete="CASCADE"), nullable=False, index=True)
+	
+	# Change tracking
+	action = Column(String, nullable=False)  # 'created', 'updated', 'status_changed', 'notes_updated', 'priority_updated'
+	changed_by = Column(String, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+	
+	# Field changes (stored as JSON for flexibility)
+	field_name = Column(String, nullable=True)  # 'status', 'priority', 'selection_notes', etc.
+	old_value = Column(Text, nullable=True)  # Previous value
+	new_value = Column(Text, nullable=True)  # New value
+	
+	# Additional context
+	change_notes = Column(Text, nullable=True)  # Optional notes about the change
+	
+	# Timestamp
+	created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+	
+	# Relationships
+	selection = relationship("CandidateSelectionModel", back_populates="audit_logs", foreign_keys=[selection_id])
+	changer = relationship("UserModel", foreign_keys=[changed_by])
+	
+	# Table constraints
+	__table_args__ = (
+		Index("idx_selection_audit_selection", "selection_id"),
+		Index("idx_selection_audit_changed_by", "changed_by"),
+		Index("idx_selection_audit_created_at", "created_at"),
+	)

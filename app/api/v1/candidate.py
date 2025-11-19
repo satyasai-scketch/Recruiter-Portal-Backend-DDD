@@ -21,7 +21,11 @@ from app.schemas.candidate import (
 	SelectCandidatesResponse,
 	SelectedCandidatesListResponse,
 	CandidateSelectionItem,
-	CandidateInfo
+	CandidateInfo,
+	CandidateSelectionUpdate,
+	CandidateSelectionAuditLogRead,
+	CandidateSelectionAuditLogListResponse,
+	CandidateSelectionWithAuditLogsResponse
 )
 from app.schemas.score import (
 	ScorePayload, ScoreResponse, CandidateScoreRead, ScoreListResponse,
@@ -29,13 +33,14 @@ from app.schemas.score import (
 )
 from app.cqrs.handlers import UploadCVs, ScoreCandidate, handle_command, handle_query
 from app.cqrs.commands.upload_cv_file import UploadCVFile
-from app.cqrs.commands.candidate_commands import UpdateCandidate, UpdateCandidateCV, DeleteCandidate, DeleteCandidateCV, SelectCandidates
+from app.cqrs.commands.candidate_commands import UpdateCandidate, UpdateCandidateCV, DeleteCandidate, DeleteCandidateCV, SelectCandidates, UpdateCandidateSelection
 from app.cqrs.queries.candidate_queries import (
 	GetCandidate,
 	ListAllCandidates,
 	GetCandidateCV,
 	GetCandidateCVs,
-	ListSelectedCandidates
+	ListSelectedCandidates,
+	GetCandidateSelection
 )
 from app.cqrs.queries.score_queries import (
 	GetCandidateScore,
@@ -366,6 +371,18 @@ async def get_selected_candidates(
 			# Get persona name
 			persona_name = selection.persona.name if selection.persona else None
 			
+			# Get selector (created_by) name from relationship
+			selected_by_name = None
+			if selection.selector:
+				if selection.selector.first_name and selection.selector.last_name:
+					selected_by_name = f"{selection.selector.first_name} {selection.selector.last_name}".strip()
+				elif selection.selector.first_name:
+					selected_by_name = selection.selector.first_name
+				elif selection.selector.last_name:
+					selected_by_name = selection.selector.last_name
+				else:
+					selected_by_name = selection.selector.email
+			
 			selection_items.append(CandidateSelectionItem(
 				id=selection.id,
 				candidate=candidate_info,
@@ -375,6 +392,8 @@ async def get_selected_candidates(
 				status=selection.status,
 				priority=selection.priority,
 				selection_notes=selection.selection_notes,
+				selected_by=selection.selected_by,
+				selected_by_name=selected_by_name,
 				created_at=selection.created_at
 			))
 		except Exception as e:
@@ -1113,6 +1132,18 @@ async def select_candidates(
 		# Get persona name
 		persona_name = selection.persona.name if selection.persona else None
 		
+		# Get selector (created_by) name from relationship
+		selected_by_name = None
+		if selection.selector:
+			if selection.selector.first_name and selection.selector.last_name:
+				selected_by_name = f"{selection.selector.first_name} {selection.selector.last_name}".strip()
+			elif selection.selector.first_name:
+				selected_by_name = selection.selector.first_name
+			elif selection.selector.last_name:
+				selected_by_name = selection.selector.last_name
+			else:
+				selected_by_name = selection.selector.email
+		
 		selection_items.append(CandidateSelectionItem(
 			id=selection.id,
 			candidate=candidate_info,
@@ -1122,12 +1153,315 @@ async def select_candidates(
 			status=selection.status,
 			priority=selection.priority,
 			selection_notes=selection.selection_notes,
+			selected_by=selection.selected_by,
+			selected_by_name=selected_by_name,
 			created_at=selection.created_at
 		))
 	
 	return SelectCandidatesResponse(
 		selected_count=len(selection_items),
 		selections=selection_items
+	)
+
+
+@router.patch("/selections/{selection_id}", response_model=CandidateSelectionItem, summary="Update Candidate Selection")
+async def update_candidate_selection(
+	selection_id: str,
+	update_data: CandidateSelectionUpdate,
+	db: Session = Depends(db_session),
+	user: UserModel = Depends(get_current_user)
+):
+	"""
+	Update a candidate selection (status, priority, notes).
+	
+	Access rules:
+	- Admin/Recruiter: Can update any selection
+	- Hiring Manager: Can only update selections for personas they have access to
+	
+	This endpoint logs all changes to the selection audit log.
+	"""
+	from app.services.candidate_service import CandidateService
+	from app.cqrs.queries.candidate_queries import GetCandidateSelection
+	
+	# Get the selection to check access
+	selection = handle_query(db, GetCandidateSelection(selection_id))
+	if not selection:
+		raise HTTPException(status_code=404, detail="Selection not found")
+	
+	# Check access control
+	persona = handle_query(db, GetPersona(selection.persona_id))
+	if persona is None:
+		raise HTTPException(status_code=404, detail="Persona not found")
+	
+	if not can_access_jd(db, user, persona.job_description_id):
+		raise HTTPException(
+			status_code=403,
+			detail="Access denied. You do not have permission to update this selection."
+		)
+	
+	# Validate status if provided
+	if update_data.status and update_data.status not in ['selected', 'interview_scheduled', 'interviewed', 'rejected', 'hired']:
+		raise HTTPException(
+			status_code=400,
+			detail=f"Invalid status. Must be one of: 'selected', 'interview_scheduled', 'interviewed', 'rejected', 'hired'"
+		)
+	
+	# Validate priority if provided
+	if update_data.priority and update_data.priority not in ['high', 'medium', 'low']:
+		raise HTTPException(
+			status_code=400,
+			detail=f"Invalid priority. Must be one of: 'high', 'medium', 'low'"
+		)
+	
+	# Convert Pydantic model to dict, excluding None values
+	update_dict = {k: v for k, v in update_data.model_dump().items() if v is not None}
+	
+	if not update_dict:
+		raise HTTPException(status_code=400, detail="No fields provided for update")
+	
+	# Update selection using CQRS (this will log changes automatically)
+	updated_selection = handle_command(db, UpdateCandidateSelection(
+		selection_id=selection_id,
+		updated_by=user.id,
+		status=update_dict.get('status'),
+		priority=update_dict.get('priority'),
+		selection_notes=update_dict.get('selection_notes'),
+		change_notes=update_dict.get('change_notes')
+	))
+	
+	# Get candidate info
+	candidate = updated_selection.candidate
+	candidate_info = CandidateInfo(
+		id=candidate.id,
+		full_name=candidate.full_name,
+		email=candidate.email,
+		phone=candidate.phone
+	)
+	
+	# Get persona name
+	persona_name = updated_selection.persona.name if updated_selection.persona else None
+	
+	# Get selector (created_by) name from relationship
+	selected_by_name = None
+	if updated_selection.selector:
+		if updated_selection.selector.first_name and updated_selection.selector.last_name:
+			selected_by_name = f"{updated_selection.selector.first_name} {updated_selection.selector.last_name}".strip()
+		elif updated_selection.selector.first_name:
+			selected_by_name = updated_selection.selector.first_name
+		elif updated_selection.selector.last_name:
+			selected_by_name = updated_selection.selector.last_name
+		else:
+			selected_by_name = updated_selection.selector.email
+	
+	return CandidateSelectionItem(
+		id=updated_selection.id,
+		candidate=candidate_info,
+		persona_id=updated_selection.persona_id,
+		persona_name=persona_name,
+		job_description_id=updated_selection.job_description_id,
+		status=updated_selection.status,
+		priority=updated_selection.priority,
+		selection_notes=updated_selection.selection_notes,
+		selected_by=updated_selection.selected_by,
+		selected_by_name=selected_by_name,
+		created_at=updated_selection.created_at
+	)
+
+
+@router.get("/selections/{selection_id}/audit-logs", response_model=CandidateSelectionAuditLogListResponse, summary="Get Selection Audit Logs")
+async def get_selection_audit_logs(
+	selection_id: str,
+	page: int = Query(1, ge=1, description="Page number"),
+	size: int = Query(10, ge=1, le=100, description="Page size"),
+	db: Session = Depends(db_session),
+	user: UserModel = Depends(get_current_user)
+):
+	"""
+	Get audit logs for a candidate selection.
+	
+	This endpoint returns a complete history of all changes made to a selection,
+	including who made the change, when, and what changed.
+	
+	Access rules:
+	- Admin/Recruiter: Can access audit logs for any selection
+	- Hiring Manager: Can only access audit logs for selections they have access to
+	"""
+	from app.services.candidate_service import CandidateService
+	from app.cqrs.queries.candidate_queries import GetCandidateSelection
+	
+	# Get the selection to check access
+	selection = handle_query(db, GetCandidateSelection(selection_id))
+	if not selection:
+		raise HTTPException(status_code=404, detail="Selection not found")
+	
+	# Check access control
+	persona = handle_query(db, GetPersona(selection.persona_id))
+	if persona is None:
+		raise HTTPException(status_code=404, detail="Persona not found")
+	
+	if not can_access_jd(db, user, persona.job_description_id):
+		raise HTTPException(
+			status_code=403,
+			detail="Access denied. You do not have permission to view audit logs for this selection."
+		)
+	
+	skip = (page - 1) * size
+	
+	# Get audit logs
+	audit_logs, total = CandidateService().get_selection_audit_logs(db, selection_id, skip, size)
+	
+	# Convert to response format
+	log_reads = []
+	for log in audit_logs:
+		# Get changer name from relationship
+		changed_by_name = None
+		if log.changer:
+			if log.changer.first_name and log.changer.last_name:
+				changed_by_name = f"{log.changer.first_name} {log.changer.last_name}".strip()
+			elif log.changer.first_name:
+				changed_by_name = log.changer.first_name
+			elif log.changer.last_name:
+				changed_by_name = log.changer.last_name
+			else:
+				changed_by_name = log.changer.email
+		
+		log_reads.append(CandidateSelectionAuditLogRead(
+			id=log.id,
+			selection_id=log.selection_id,
+			action=log.action,
+			changed_by=log.changed_by,
+			changed_by_name=changed_by_name,
+			field_name=log.field_name,
+			old_value=log.old_value,
+			new_value=log.new_value,
+			change_notes=log.change_notes,
+			created_at=log.created_at
+		))
+	
+	return CandidateSelectionAuditLogListResponse(
+		logs=log_reads,
+		total=total,
+		page=page,
+		size=size,
+		has_next=(skip + size) < total,
+		has_prev=page > 1
+	)
+
+
+@router.get("/{candidate_id}/selections/{persona_id}", response_model=CandidateSelectionWithAuditLogsResponse, summary="Get Candidate Selection by Candidate and Persona")
+async def get_candidate_selection_by_persona(
+	candidate_id: str,
+	persona_id: str,
+	db: Session = Depends(db_session),
+	user: UserModel = Depends(get_current_user)
+):
+	"""
+	Get a candidate selection by candidate_id and persona_id, including audit logs.
+	
+	This endpoint returns the selection details along with the complete audit log history,
+	showing all changes made to the selection over time.
+	
+	Access rules:
+	- Admin/Recruiter: Can access any selection
+	- Hiring Manager: Can only access selections for personas they have access to
+	"""
+	from app.services.candidate_service import CandidateService
+	
+	# First check if candidate exists
+	candidate = handle_query(db, GetCandidate(candidate_id))
+	if not candidate:
+		raise HTTPException(status_code=404, detail="Candidate not found")
+	
+	# Check if persona exists and user has access
+	persona = handle_query(db, GetPersona(persona_id))
+	if persona is None:
+		raise HTTPException(status_code=404, detail="Persona not found")
+	
+	if not can_access_jd(db, user, persona.job_description_id):
+		raise HTTPException(
+			status_code=403,
+			detail="Access denied. You do not have permission to view this selection."
+		)
+	
+	# Get the selection
+	selection = CandidateService().get_selection_by_candidate_persona(db, candidate_id, persona_id)
+	if not selection:
+		raise HTTPException(
+			status_code=404,
+			detail=f"Selection not found for candidate {candidate_id} and persona {persona_id}"
+		)
+	
+	# Get audit logs (get all logs, no pagination for this endpoint since it's a single selection view)
+	audit_logs, total_logs = CandidateService().get_selection_audit_logs(db, selection.id, skip=0, limit=1000)
+	
+	# Convert selection to response format
+	candidate_info = CandidateInfo(
+		id=selection.candidate.id,
+		full_name=selection.candidate.full_name,
+		email=selection.candidate.email,
+		phone=selection.candidate.phone
+	)
+	
+	persona_name = selection.persona.name if selection.persona else None
+	
+	# Get selector (created_by) name from relationship
+	selected_by_name = None
+	if selection.selector:
+		if selection.selector.first_name and selection.selector.last_name:
+			selected_by_name = f"{selection.selector.first_name} {selection.selector.last_name}".strip()
+		elif selection.selector.first_name:
+			selected_by_name = selection.selector.first_name
+		elif selection.selector.last_name:
+			selected_by_name = selection.selector.last_name
+		else:
+			selected_by_name = selection.selector.email
+	
+	selection_item = CandidateSelectionItem(
+		id=selection.id,
+		candidate=candidate_info,
+		persona_id=selection.persona_id,
+		persona_name=persona_name,
+		job_description_id=selection.job_description_id,
+		status=selection.status,
+		priority=selection.priority,
+		selection_notes=selection.selection_notes,
+		selected_by=selection.selected_by,
+		selected_by_name=selected_by_name,
+		created_at=selection.created_at
+	)
+	
+	# Convert audit logs to response format
+	log_reads = []
+	for log in audit_logs:
+		# Get changer name from relationship
+		changed_by_name = None
+		if log.changer:
+			if log.changer.first_name and log.changer.last_name:
+				changed_by_name = f"{log.changer.first_name} {log.changer.last_name}".strip()
+			elif log.changer.first_name:
+				changed_by_name = log.changer.first_name
+			elif log.changer.last_name:
+				changed_by_name = log.changer.last_name
+			else:
+				changed_by_name = log.changer.email
+		
+		log_reads.append(CandidateSelectionAuditLogRead(
+			id=log.id,
+			selection_id=log.selection_id,
+			action=log.action,
+			changed_by=log.changed_by,
+			changed_by_name=changed_by_name,
+			field_name=log.field_name,
+			old_value=log.old_value,
+			new_value=log.new_value,
+			change_notes=log.change_notes,
+			created_at=log.created_at
+		))
+	
+	return CandidateSelectionWithAuditLogsResponse(
+		selection=selection_item,
+		audit_logs=log_reads,
+		total_logs=total_logs
 	)
 
 
