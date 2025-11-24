@@ -25,8 +25,6 @@ class CVScoringPrompts:
 
         return f"""Quick CV relevance assessment with skill extraction and role detection.
 
-EMBEDDING BASELINE: {embedding_score:.1f}%
-
 REQUIREMENTS (by importance):
 {chr(10).join(req_summary)}
 
@@ -97,7 +95,6 @@ Scoring guidance: 90-100=Excellent, 80-89=Strong, 70-79=Good, 60-69=Borderline, 
         return f"""Score this CV for the "{category['name']}" category only.
 
 BASELINE SCORES:
-- Embedding: {stage1_score:.1f}%
 - Quick Screen: {stage2_score:.1f}%
 
 CATEGORY: {category['name']} (Weight: {category['weight_percentage']}% of overall score)
@@ -226,7 +223,7 @@ Return JSON:
 }}
 
 Recommendation Guidelines:
-- STRONG_MATCH: 85-100%, minimal gaps, exceeds key requirements
-- GOOD_FIT: 70-84%, some gaps but solid match on critical areas
+- STRONG_MATCH: 80-100%, minimal gaps, exceeds key requirements
+- GOOD_FIT: 70-80%, some gaps but solid match on critical areas
 - MODERATE_FIT: 55-69%, significant gaps but has potential
-- WEAK_FIT: <55%, major gaps in critical areas"""
+- REJECTED: <55%, major gaps in critical areas"""
