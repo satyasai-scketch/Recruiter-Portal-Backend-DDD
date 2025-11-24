@@ -167,6 +167,9 @@ GUIDELINES:
 - Leadership component + seniority → Leadership Skills weight
 - No single category should exceed 60%
 - All categories should be at least 3%
+CRITICAL WEIGHT REQUIREMENTS:
+- Weights MUST reflect precise analysis, not round to convenient numbers
+- Use granular values (23%, 17%, 31%) based on actual JD emphasis
 
 RETURN JSON:
 
@@ -235,7 +238,7 @@ GUIDELINES:
 - Subcategories MUST sum to exactly 100%
 - Consider the emphasis scores from analysis
 - Provide clear reasoning for each weight
-
+- Generate precise weights based on JD emphasis, not just round numbers
 RETURN JSON:
 
 {{
