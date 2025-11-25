@@ -86,9 +86,10 @@ class CandidateScoreRead(BaseModel):
 	file_name: Optional[str] = None
 	persona_name: Optional[str] = None
 	role_name: Optional[str] = None
-	is_selected: int = 0  # 1 if candidate is selected for this persona, 0 otherwise
-	
-	# Related data
+	current_status: Optional[str] = None	
+	selection_id: Optional[str] = None
+	selected_by: Optional[str] = None
+	selected_by_name: Optional[str] = None
 	score_stages: List[ScoreStageRead] = []
 	categories: List[ScoreCategoryRead] = []
 	insights: List[ScoreInsightRead] = []
@@ -107,7 +108,10 @@ class ScoreResponse(BaseModel):
 	file_name: Optional[str] = None
 	persona_name: Optional[str] = None
 	role_name: Optional[str] = None
-	is_selected: int = 0  # 1 if candidate is selected for this persona, 0 otherwise
+	current_status: Optional[str] = None
+	selection_id: Optional[str] = None
+	selected_by: Optional[str] = None
+	selected_by_name: Optional[str] = None
 
 
 class ScoreListResponse(BaseModel):

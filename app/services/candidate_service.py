@@ -508,6 +508,12 @@ class CandidateService:
 		"""List all scores with pagination."""
 		return list(self.scores.list_all_scores(db, skip, limit))
 
+	def list_scores_for_persona(self, db: Session, persona_id: str, skip: int = 0, limit: int = 100) -> Tuple[List[CandidateScoreModel], int]:
+		"""List all scores for a specific persona (across all candidates) with pagination."""
+		scores = list(self.scores.list_scores_for_persona(db, persona_id, skip, limit))
+		total = self.scores.count_scores_for_persona(db, persona_id)
+		return scores, total
+
 	def delete_candidate(self, db: Session, candidate_id: str) -> bool:
 		"""Delete a candidate and all associated CVs and scores."""
 		try:
