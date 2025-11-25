@@ -12,6 +12,7 @@ from app.schemas.candidate import (
 	CandidateRead, 
 	CandidateUploadResponse,
 	CandidateListResponse,
+	CandidateSearchRequest,
 	CandidateCVUpdate,
 	CandidateCVRead,
 	CandidateCVListResponse,
@@ -37,6 +38,8 @@ from app.cqrs.commands.candidate_commands import UpdateCandidate, UpdateCandidat
 from app.cqrs.queries.candidate_queries import (
 	GetCandidate,
 	ListAllCandidates,
+	SearchCandidates,
+	CountSearchCandidates,
 	GetCandidateCV,
 	GetCandidateCVs,
 	ListSelectedCandidates,
@@ -309,6 +312,57 @@ async def list_candidates(
 		size=size,
 		has_next=(skip + size) < total,
 		has_prev=page > 1
+	)
+
+
+@router.post("/search", response_model=CandidateListResponse, summary="Search Candidates")
+async def search_candidates(
+	search_request: CandidateSearchRequest,
+	db: Session = Depends(db_session),
+	user=Depends(get_current_user)
+):
+	"""
+	Search candidates by a single query term that matches name, email, or phone number.
+	
+	- **query**: Search term to match against candidate name, email, or phone number (partial match, case-insensitive for name and email)
+	- **page**: Page number (default: 1)
+	- **size**: Page size (default: 10)
+	
+	The search automatically checks if the query term matches any of:
+	- Candidate name (partial match, case-insensitive)
+	- Candidate email (partial match, case-insensitive)
+	- Candidate phone number (partial match)
+	
+	The search uses OR logic - candidates matching any of the fields will be returned.
+	"""
+	# Validate that search query is provided and not empty
+	if not search_request.query or not search_request.query.strip():
+		raise HTTPException(
+			status_code=400,
+			detail="Search query parameter is required and cannot be empty"
+		)
+	
+	skip = (search_request.page - 1) * search_request.size
+	
+	# Build search criteria with single query term
+	search_criteria = {
+		'query': search_request.query.strip()
+	}
+	
+	# Get candidates and total count
+	candidates = handle_query(db, SearchCandidates(search_criteria, skip, search_request.size))
+	total = handle_query(db, CountSearchCandidates(search_criteria))
+	
+	# Convert to response format with all required fields
+	candidate_reads = [_convert_candidate_model_to_read_schema(candidate, db) for candidate in candidates]
+	
+	return CandidateListResponse(
+		candidates=candidate_reads,
+		total=total,
+		page=search_request.page,
+		size=search_request.size,
+		has_next=(skip + search_request.size) < total,
+		has_prev=search_request.page > 1
 	)
 
 

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Optional, Sequence, List, Tuple
+from typing import Optional, Sequence, List, Tuple, Dict, Any
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_, func, distinct
+from sqlalchemy import and_, func, distinct, or_
 
 from app.db.models.candidate import CandidateModel, CandidateCVModel, CandidateSelectionModel, CandidateSelectionAuditLogModel
 from app.db.models.score import CandidateScoreModel
@@ -109,6 +109,78 @@ class SQLAlchemyCandidateRepository(CandidateRepository):
 	def count(self, db: Session) -> int:
 		"""Count total candidates."""
 		return db.query(CandidateModel).count()
+	
+	def search(self, db: Session, search_criteria: Dict[str, Any], skip: int = 0, limit: int = 100) -> Sequence[CandidateModel]:
+		"""Search candidates based on criteria.
+		
+		Searches across name, email, and phone fields using OR logic.
+		"""
+		query = db.query(CandidateModel).options(
+			# Load creator for created_by_name
+			joinedload(CandidateModel.creator),
+			# Load updater for updated_by_name
+			joinedload(CandidateModel.updater)
+		)
+		
+		# Get the search query term
+		search_term = search_criteria.get('query', '').strip()
+		
+		if not search_term:
+			# If no search term, return empty result
+			return []
+		
+		# Build conditions to search across name, email, and phone
+		# SQLAlchemy handles NULL values correctly with OR logic
+		conditions = [
+			# Search in full_name (case-insensitive)
+			func.lower(CandidateModel.full_name).contains(func.lower(search_term)),
+			# Search in email (case-insensitive)
+			func.lower(CandidateModel.email).contains(func.lower(search_term)),
+			# Search in phone
+			CandidateModel.phone.contains(search_term)
+		]
+		
+		# Apply conditions with OR logic (matches any of the fields)
+		query = query.filter(or_(*conditions))
+		
+		# Apply pagination and ordering
+		return (
+			query
+			.order_by(CandidateModel.created_at.desc())
+			.offset(skip)
+			.limit(limit)
+			.all()
+		)
+	
+	def count_search(self, db: Session, search_criteria: Dict[str, Any]) -> int:
+		"""Count candidates matching search criteria.
+		
+		Searches across name, email, and phone fields using OR logic.
+		"""
+		query = db.query(CandidateModel)
+		
+		# Get the search query term
+		search_term = search_criteria.get('query', '').strip()
+		
+		if not search_term:
+			# If no search term, return 0
+			return 0
+		
+		# Build conditions to search across name, email, and phone
+		# SQLAlchemy handles NULL values correctly with OR logic
+		conditions = [
+			# Search in full_name (case-insensitive)
+			func.lower(CandidateModel.full_name).contains(func.lower(search_term)),
+			# Search in email (case-insensitive)
+			func.lower(CandidateModel.email).contains(func.lower(search_term)),
+			# Search in phone
+			CandidateModel.phone.contains(search_term)
+		]
+		
+		# Apply conditions with OR logic (matches any of the fields)
+		query = query.filter(or_(*conditions))
+		
+		return query.count()
 	
 	def get_personas_for_candidate(self, db: Session, candidate_id: str) -> List[dict]:
 		"""Get distinct personas evaluated against a candidate."""

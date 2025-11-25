@@ -428,6 +428,14 @@ class CandidateService:
 		"""Count total candidates."""
 		return self.candidates.count(db)
 	
+	def search(self, db: Session, search_criteria: Dict[str, Any], skip: int = 0, limit: int = 100) -> List[CandidateModel]:
+		"""Search candidates based on criteria."""
+		return list(self.candidates.search(db, search_criteria, skip, limit))
+	
+	def count_search(self, db: Session, search_criteria: Dict[str, Any]) -> int:
+		"""Count candidates matching search criteria."""
+		return self.candidates.count_search(db, search_criteria)
+	
 	def get_personas_for_candidate(self, db: Session, candidate_id: str) -> List[dict]:
 		"""Get distinct personas evaluated against a candidate."""
 		return self.candidates.get_personas_for_candidate(db, candidate_id)

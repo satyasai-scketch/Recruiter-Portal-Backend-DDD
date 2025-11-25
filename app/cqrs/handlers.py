@@ -66,6 +66,8 @@ from app.cqrs.queries.list_candidates import ListCandidates
 from app.cqrs.queries.candidate_queries import (
 	GetCandidate,
 	ListAllCandidates,
+	SearchCandidates,
+	CountSearchCandidates,
 	GetCandidateCV,
 	GetCandidateCVs,
 	ListSelectedCandidates,
@@ -622,6 +624,10 @@ def handle_query(db: Session, query: Query) -> Any:
 		return CandidateService().get_by_id(db, query.candidate_id)
 	if isinstance(query, ListAllCandidates):
 		return CandidateService().get_all(db, query.skip, query.limit)
+	if isinstance(query, SearchCandidates):
+		return CandidateService().search(db, query.search_criteria, query.skip, query.limit)
+	if isinstance(query, CountSearchCandidates):
+		return CandidateService().count_search(db, query.search_criteria)
 	if isinstance(query, GetCandidateCV):
 		return CandidateService().get_candidate_cv(db, query.candidate_cv_id)
 	if isinstance(query, GetCandidateCVs):

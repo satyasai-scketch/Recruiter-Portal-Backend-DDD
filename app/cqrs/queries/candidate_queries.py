@@ -1,6 +1,6 @@
 # Query classes for candidate operations
 
-from typing import Optional
+from typing import Optional, Dict, Any
 from .base import Query
 
 
@@ -17,6 +17,22 @@ class ListAllCandidates(Query):
     def __init__(self, skip: int = 0, limit: int = 100):
         self.skip = skip
         self.limit = limit
+
+
+class SearchCandidates(Query):
+    """Query to search candidates based on criteria."""
+    
+    def __init__(self, search_criteria: Dict[str, Any], skip: int = 0, limit: int = 100):
+        self.search_criteria = search_criteria
+        self.skip = skip
+        self.limit = limit
+
+
+class CountSearchCandidates(Query):
+    """Query to count candidates matching search criteria."""
+    
+    def __init__(self, search_criteria: Dict[str, Any]):
+        self.search_criteria = search_criteria
 
 
 class GetCandidateCV(Query):
