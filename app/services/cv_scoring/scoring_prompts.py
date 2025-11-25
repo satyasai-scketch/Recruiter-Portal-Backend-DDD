@@ -61,7 +61,7 @@ IMPORTANT:
 - "roles_detected": Think broadly - what roles would this person be good for? (not just the current persona)
 - Use granular scores (not just 70, 75, 80 - use 73, 78, 82, etc.)
 
-Scoring guidance: 90-100=Excellent, 80-89=Strong, 70-79=Good, 60-69=Borderline, <60=Poor"""
+Scoring guidance: 90-100=Strong, 80-89=Good, 70-79=Borderline, <70=Poor"""
     
     @staticmethod
     def category_scoring_prompt(
@@ -223,7 +223,7 @@ Return JSON:
 }}
 
 Recommendation Guidelines:
-- STRONG_MATCH: 80-100%, minimal gaps, exceeds key requirements
+- STRONG_FIT: 80-100%, minimal gaps, exceeds key requirements
 - GOOD_FIT: 70-80%, some gaps but solid match on critical areas
-- MODERATE_FIT: 55-69%, significant gaps but has potential
-- REJECTED: <55%, major gaps in critical areas"""
+- MODERATE_FIT: 60-69%, significant gaps but has potential
+- WEAK_FIT: <60%, major gaps in critical areas"""
