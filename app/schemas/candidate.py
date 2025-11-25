@@ -106,6 +106,15 @@ class CandidateListResponse(BaseModel):
 	has_prev: bool
 
 
+class CandidateSearchRequest(BaseModel):
+	"""Schema for candidate search request."""
+	query: str = Field(..., description="Search term to match against candidate name, email, or phone number (partial match)")
+	page: int = Field(1, ge=1, description="Page number")
+	size: int = Field(10, ge=1, le=100, description="Page size")
+	
+	model_config = ConfigDict(from_attributes=True)
+
+
 class CandidateCVListResponse(BaseModel):
 	"""Response for listing candidate CVs"""
 	cvs: List[CandidateCVRead]

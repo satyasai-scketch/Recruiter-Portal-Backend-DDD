@@ -428,6 +428,14 @@ class CandidateService:
 		"""Count total candidates."""
 		return self.candidates.count(db)
 	
+	def search(self, db: Session, search_criteria: Dict[str, Any], skip: int = 0, limit: int = 100) -> List[CandidateModel]:
+		"""Search candidates based on criteria."""
+		return list(self.candidates.search(db, search_criteria, skip, limit))
+	
+	def count_search(self, db: Session, search_criteria: Dict[str, Any]) -> int:
+		"""Count candidates matching search criteria."""
+		return self.candidates.count_search(db, search_criteria)
+	
 	def get_personas_for_candidate(self, db: Session, candidate_id: str) -> List[dict]:
 		"""Get distinct personas evaluated against a candidate."""
 		return self.candidates.get_personas_for_candidate(db, candidate_id)
@@ -507,6 +515,12 @@ class CandidateService:
 	def list_all_scores(self, db: Session, skip: int = 0, limit: int = 100) -> List[CandidateScoreModel]:
 		"""List all scores with pagination."""
 		return list(self.scores.list_all_scores(db, skip, limit))
+
+	def list_scores_for_persona(self, db: Session, persona_id: str, skip: int = 0, limit: int = 100) -> Tuple[List[CandidateScoreModel], int]:
+		"""List all scores for a specific persona (across all candidates) with pagination."""
+		scores = list(self.scores.list_scores_for_persona(db, persona_id, skip, limit))
+		total = self.scores.count_scores_for_persona(db, persona_id)
+		return scores, total
 
 	def delete_candidate(self, db: Session, candidate_id: str) -> bool:
 		"""Delete a candidate and all associated CVs and scores."""

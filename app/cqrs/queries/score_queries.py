@@ -54,3 +54,12 @@ class ListAllScores(Query):
 	def __init__(self, skip: int = 0, limit: int = 100):
 		self.skip = skip
 		self.limit = limit
+
+
+class ListScoresForPersona(Query):
+	"""Query to list all scores for a specific persona (across all candidates)."""
+	
+	def __init__(self, persona_id: str, skip: int = 0, limit: int = 100):
+		self.persona_id = persona_id
+		self.skip = skip
+		self.limit = limit
