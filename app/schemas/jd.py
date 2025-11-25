@@ -143,6 +143,12 @@ class PersonaListItem(BaseModel):
 	"""Minimal persona info for list views"""
 	persona_id: str
 	persona_name: str
+	created_by: Optional[str] = None
+	created_by_name: Optional[str] = None  # Full name from creator relationship
+	updated_by: Optional[str] = None
+	updated_by_name: Optional[str] = None  # Full name from updater relationship
+	created_at: datetime
+	updated_at: Optional[datetime] = None
 	
 	model_config = ConfigDict(from_attributes=True)
 

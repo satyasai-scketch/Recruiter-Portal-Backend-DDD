@@ -74,7 +74,13 @@ def _convert_jd_model_to_list_item(jd_model) -> JDListItem:
     personas = [
         PersonaListItem(
             persona_id=p.id,
-            persona_name=p.name
+            persona_name=p.name,
+            created_by=p.created_by,
+            created_by_name=f"{p.creator.first_name} {p.creator.last_name}".strip() if p.creator else None,
+            updated_by=p.updated_by,
+            updated_by_name=f"{p.updater.first_name} {p.updater.last_name}".strip() if p.updater else None,
+            created_at=p.created_at,
+            updated_at=p.updated_at
         )
         for p in (jd_model.personas or [])
     ]
