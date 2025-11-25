@@ -61,7 +61,7 @@ IMPORTANT:
 - "roles_detected": Think broadly - what roles would this person be good for? (not just the current persona)
 - Use granular scores (not just 70, 75, 80 - use 73, 78, 82, etc.)
 
-Scoring guidance: 90-100=Strong, 80-89=Good, 70-79=Borderline, <70=Poor"""
+Scoring guidance: 90-100=Excellent, 80-89=Strong, 70-79=Good, 60-69=Borderline, <60=Poor"""
     
     @staticmethod
     def category_scoring_prompt(
