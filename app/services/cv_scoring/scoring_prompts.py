@@ -223,7 +223,7 @@ Return JSON:
 }}
 
 Recommendation Guidelines:
-- STRONG_MATCH: 80-100%, minimal gaps, exceeds key requirements
+- STRONG_FIT: 80-100%, minimal gaps, exceeds key requirements
 - GOOD_FIT: 70-80%, some gaps but solid match on critical areas
-- MODERATE_FIT: 55-69%, significant gaps but has potential
-- REJECTED: <55%, major gaps in critical areas"""
+- MODERATE_FIT: 60-69%, significant gaps but has potential
+- WEAK_FIT: <60%, major gaps in critical areas"""

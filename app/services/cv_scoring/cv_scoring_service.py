@@ -99,7 +99,7 @@ class CVScoringService(CVScoringServiceBase):
                 'stage1': stage1_result,
                 'stage2': stage2_result,
                 'stage3': None,
-                'final_decision': 'REJECTED',
+                'final_decision': 'WEAK_FIT',
                 'final_score': stage2_result['relevance_score'],
                 'rejection_stage': 'lightweight_screening',
                 'rejection_reason': stage2_result['reason']
