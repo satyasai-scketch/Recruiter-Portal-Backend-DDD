@@ -1,6 +1,6 @@
 from typing import List, Dict, Optional
 
-from fastapi import APIRouter, Depends, File, UploadFile, Form, HTTPException, Query
+from fastapi import APIRouter, Depends, File, UploadFile, Form, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from app.api.deps import db_session, get_current_user
@@ -116,15 +116,82 @@ def _convert_candidate_model_to_read_schema(candidate_model, db: Session) -> Can
 	)
 
 
-def _convert_cv_model_to_read_schema(cv_model) -> CandidateCVRead:
-	"""Convert CandidateCVModel to CandidateCVRead schema format."""
+def _get_base_url_from_request(request: Request) -> str:
+	"""Extract base URL from request, handling various proxy headers.
+	
+	Args:
+		request: FastAPI Request object
+		
+	Returns:
+		Base URL string (e.g., "http://192.168.1.100:8000")
+	"""
+	# Try to get the host from various headers (for proxy/load balancer scenarios)
+	# X-Forwarded-Host takes precedence, then Host header, then fallback to URL hostname
+	forwarded_host = request.headers.get("X-Forwarded-Host")
+	host_header = request.headers.get("Host")
+	
+	if forwarded_host:
+		host = forwarded_host
+	elif host_header:
+		host = host_header
+	else:
+		host = str(request.url.hostname)
+	
+	# Get scheme (http/https)
+	scheme = request.headers.get("X-Forwarded-Proto") or request.url.scheme
+	
+	# If host already includes port (from headers), use it as is
+	if ":" in host:
+		return f"{scheme}://{host}"
+	
+	# Otherwise, use port from request URL if available
+	port = request.url.port
+	if port:
+		return f"{scheme}://{host}:{port}"
+	
+	return f"{scheme}://{host}"
+
+
+def _convert_cv_model_to_read_schema(cv_model, base_url: Optional[str] = None) -> CandidateCVRead:
+	"""Convert CandidateCVModel to CandidateCVRead schema format.
+	
+	Args:
+		cv_model: The CandidateCVModel instance to convert
+		base_url: Optional base URL to replace localhost in s3_url (e.g., "http://192.168.1.100:8000")
+	"""
+	s3_url = cv_model.s3_url
+	
+	# Replace localhost with actual server host if base_url is provided
+	if base_url and s3_url and "localhost" in s3_url:
+		from urllib.parse import urlparse, urlunparse
+		parsed = urlparse(s3_url)
+		base_parsed = urlparse(base_url)
+		
+		# Extract host and port from base_url
+		# base_parsed.netloc already includes hostname:port if port is present
+		new_netloc = base_parsed.netloc if base_parsed.netloc else base_parsed.hostname
+		
+		# If netloc doesn't include port but port is available, add it
+		if not base_parsed.netloc and base_parsed.port:
+			new_netloc = f"{base_parsed.hostname}:{base_parsed.port}"
+		
+		# Construct new URL with replaced host
+		s3_url = urlunparse((
+			parsed.scheme,  # Keep original scheme (http/https)
+			new_netloc,     # Use host from base_url
+			parsed.path,    # Keep original path
+			parsed.params,  # Keep original params
+			parsed.query,   # Keep original query
+			parsed.fragment # Keep original fragment
+		))
+	
 	return CandidateCVRead(
 		id=cv_model.id,
 		candidate_id=cv_model.candidate_id,
 		file_name=cv_model.file_name,
 		file_hash=cv_model.file_hash,
 		version=cv_model.version,
-		s3_url=cv_model.s3_url,
+		s3_url=s3_url,
 		file_size=cv_model.file_size,
 		mime_type=cv_model.mime_type,
 		status=cv_model.status,
@@ -569,6 +636,7 @@ async def get_candidate_score(
 @router.get("/{candidate_id}", response_model=CandidateRead, summary="Get Candidate by ID")
 async def get_candidate(
 	candidate_id: str,
+	request: Request,
 	db: Session = Depends(db_session),
 	user=Depends(get_current_user)
 ):
@@ -583,9 +651,12 @@ async def get_candidate(
 	# Load CVs for this candidate
 	cvs = handle_query(db, GetCandidateCVs(candidate_id))
 	
+	# Get base URL for replacing localhost in s3_url
+	base_url = _get_base_url_from_request(request)
+	
 	# Convert to response format with CVs included
 	candidate_read = _convert_candidate_model_to_read_schema(candidate, db)
-	candidate_read.cvs = [_convert_cv_model_to_read_schema(cv) for cv in cvs]
+	candidate_read.cvs = [_convert_cv_model_to_read_schema(cv, base_url) for cv in cvs]
 	
 	return candidate_read
 
@@ -593,6 +664,7 @@ async def get_candidate(
 @router.get("/{candidate_id}/cvs", response_model=CandidateCVListResponse, summary="Get Candidate CVs")
 async def get_candidate_cvs(
 	candidate_id: str,
+	request: Request,
 	db: Session = Depends(db_session),
 	user=Depends(get_current_user)
 ):
@@ -607,8 +679,11 @@ async def get_candidate_cvs(
 	# Get candidate CVs
 	cvs = handle_query(db, GetCandidateCVs(candidate_id))
 	
+	# Get base URL for replacing localhost in s3_url
+	base_url = _get_base_url_from_request(request)
+	
 	# Convert to response format
-	cv_reads = [_convert_cv_model_to_read_schema(cv) for cv in cvs]
+	cv_reads = [_convert_cv_model_to_read_schema(cv, base_url) for cv in cvs]
 	
 	return CandidateCVListResponse(
 		cvs=cv_reads,
@@ -620,6 +695,7 @@ async def get_candidate_cvs(
 @router.get("/cvs/{candidate_cv_id}", response_model=CandidateCVRead, summary="Get Candidate CV by ID")
 async def get_candidate_cv(
 	candidate_cv_id: str,
+	request: Request,
 	db: Session = Depends(db_session),
 	user=Depends(get_current_user)
 ):
@@ -631,13 +707,17 @@ async def get_candidate_cv(
 	if not cv:
 		raise HTTPException(status_code=404, detail="Candidate CV not found")
 	
-	return _convert_cv_model_to_read_schema(cv)
+	# Get base URL for replacing localhost in s3_url
+	base_url = _get_base_url_from_request(request)
+	
+	return _convert_cv_model_to_read_schema(cv, base_url)
 
 
 @router.patch("/{candidate_id}", response_model=CandidateRead, summary="Update Candidate")
 async def update_candidate(
 	candidate_id: str,
 	update_data: CandidateUpdate,
+	request: Request,
 	db: Session = Depends(db_session),
 	user=Depends(get_current_user)
 ):
@@ -661,9 +741,12 @@ async def update_candidate(
 	# Load CVs for this candidate
 	cvs = handle_query(db, GetCandidateCVs(candidate_id))
 	
+	# Get base URL for replacing localhost in s3_url
+	base_url = _get_base_url_from_request(request)
+	
 	# Convert to response format with CVs included
-	candidate_read = _convert_candidate_model_to_read_schema(updated_candidate)
-	candidate_read.cvs = [_convert_cv_model_to_read_schema(cv) for cv in cvs]
+	candidate_read = _convert_candidate_model_to_read_schema(updated_candidate, db)
+	candidate_read.cvs = [_convert_cv_model_to_read_schema(cv, base_url) for cv in cvs]
 	
 	return candidate_read
 
@@ -672,6 +755,7 @@ async def update_candidate(
 async def update_candidate_cv(
 	candidate_cv_id: str,
 	update_data: CandidateCVUpdate,
+	request: Request,
 	db: Session = Depends(db_session),
 	user=Depends(get_current_user)
 ):
@@ -692,7 +776,10 @@ async def update_candidate_cv(
 	if not updated_cv:
 		raise HTTPException(status_code=404, detail="Candidate CV not found")
 	
-	return _convert_cv_model_to_read_schema(updated_cv)
+	# Get base URL for replacing localhost in s3_url
+	base_url = _get_base_url_from_request(request)
+	
+	return _convert_cv_model_to_read_schema(updated_cv, base_url)
 
 
 @router.delete("/{candidate_id}", response_model=CandidateDeleteResponse, summary="Delete Candidate")
