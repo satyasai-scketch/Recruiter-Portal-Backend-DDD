@@ -656,8 +656,7 @@ async def link_warnings_to_persona(
             saved_persona_id=payload.saved_persona_id
         )
     )
-    return LinkWarningsResponse.model_validate(result)@router.post("/generate-from-jd-v3/{jd_id}", response_model=PersonaRead, 
-             summary="Generate persona using V3 (with caching)")
+    return LinkWarningsResponse.model_validate(result)
 
 
 
