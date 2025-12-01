@@ -10,7 +10,7 @@ class LightweightScreener:
     def __init__(self, client: OpenAIClient, model: str = "gpt-4o-mini"):
         self.client = client
         self.model = model
-        self.min_threshold = 70.0
+        self.min_threshold = 60.0
         self.strong_match_threshold = 80.0
 
     async def screen_cv(
