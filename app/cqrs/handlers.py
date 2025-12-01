@@ -11,7 +11,7 @@ from app.services.company_service import CompanyService
 from app.services.job_role_service import JobRoleService
 from app.services.persona_level_service import PersonaLevelService
 from app.services.user_service import UserService
-from app.cqrs.commands.generate_persona_from_jd import GeneratePersonaFromJD
+from app.cqrs.commands.generate_persona_from_jd import GeneratePersonaFromJD, GeneratePersonaFromJDV3
 from app.cqrs.commands.score_with_ai import ScoreCandidateWithAI
 # Import base classes
 from app.cqrs.commands.base import Command
@@ -259,7 +259,39 @@ def handle_generate_persona_from_jd(db: Session, command: GeneratePersonaFromJD)
         return run_async_with_context(coro, db=db, user_id=user_id)
     except Exception as e:
         raise ValueError(f"Error generating persona structure: {str(e)}")
-
+def handle_generate_persona_from_jd_v3(db: Session, command: GeneratePersonaFromJDV3):
+    """Handle V3 persona generation (with caching/adaptation)"""
+    from app.core.context import get_current_user_id
+    
+    user_id = get_current_user_id()
+    
+    try:
+        jd = JDService().get_by_id(db, command.jd_id)
+        if not jd:
+            raise ValueError(f"Job description {command.jd_id} not found")
+        
+        jd_text = jd.selected_text or jd.refined_text or jd.original_text
+        
+        from app.services.persona_generation_v2.generator_v3 import OpenAIPersonaGeneratorV3
+        from app.core.config import settings
+        
+        generator = OpenAIPersonaGeneratorV3(
+            api_key=settings.OPENAI_API_KEY,
+            model=getattr(settings, "PERSONA_GENERATION_MODEL", "gpt-4o"),
+            db=db
+        )
+        
+        async def run_v3_generation():
+            return await generator.generate_persona_from_jd(jd_text, command.jd_id)
+        
+        coro = run_v3_generation()
+        result = run_async_with_context(coro, db=db, user_id=user_id)
+        
+        # V3 returns dict with metadata: {persona, generation_method, ai_persona_id, source_similarity}
+        return result
+        
+    except Exception as e:
+        raise ValueError(f"Error generating persona with V3: {str(e)}")
 def normalize_ai_scoring_response(ai_response: Dict[str, Any]) -> Dict[str, Any]:
     """
     Normalize AI scoring response to always have consistent structure,
@@ -432,7 +464,7 @@ def _persona_to_dict(persona_model):
         'categories': categories
     }
 # Handlers
-
+from app.services.ai_persona_service import AIPersonaService
 def handle_command(db: Session, command: Command) -> Any:
 	if isinstance(command, CreateJobDescription):
 		return JDService().create(db, command.payload)
@@ -451,6 +483,8 @@ def handle_command(db: Session, command: Command) -> Any:
     
 	if isinstance(command, GeneratePersonaFromJD):
 		return handle_generate_persona_from_jd(db, command)
+	if isinstance(command, GeneratePersonaFromJDV3):
+		return handle_generate_persona_from_jd_v3(db, command)
 	if isinstance(command, ScoreCandidateWithAI):
 		return handle_score_candidate_with_ai(db, command)
 	if isinstance(command, UpdatePersona):
@@ -625,4 +659,5 @@ def handle_query(db: Session, query: Query) -> Any:
 	if isinstance(query, ListWarningsByPersona):
 		service= PersonaWarningService()
 		return service.list_warnings(db, query.persona_id)
+	
 	raise NotImplementedError(f"No handler for query {type(query).__name__}")

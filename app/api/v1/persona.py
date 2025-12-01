@@ -4,7 +4,7 @@ from datetime import datetime
 from app.api.deps import db_session, get_current_user
 from app.api.deps_authorization import require_jd_access
 from app.core.authorization import can_access_jd
-from app.schemas.persona import PersonaCreate, PersonaRead, PersonaUpdate, PersonaChangeLogRead, PersonaDeletionStats, PersonaListResponse
+from app.schemas.persona import PersonaCreate, PersonaRead, PersonaUpdate, PersonaChangeLogRead, PersonaDeletionStats, PersonaListResponse, PersonaReadv3
 from app.cqrs.handlers import handle_command, handle_query
 from app.services.persona_service import PersonaService
 from app.db.models.user import UserModel
@@ -656,4 +656,47 @@ async def link_warnings_to_persona(
             saved_persona_id=payload.saved_persona_id
         )
     )
-    return LinkWarningsResponse.model_validate(result)
+    return LinkWarningsResponse.model_validate(result)@router.post("/generate-from-jd-v3/{jd_id}", response_model=PersonaRead, 
+             summary="Generate persona using V3 (with caching)")
+
+
+
+from app.cqrs.commands.generate_persona_from_jd import GeneratePersonaFromJDV3
+@router.post("/generate-from-jd-v3/{jd_id}", response_model=PersonaReadv3,
+             summary="Generate persona using V3 (with caching)")
+async def generate_persona_v3(
+    jd_id: str,
+    db: Session = Depends(db_session),
+    current_user: UserModel = Depends(get_current_user)
+):
+    """
+    Generate persona using V3 with intelligent caching:
+    - Searches for similar JDs in vector store
+    - Adapts existing persona if found (fast, ~2-5s)
+    - Runs full V2 pipeline if no match (slower, ~30-60s, but caches result)
+    
+    Returns persona structure + metadata about generation method.
+    """
+    from app.core.context import request_user_id, request_db_session
+    
+    request_user_id.set(current_user.id)
+    request_db_session.set(db)
+    
+    # Use command pattern (runs async handler internally)
+    result = handle_command(db, GeneratePersonaFromJDV3(jd_id=jd_id))
+    
+    # Format response
+    persona_data = result['persona']
+    persona_data['id'] = 'preview'
+    persona_data['created_by'] = current_user.id
+    persona_data['role_name'] = None
+    persona_data['created_at'] = datetime.now()
+    
+    # Add V3 metadata
+    persona_data['v3_metadata'] = {
+        'generation_method': result.get('generation_method'),  # 'full_pipeline' or 'adapted'
+        'ai_persona_id': result.get('ai_persona_id'),
+        'source_similarity': result.get('source_similarity')  # Only present if adapted
+    }
+    
+    return PersonaReadv3.model_validate(persona_data)

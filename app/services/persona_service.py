@@ -219,6 +219,21 @@ class PersonaService:
 			self.repo.add_change_log(db, change_log_model)
 
 		event_bus.publish_event(PersonaCreatedEvent(id=created.id, job_description_id=created.job_description_id, name=created.name))
+		v3_metadata = data.get('_v3_metadata')
+		if v3_metadata and v3_metadata.get('ai_persona_id'):
+			from app.services.ai_persona_service import AIPersonaService
+			ai_service = AIPersonaService()
+			try:
+				ai_service.create_mapping(
+					db=db,
+					persona_id=created.id,
+					ai_persona_id=v3_metadata['ai_persona_id'],
+					generation_method=v3_metadata.get('generation_method'),
+					similarity_score=v3_metadata.get('source_similarity')
+				)
+				print(f"✅ Created mapping: persona {created.id} → AI template {v3_metadata['ai_persona_id']}")
+			except Exception as e:
+				print(f"⚠️  Failed to create mapping: {e}")
 		return created
 
 	
