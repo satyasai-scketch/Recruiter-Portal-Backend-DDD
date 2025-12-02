@@ -268,6 +268,7 @@ def _convert_candidate_score_to_read_schema(score_model, db: Session = None) -> 
 	"""Convert CandidateScoreModel to CandidateScoreRead schema format."""
 	# Fetch candidate and CV information if db session is provided
 	candidate_name = None
+	email = None
 	file_name = None
 	persona_name = None
 	role_name = None
@@ -278,6 +279,7 @@ def _convert_candidate_score_to_read_schema(score_model, db: Session = None) -> 
 			candidate = handle_query(db, GetCandidate(score_model.candidate_id))
 			cv = handle_query(db, GetCandidateCV(score_model.cv_id))
 			candidate_name = candidate.full_name if candidate else None
+			email = candidate.email if candidate else None
 			file_name = cv.file_name if cv else None
 			
 			# Fetch persona and role information
@@ -337,6 +339,7 @@ def _convert_candidate_score_to_read_schema(score_model, db: Session = None) -> 
 		scoring_version=score_model.scoring_version,
 		processing_time_ms=score_model.processing_time_ms,
 		candidate_name=candidate_name,
+		email=email,
 		file_name=file_name,
 		persona_name=persona_name,
 		role_name=role_name,
@@ -1037,8 +1040,9 @@ async def score_candidate(
 				if job_role:
 					role_name = job_role.name
 	
-	# Extract candidate name and file name
+	# Extract candidate name, email, and file name
 	candidate_name = candidate.full_name if candidate else None
+	email = candidate.email if candidate else None
 	file_name = cv.file_name if cv else None
 	
 	# Check if candidate is selected for this persona
@@ -1055,6 +1059,7 @@ async def score_candidate(
 		pipeline_stage_reached=score.pipeline_stage_reached,
 		scored_at=score.scored_at,
 		candidate_name=candidate_name,
+		email=email,
 		file_name=file_name,
 		persona_name=persona_name,
 		role_name=role_name,
@@ -1132,8 +1137,9 @@ async def score_candidate_with_ai(
                             if job_role:
                                 role_name = job_role.name
                 
-                # Extract candidate name and file name
+                # Extract candidate name, email, and file name
                 candidate_name = candidate.full_name if candidate else None
+                email = candidate.email if candidate else None
                 file_name = cv.file_name if cv else None
                 
                 # Check if candidate is selected for this persona
@@ -1150,6 +1156,7 @@ async def score_candidate_with_ai(
                     pipeline_stage_reached=existing_score.pipeline_stage_reached,
 					scored_at=existing_score.scored_at,
                     candidate_name=candidate_name,
+                    email=email,
                     file_name=file_name,
                     persona_name=persona_name,
                     role_name=role_name,
@@ -1198,8 +1205,9 @@ async def score_candidate_with_ai(
                     if job_role:
                         role_name = job_role.name
         
-        # Extract candidate name and file name
+        # Extract candidate name, email, and file name
         candidate_name = candidate.full_name if candidate else None
+        email = candidate.email if candidate else None
         file_name = cv.file_name if cv else None
         
         # Check if candidate is selected for this persona
@@ -1215,6 +1223,7 @@ async def score_candidate_with_ai(
             final_decision=score.final_decision,
             pipeline_stage_reached=score.pipeline_stage_reached,
             candidate_name=candidate_name,
+            email=email,
             file_name=file_name,
             persona_name=persona_name,
             role_name=role_name,
