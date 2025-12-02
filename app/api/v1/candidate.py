@@ -268,9 +268,12 @@ def _convert_candidate_score_to_read_schema(score_model, db: Session = None) -> 
 	"""Convert CandidateScoreModel to CandidateScoreRead schema format."""
 	# Fetch candidate and CV information if db session is provided
 	candidate_name = None
+	email = None
 	file_name = None
 	persona_name = None
 	role_name = None
+	jd_id = None
+	jd_name = None
 	is_selected = 0
 	
 	if db:
@@ -278,6 +281,7 @@ def _convert_candidate_score_to_read_schema(score_model, db: Session = None) -> 
 			candidate = handle_query(db, GetCandidate(score_model.candidate_id))
 			cv = handle_query(db, GetCandidateCV(score_model.cv_id))
 			candidate_name = candidate.full_name if candidate else None
+			email = candidate.email if candidate else None
 			file_name = cv.file_name if cv else None
 			
 			# Fetch persona and role information
@@ -285,16 +289,24 @@ def _convert_candidate_score_to_read_schema(score_model, db: Session = None) -> 
 			persona_name = persona.name if persona else None
 			
 			if persona:
+				# Get job description ID
+				jd_id = persona.job_description_id
+				
 				# Try to get role name from persona's role_name field first
 				if persona.role_name:
 					role_name = persona.role_name
-				# If not available, get it from the job description's job role
-				elif persona.job_description_id:
+				
+				# Fetch job description to get JD name and role information (if needed)
+				if persona.job_description_id:
 					job_description = handle_query(db, GetJobDescription(persona.job_description_id))
-					if job_description and job_description.role_id:
-						job_role = handle_query(db, GetJobRole(job_description.role_id))
-						if job_role:
-							role_name = job_role.name
+					if job_description:
+						jd_name = job_description.title
+						
+						# If role_name not set from persona, get it from the job description's job role
+						if not role_name and job_description.role_id:
+							job_role = handle_query(db, GetJobRole(job_description.role_id))
+							if job_role:
+								role_name = job_role.name
 			
 			# Check if candidate is selected for this persona
 			from app.services.candidate_service import CandidateService
@@ -337,9 +349,12 @@ def _convert_candidate_score_to_read_schema(score_model, db: Session = None) -> 
 		scoring_version=score_model.scoring_version,
 		processing_time_ms=score_model.processing_time_ms,
 		candidate_name=candidate_name,
+		email=email,
 		file_name=file_name,
 		persona_name=persona_name,
 		role_name=role_name,
+		jd_id=jd_id,
+		jd_name=jd_name,
 		current_status=current_status,
 		selection_id=selection_id,
 		selected_by=selected_by,
@@ -887,6 +902,8 @@ async def upload_cv_files(
 					is_new_candidate=False,
 					is_new_cv=False,
 					cv_text=None,
+					candidate_name=None,
+					email=None,
 					error="No filename provided"
 				))
 				continue
@@ -905,6 +922,8 @@ async def upload_cv_files(
 					is_new_candidate=False,
 					is_new_cv=False,
 					cv_text=None,
+					candidate_name=None,
+					email=None,
 					error="File size exceeds 10MB limit"
 				))
 				continue
@@ -932,6 +951,8 @@ async def upload_cv_files(
 				is_new_candidate=result.get("is_new_candidate", False),
 				is_new_cv=result.get("is_new_cv", False),
 				cv_text=result.get("cv_text"),
+				candidate_name=result.get("candidate_name"),
+				email=result.get("email"),
 				error=result.get("error")
 			)
 			
@@ -950,6 +971,8 @@ async def upload_cv_files(
 				is_new_candidate=False,
 				is_new_cv=False,
 				cv_text=None,
+				candidate_name=None,
+				email=None,
 				error=f"Unexpected error: {str(e)}"
 			))
 	
@@ -1029,14 +1052,28 @@ async def score_candidate(
 				if job_role:
 					role_name = job_role.name
 	
-	# Extract candidate name and file name
+	# Extract candidate name, email, and file name
 	candidate_name = candidate.full_name if candidate else None
+	email = candidate.email if candidate else None
 	file_name = cv.file_name if cv else None
 	
-	# Check if candidate is selected for this persona
+	# Get selection information
 	from app.services.candidate_service import CandidateService
 	selection = CandidateService().selections.get_by_candidate_persona(db, body.candidate_id, body.persona_id)
 	is_selected = 1 if selection else 0
+	selection_id = selection.id if selection else None
+	current_status = selection.status if selection else None
+	selected_by = selection.selected_by if selection else None
+	selected_by_name = None
+	if selection and selection.selector:
+		if selection.selector.first_name and selection.selector.last_name:
+			selected_by_name = f"{selection.selector.first_name} {selection.selector.last_name}".strip()
+		elif selection.selector.first_name:
+			selected_by_name = selection.selector.first_name
+		elif selection.selector.last_name:
+			selected_by_name = selection.selector.last_name
+		else:
+			selected_by_name = selection.selector.email
 	
 	return ScoreResponse(
 		score_id=score.id,
@@ -1047,10 +1084,15 @@ async def score_candidate(
 		pipeline_stage_reached=score.pipeline_stage_reached,
 		scored_at=score.scored_at,
 		candidate_name=candidate_name,
+		email=email,
 		file_name=file_name,
 		persona_name=persona_name,
 		role_name=role_name,
-		is_selected=is_selected
+		is_selected=is_selected,
+		current_status=current_status,
+		selection_id=selection_id,
+		selected_by=selected_by,
+		selected_by_name=selected_by_name
 	)
 
 
@@ -1103,6 +1145,38 @@ async def score_candidate_with_ai(
                 # This prevents duplicate AI scoring for the same CV-persona combination
                 existing_score = existing_scores[0]
                 
+                # Ensure selection exists with "evaluated" status for existing scores too
+                from app.services.candidate_service import CandidateService
+                from app.services.candidate_selection_status_service import CandidateSelectionStatusService
+                
+                evaluated_status = CandidateSelectionStatusService().get_by_code(db, "evaluated")
+                if evaluated_status:
+                    selection = CandidateService().selections.get_by_candidate_persona(db, candidate_id, persona_id)
+                    
+                    if selection:
+                        # Update to "evaluated" if not already set
+                        if selection.status != "evaluated":
+                            from app.cqrs.commands.candidate_commands import UpdateCandidateSelection
+                            handle_command(db, UpdateCandidateSelection(
+                                selection_id=selection.id,
+                                updated_by=user.id,
+                                status="evaluated",
+                                change_notes="Status updated to 'evaluated' after AI scoring"
+                            ))
+                            # Refresh selection to get updated data with relationships
+                            selection = CandidateService().selections.get_by_candidate_persona(db, candidate_id, persona_id)
+                    else:
+                        # Create new selection with "evaluated" status
+                        handle_command(db, SelectCandidates(
+                            candidate_ids=[candidate_id],
+                            persona_id=persona_id,
+                            job_description_id=persona.job_description_id,
+                            selected_by=user.id,
+                            status="evaluated"
+                        ))
+                        # Get the newly created selection with relationships loaded
+                        selection = CandidateService().selections.get_by_candidate_persona(db, candidate_id, persona_id)
+                
                 # Fetch candidate and CV information for the response
                 candidate = handle_query(db, GetCandidate(candidate_id))
                 cv = handle_query(db, GetCandidateCV(cv_id))
@@ -1124,14 +1198,27 @@ async def score_candidate_with_ai(
                             if job_role:
                                 role_name = job_role.name
                 
-                # Extract candidate name and file name
+                # Extract candidate name, email, and file name
                 candidate_name = candidate.full_name if candidate else None
+                email = candidate.email if candidate else None
                 file_name = cv.file_name if cv else None
                 
-                # Check if candidate is selected for this persona
-                from app.services.candidate_service import CandidateService
+                # Get selection information (refresh after potential update)
                 selection = CandidateService().selections.get_by_candidate_persona(db, candidate_id, persona_id)
                 is_selected = 1 if selection else 0
+                selection_id = selection.id if selection else None
+                current_status = selection.status if selection else None
+                selected_by = selection.selected_by if selection else None
+                selected_by_name = None
+                if selection and selection.selector:
+                    if selection.selector.first_name and selection.selector.last_name:
+                        selected_by_name = f"{selection.selector.first_name} {selection.selector.last_name}".strip()
+                    elif selection.selector.first_name:
+                        selected_by_name = selection.selector.first_name
+                    elif selection.selector.last_name:
+                        selected_by_name = selection.selector.last_name
+                    else:
+                        selected_by_name = selection.selector.email
                 
                 return ScoreResponse(
                     score_id=existing_score.id,
@@ -1142,10 +1229,15 @@ async def score_candidate_with_ai(
                     pipeline_stage_reached=existing_score.pipeline_stage_reached,
 					scored_at=existing_score.scored_at,
                     candidate_name=candidate_name,
+                    email=email,
                     file_name=file_name,
                     persona_name=persona_name,
                     role_name=role_name,
-                    is_selected=is_selected
+                    is_selected=is_selected,
+                    current_status=current_status,
+                    selection_id=selection_id,
+                    selected_by=selected_by,
+                    selected_by_name=selected_by_name
                 )
         
         # No existing score found, proceed with AI scoring
@@ -1169,6 +1261,43 @@ async def score_candidate_with_ai(
             processing_time_ms=processing_time_ms
         ))
         
+        # Create or update selection with "evaluated" status after scoring
+        from app.services.candidate_service import CandidateService
+        from app.services.candidate_selection_status_service import CandidateSelectionStatusService
+        
+        # Check if "evaluated" status exists
+        evaluated_status = CandidateSelectionStatusService().get_by_code(db, "evaluated")
+        if evaluated_status:
+            # Check if selection already exists
+            selection = CandidateService().selections.get_by_candidate_persona(db, candidate_id, persona_id)
+            
+            if selection:
+                # Update existing selection to "evaluated" status if it's not already in a more advanced state
+                # Only update if current status is "evaluated" or earlier (to preserve more advanced statuses)
+                # For now, we'll always update to "evaluated" when scoring happens
+                if selection.status != "evaluated":
+                    # Use the update_selection method which handles audit logging
+                    from app.cqrs.commands.candidate_commands import UpdateCandidateSelection
+                    handle_command(db, UpdateCandidateSelection(
+                        selection_id=selection.id,
+                        updated_by=user.id,
+                        status="evaluated",
+                        change_notes="Status updated to 'evaluated' after AI scoring"
+                    ))
+                    # Refresh selection to get updated data with relationships
+                    selection = CandidateService().selections.get_by_candidate_persona(db, candidate_id, persona_id)
+            else:
+                # Create new selection with "evaluated" status
+                handle_command(db, SelectCandidates(
+                    candidate_ids=[candidate_id],
+                    persona_id=persona_id,
+                    job_description_id=persona.job_description_id,
+                    selected_by=user.id,
+                    status="evaluated"
+                ))
+                # Get the newly created selection with relationships loaded
+                selection = CandidateService().selections.get_by_candidate_persona(db, candidate_id, persona_id)
+        
         # Fetch candidate and CV information for the response
         candidate = handle_query(db, GetCandidate(candidate_id))
         cv = handle_query(db, GetCandidateCV(cv_id))
@@ -1190,14 +1319,27 @@ async def score_candidate_with_ai(
                     if job_role:
                         role_name = job_role.name
         
-        # Extract candidate name and file name
+        # Extract candidate name, email, and file name
         candidate_name = candidate.full_name if candidate else None
+        email = candidate.email if candidate else None
         file_name = cv.file_name if cv else None
         
-        # Check if candidate is selected for this persona
-        from app.services.candidate_service import CandidateService
+        # Get selection information (refresh after potential create/update)
         selection = CandidateService().selections.get_by_candidate_persona(db, candidate_id, persona_id)
         is_selected = 1 if selection else 0
+        selection_id = selection.id if selection else None
+        current_status = selection.status if selection else None
+        selected_by = selection.selected_by if selection else None
+        selected_by_name = None
+        if selection and selection.selector:
+            if selection.selector.first_name and selection.selector.last_name:
+                selected_by_name = f"{selection.selector.first_name} {selection.selector.last_name}".strip()
+            elif selection.selector.first_name:
+                selected_by_name = selection.selector.first_name
+            elif selection.selector.last_name:
+                selected_by_name = selection.selector.last_name
+            else:
+                selected_by_name = selection.selector.email
         
         return ScoreResponse(
             score_id=score.id,
@@ -1207,11 +1349,16 @@ async def score_candidate_with_ai(
             final_decision=score.final_decision,
             pipeline_stage_reached=score.pipeline_stage_reached,
             candidate_name=candidate_name,
+            email=email,
             file_name=file_name,
             persona_name=persona_name,
             role_name=role_name,
 			scored_at=score.scored_at,
-            is_selected=is_selected
+            is_selected=is_selected,
+            current_status=current_status,
+            selection_id=selection_id,
+            selected_by=selected_by,
+            selected_by_name=selected_by_name
         )
         
     except Exception as e:
@@ -1317,6 +1464,17 @@ async def select_candidates(
 				detail=f"Candidate not found: {candidate_id}"
 			)
 	
+	# Validate status if provided
+	status_code = request.status or 'evaluated'
+	if request.status:
+		from app.services.candidate_selection_status_service import CandidateSelectionStatusService
+		status_model = CandidateSelectionStatusService().get_by_code(db, request.status)
+		if not status_model:
+			raise HTTPException(
+				status_code=400,
+				detail=f"Invalid status code: '{request.status}'. Status must exist in the database."
+			)
+	
 	# Select candidates using command
 	selections = handle_command(db, SelectCandidates(
 		candidate_ids=request.candidate_ids,
@@ -1324,7 +1482,8 @@ async def select_candidates(
 		job_description_id=request.job_description_id,
 		selected_by=user.id,
 		selection_notes=request.selection_notes,
-		priority=request.priority
+		priority=request.priority,
+		status=status_code
 	))
 	
 	# Convert to response format
@@ -1409,12 +1568,15 @@ async def update_candidate_selection(
 			detail="Access denied. You do not have permission to update this selection."
 		)
 	
-	# Validate status if provided
-	if update_data.status and update_data.status not in ['selected', 'interview_scheduled', 'interviewed', 'rejected', 'hired']:
-		raise HTTPException(
-			status_code=400,
-			detail=f"Invalid status. Must be one of: 'selected', 'interview_scheduled', 'interviewed', 'rejected', 'hired'"
-		)
+	# Validate status if provided - check against database statuses
+	if update_data.status:
+		from app.services.candidate_selection_status_service import CandidateSelectionStatusService
+		status_model = CandidateSelectionStatusService().get_by_code(db, update_data.status)
+		if not status_model:
+			raise HTTPException(
+				status_code=400,
+				detail=f"Invalid status code: '{update_data.status}'. Status must exist in the database."
+			)
 	
 	# Validate priority if provided
 	if update_data.priority and update_data.priority not in ['high', 'medium', 'low']:

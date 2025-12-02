@@ -83,9 +83,12 @@ class CandidateScoreRead(BaseModel):
 	scoring_version: Optional[str] = None
 	processing_time_ms: Optional[int] = None
 	candidate_name: Optional[str] = None
+	email: Optional[str] = None
 	file_name: Optional[str] = None
 	persona_name: Optional[str] = None
 	role_name: Optional[str] = None
+	jd_id: Optional[str] = None
+	jd_name: Optional[str] = None
 	current_status: Optional[str] = None	
 	selection_id: Optional[str] = None
 	selected_by: Optional[str] = None
@@ -105,6 +108,7 @@ class ScoreResponse(BaseModel):
 	pipeline_stage_reached: int
 	scored_at: datetime
 	candidate_name: Optional[str] = None
+	email: Optional[str] = None
 	file_name: Optional[str] = None
 	persona_name: Optional[str] = None
 	role_name: Optional[str] = None
@@ -112,6 +116,7 @@ class ScoreResponse(BaseModel):
 	selection_id: Optional[str] = None
 	selected_by: Optional[str] = None
 	selected_by_name: Optional[str] = None
+	is_selected: Optional[int] = None
 
 
 class ScoreListResponse(BaseModel):

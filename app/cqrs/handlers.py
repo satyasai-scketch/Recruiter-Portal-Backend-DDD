@@ -11,6 +11,7 @@ from app.services.company_service import CompanyService
 from app.services.job_role_service import JobRoleService
 from app.services.persona_level_service import PersonaLevelService
 from app.services.user_service import UserService
+from app.services.candidate_selection_status_service import CandidateSelectionStatusService
 from app.cqrs.commands.generate_persona_from_jd import GeneratePersonaFromJD
 from app.cqrs.commands.score_with_ai import ScoreCandidateWithAI
 # Import base classes
@@ -34,6 +35,11 @@ from app.cqrs.commands.job_role_commands import (
     CreateJobRole,
     UpdateJobRole,
     DeleteJobRole
+)
+from app.cqrs.commands.candidate_selection_status_commands import (
+	CreateCandidateSelectionStatus,
+	UpdateCandidateSelectionStatus,
+	DeleteCandidateSelectionStatus
 )
 from app.cqrs.commands.create_persona import CreatePersona
 from app.cqrs.commands.persona_level_commands import (
@@ -102,6 +108,13 @@ from app.cqrs.queries.job_role_queries import (
     CountActiveJobRoles,
     CountSearchJobRoles,
     GetJobRoleCategories
+)
+from app.cqrs.queries.candidate_selection_status_queries import (
+	GetCandidateSelectionStatus,
+	GetCandidateSelectionStatusByCode,
+	ListCandidateSelectionStatuses,
+	ListActiveCandidateSelectionStatuses,
+	CountCandidateSelectionStatuses
 )
 from app.cqrs.queries.persona_queries import (
 	GetPersona,
@@ -490,6 +503,12 @@ def handle_command(db: Session, command: Command) -> Any:
 		return JobRoleService().update(db, command.job_role_id, command.payload)
 	if isinstance(command, DeleteJobRole):
 		return JobRoleService().delete(db, command.job_role_id)
+	if isinstance(command, CreateCandidateSelectionStatus):
+		return CandidateSelectionStatusService().create(db, command.payload)
+	if isinstance(command, UpdateCandidateSelectionStatus):
+		return CandidateSelectionStatusService().update(db, command.status_id, command.payload)
+	if isinstance(command, DeleteCandidateSelectionStatus):
+		return CandidateSelectionStatusService().delete(db, command.status_id)
 	if isinstance(command, CreatePersonaLevel):
 		return PersonaLevelService().create_level(db, command.payload)
 	if isinstance(command, UpdatePersonaLevel):
@@ -512,7 +531,8 @@ def handle_command(db: Session, command: Command) -> Any:
 			command.job_description_id,
 			command.selected_by,
 			command.selection_notes,
-			command.priority
+			command.priority,
+			command.status
 		)
 	if isinstance(command, UpdateCandidateSelection):
 		return CandidateService().update_selection(
@@ -594,6 +614,16 @@ def handle_query(db: Session, query: Query) -> Any:
 		return JobRoleService().count_search(db, query.search_criteria)
 	if isinstance(query, GetJobRoleCategories):
 		return JobRoleService().get_categories(db)
+	if isinstance(query, GetCandidateSelectionStatus):
+		return CandidateSelectionStatusService().get_by_id(db, query.status_id)
+	if isinstance(query, GetCandidateSelectionStatusByCode):
+		return CandidateSelectionStatusService().get_by_code(db, query.code)
+	if isinstance(query, ListCandidateSelectionStatuses):
+		return CandidateSelectionStatusService().list_all(db, query.skip, query.limit, query.active_only)
+	if isinstance(query, ListActiveCandidateSelectionStatuses):
+		return CandidateSelectionStatusService().list_active(db)
+	if isinstance(query, CountCandidateSelectionStatuses):
+		return CandidateSelectionStatusService().count(db, query.active_only)
 	if isinstance(query, GetJDDiff):
 		return JDService().get_jd_diff(db, query.jd_id, query.diff_format)
 	if isinstance(query, GetJDInlineMarkup):

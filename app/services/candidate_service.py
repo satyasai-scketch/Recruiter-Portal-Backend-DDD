@@ -79,6 +79,8 @@ class CandidateService:
 			"is_new_candidate": False,
 			"is_new_cv": False,
 			"cv_text": None,
+			"candidate_name": None,
+			"email": None,
 			"error": None
 		}
 		
@@ -104,6 +106,11 @@ class CandidateService:
 				result["is_new_candidate"] = False
 				result["is_new_cv"] = False
 				result["cv_text"] = existing_cv.cv_text  # Include existing CV text
+				# Get candidate info for duplicate CV
+				candidate = self.candidates.get(db, existing_cv.candidate_id)
+				if candidate:
+					result["candidate_name"] = candidate.full_name
+					result["email"] = candidate.email
 				return result
 			
 			# Step 4: Extract baseline info from file content
@@ -143,6 +150,8 @@ class CandidateService:
 			candidate = self._find_or_create_candidate(db, baseline_info, user_id)
 			result["candidate_id"] = candidate.id
 			result["is_new_candidate"] = (candidate.created_at == candidate.updated_at)
+			result["candidate_name"] = candidate.full_name
+			result["email"] = candidate.email
 			
 			# Step 6: Get next version for this candidate
 			version = self.candidate_cvs.get_next_version(db, candidate.id)
@@ -638,7 +647,8 @@ class CandidateService:
 		job_description_id: str,
 		selected_by: str,
 		selection_notes: Optional[str] = None,
-		priority: Optional[str] = None
+		priority: Optional[str] = None,
+		status: Optional[str] = None
 	) -> List[CandidateSelectionModel]:
 		"""
 		Select multiple candidates for interview.
@@ -651,10 +661,20 @@ class CandidateService:
 			selected_by: User ID who is selecting
 			selection_notes: Optional notes
 			priority: Optional priority ('high', 'medium', 'low')
+			status: Optional status code (e.g., 'selected', 'evaluated'). Defaults to 'selected' if not provided.
 			
 		Returns:
 			List of created selection models
 		"""
+		# Default status to 'selected' if not provided
+		status_code = status or 'selected'
+		
+		# Validate status exists in database
+		from app.services.candidate_selection_status_service import CandidateSelectionStatusService
+		status_model = CandidateSelectionStatusService().get_by_code(db, status_code)
+		if not status_model:
+			raise ValueError(f"Invalid status code: '{status_code}'. Status must exist in the database.")
+		
 		selections = []
 		
 		for candidate_id in candidate_ids:
@@ -665,7 +685,7 @@ class CandidateService:
 				# Update existing selection
 				existing.selection_notes = selection_notes or existing.selection_notes
 				existing.priority = priority or existing.priority
-				existing.status = 'selected'  # Reset to selected if it was in another state
+				existing.status = status_code  # Update status
 				selections.append(self.selections.update(db, existing))
 			else:
 				# Create new selection
@@ -677,7 +697,7 @@ class CandidateService:
 					selected_by=selected_by,
 					selection_notes=selection_notes,
 					priority=priority,
-					status='selected'
+					status=status_code
 				)
 				selections.append(self.selections.create(db, selection))
 		
@@ -735,7 +755,8 @@ class CandidateService:
 		job_description_id: str,
 		selected_by: str,
 		selection_notes: Optional[str] = None,
-		priority: Optional[str] = None
+		priority: Optional[str] = None,
+		status: Optional[str] = None
 	) -> List[CandidateSelectionModel]:
 		"""
 		Select multiple candidates for interview.
@@ -748,10 +769,20 @@ class CandidateService:
 			selected_by: User ID who is selecting
 			selection_notes: Optional notes
 			priority: Optional priority ('high', 'medium', 'low')
+			status: Optional status code (e.g., 'selected', 'evaluated'). Defaults to 'selected' if not provided.
 			
 		Returns:
 			List of created selection models
 		"""
+		# Default status to 'selected' if not provided
+		status_code = status or 'selected'
+		
+		# Validate status exists in database
+		from app.services.candidate_selection_status_service import CandidateSelectionStatusService
+		status_model = CandidateSelectionStatusService().get_by_code(db, status_code)
+		if not status_model:
+			raise ValueError(f"Invalid status code: '{status_code}'. Status must exist in the database.")
+		
 		selections = []
 		
 		for candidate_id in candidate_ids:
@@ -772,9 +803,9 @@ class CandidateService:
 					existing.priority = priority
 				
 				old_status = existing.status
-				if existing.status != 'selected':
-					changes.append(('status', old_status, 'selected'))
-					existing.status = 'selected'
+				if existing.status != status_code:
+					changes.append(('status', old_status, status_code))
+					existing.status = status_code
 				
 				updated_selection = self.selections.update(db, existing)
 				
@@ -811,7 +842,7 @@ class CandidateService:
 					selected_by=selected_by,
 					selection_notes=selection_notes,
 					priority=priority,
-					status='selected'
+					status=status_code
 				)
 				created_selection = self.selections.create(db, selection)
 				
@@ -822,6 +853,18 @@ class CandidateService:
 					'created',
 					selected_by,
 					change_notes=f"Candidate selected for persona {persona_id}"
+				)
+				
+				# Log status change (from null to status_code)
+				self._log_selection_change(
+					db,
+					created_selection.id,
+					'status_changed',
+					selected_by,
+					field_name='status',
+					old_value=None,
+					new_value=status_code,
+					change_notes=f"Status set to '{status_code}' on creation"
 				)
 				
 				selections.append(created_selection)

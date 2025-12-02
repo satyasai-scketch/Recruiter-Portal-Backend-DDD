@@ -40,7 +40,8 @@ class SelectCandidates(Command):
         job_description_id: str,
         selected_by: str,
         selection_notes: Optional[str] = None,
-        priority: Optional[str] = None
+        priority: Optional[str] = None,
+        status: Optional[str] = None
     ):
         self.candidate_ids = candidate_ids
         self.persona_id = persona_id
@@ -48,6 +49,7 @@ class SelectCandidates(Command):
         self.selected_by = selected_by
         self.selection_notes = selection_notes
         self.priority = priority
+        self.status = status
 
 @dataclass
 class UpdateCandidateSelection(Command):
