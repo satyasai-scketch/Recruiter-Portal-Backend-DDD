@@ -272,6 +272,8 @@ def _convert_candidate_score_to_read_schema(score_model, db: Session = None) -> 
 	file_name = None
 	persona_name = None
 	role_name = None
+	jd_id = None
+	jd_name = None
 	is_selected = 0
 	
 	if db:
@@ -287,16 +289,24 @@ def _convert_candidate_score_to_read_schema(score_model, db: Session = None) -> 
 			persona_name = persona.name if persona else None
 			
 			if persona:
+				# Get job description ID
+				jd_id = persona.job_description_id
+				
 				# Try to get role name from persona's role_name field first
 				if persona.role_name:
 					role_name = persona.role_name
-				# If not available, get it from the job description's job role
-				elif persona.job_description_id:
+				
+				# Fetch job description to get JD name and role information (if needed)
+				if persona.job_description_id:
 					job_description = handle_query(db, GetJobDescription(persona.job_description_id))
-					if job_description and job_description.role_id:
-						job_role = handle_query(db, GetJobRole(job_description.role_id))
-						if job_role:
-							role_name = job_role.name
+					if job_description:
+						jd_name = job_description.title
+						
+						# If role_name not set from persona, get it from the job description's job role
+						if not role_name and job_description.role_id:
+							job_role = handle_query(db, GetJobRole(job_description.role_id))
+							if job_role:
+								role_name = job_role.name
 			
 			# Check if candidate is selected for this persona
 			from app.services.candidate_service import CandidateService
@@ -343,6 +353,8 @@ def _convert_candidate_score_to_read_schema(score_model, db: Session = None) -> 
 		file_name=file_name,
 		persona_name=persona_name,
 		role_name=role_name,
+		jd_id=jd_id,
+		jd_name=jd_name,
 		current_status=current_status,
 		selection_id=selection_id,
 		selected_by=selected_by,

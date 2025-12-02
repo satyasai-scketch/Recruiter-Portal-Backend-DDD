@@ -87,6 +87,8 @@ class CandidateScoreRead(BaseModel):
 	file_name: Optional[str] = None
 	persona_name: Optional[str] = None
 	role_name: Optional[str] = None
+	jd_id: Optional[str] = None
+	jd_name: Optional[str] = None
 	current_status: Optional[str] = None	
 	selection_id: Optional[str] = None
 	selected_by: Optional[str] = None
