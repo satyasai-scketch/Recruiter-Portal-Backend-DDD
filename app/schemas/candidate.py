@@ -94,6 +94,9 @@ class CandidateUploadResponse(BaseModel):
 	is_new_candidate: bool
 	is_new_cv: bool
 	cv_text: Optional[str] = None
+	candidate_name: Optional[str] = None
+	email: Optional[str] = None
+	error: Optional[str] = None
 
 
 class CandidateListResponse(BaseModel):

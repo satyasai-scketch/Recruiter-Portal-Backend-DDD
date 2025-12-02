@@ -79,6 +79,8 @@ class CandidateService:
 			"is_new_candidate": False,
 			"is_new_cv": False,
 			"cv_text": None,
+			"candidate_name": None,
+			"email": None,
 			"error": None
 		}
 		
@@ -104,6 +106,11 @@ class CandidateService:
 				result["is_new_candidate"] = False
 				result["is_new_cv"] = False
 				result["cv_text"] = existing_cv.cv_text  # Include existing CV text
+				# Get candidate info for duplicate CV
+				candidate = self.candidates.get(db, existing_cv.candidate_id)
+				if candidate:
+					result["candidate_name"] = candidate.full_name
+					result["email"] = candidate.email
 				return result
 			
 			# Step 4: Extract baseline info from file content
@@ -143,6 +150,8 @@ class CandidateService:
 			candidate = self._find_or_create_candidate(db, baseline_info, user_id)
 			result["candidate_id"] = candidate.id
 			result["is_new_candidate"] = (candidate.created_at == candidate.updated_at)
+			result["candidate_name"] = candidate.full_name
+			result["email"] = candidate.email
 			
 			# Step 6: Get next version for this candidate
 			version = self.candidate_cvs.get_next_version(db, candidate.id)

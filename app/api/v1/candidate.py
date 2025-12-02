@@ -887,6 +887,8 @@ async def upload_cv_files(
 					is_new_candidate=False,
 					is_new_cv=False,
 					cv_text=None,
+					candidate_name=None,
+					email=None,
 					error="No filename provided"
 				))
 				continue
@@ -905,6 +907,8 @@ async def upload_cv_files(
 					is_new_candidate=False,
 					is_new_cv=False,
 					cv_text=None,
+					candidate_name=None,
+					email=None,
 					error="File size exceeds 10MB limit"
 				))
 				continue
@@ -932,6 +936,8 @@ async def upload_cv_files(
 				is_new_candidate=result.get("is_new_candidate", False),
 				is_new_cv=result.get("is_new_cv", False),
 				cv_text=result.get("cv_text"),
+				candidate_name=result.get("candidate_name"),
+				email=result.get("email"),
 				error=result.get("error")
 			)
 			
@@ -950,6 +956,8 @@ async def upload_cv_files(
 				is_new_candidate=False,
 				is_new_cv=False,
 				cv_text=None,
+				candidate_name=None,
+				email=None,
 				error=f"Unexpected error: {str(e)}"
 			))
 	
