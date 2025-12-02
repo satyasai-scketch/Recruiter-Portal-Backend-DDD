@@ -207,6 +207,7 @@ class SelectCandidatesRequest(BaseModel):
 	job_description_id: str
 	selection_notes: Optional[str] = None
 	priority: Optional[str] = Field(None, description="Priority: 'high', 'medium', or 'low'")
+	status: Optional[str] = Field(None, description="Status code (e.g., 'selected', 'evaluated'). Defaults to 'selected' if not provided.")
 	
 	model_config = ConfigDict(from_attributes=True)
 

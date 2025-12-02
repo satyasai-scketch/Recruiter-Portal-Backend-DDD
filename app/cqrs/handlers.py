@@ -531,7 +531,8 @@ def handle_command(db: Session, command: Command) -> Any:
 			command.job_description_id,
 			command.selected_by,
 			command.selection_notes,
-			command.priority
+			command.priority,
+			command.status
 		)
 	if isinstance(command, UpdateCandidateSelection):
 		return CandidateService().update_selection(
