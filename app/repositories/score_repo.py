@@ -33,6 +33,12 @@ class ScoreRepository:
 	def list_all_scores(self, db: Session, skip: int = 0, limit: int = 100) -> Sequence[CandidateScoreModel]:
 		raise NotImplementedError
 
+	def list_scores_for_persona(self, db: Session, persona_id: str, skip: int = 0, limit: int = 100) -> Sequence[CandidateScoreModel]:
+		raise NotImplementedError
+
+	def count_scores_for_persona(self, db: Session, persona_id: str) -> int:
+		raise NotImplementedError
+
 
 class SQLAlchemyScoreRepository(ScoreRepository):
 	"""SQLAlchemy-backed implementation of comprehensive ScoreRepository."""
@@ -149,4 +155,28 @@ class SQLAlchemyScoreRepository(ScoreRepository):
 			.offset(skip)
 			.limit(limit)
 			.all()
+		)
+
+	def list_scores_for_persona(self, db: Session, persona_id: str, skip: int = 0, limit: int = 100) -> Sequence[CandidateScoreModel]:
+		"""List all scores for a specific persona (across all candidates)."""
+		return (
+			db.query(CandidateScoreModel)
+			.options(
+				selectinload(CandidateScoreModel.score_stages),
+				selectinload(CandidateScoreModel.categories).selectinload(ScoreCategoryModel.subcategories),
+				selectinload(CandidateScoreModel.insights)
+			)
+			.filter(CandidateScoreModel.persona_id == persona_id)
+			.order_by(CandidateScoreModel.scored_at.desc())
+			.offset(skip)
+			.limit(limit)
+			.all()
+		)
+
+	def count_scores_for_persona(self, db: Session, persona_id: str) -> int:
+		"""Count total scores for a specific persona."""
+		return (
+			db.query(CandidateScoreModel)
+			.filter(CandidateScoreModel.persona_id == persona_id)
+			.count()
 		)

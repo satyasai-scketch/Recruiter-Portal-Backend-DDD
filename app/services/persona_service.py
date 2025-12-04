@@ -119,6 +119,11 @@ class PersonaService:
 		job_description = self.jd_repo.get(db, data["job_description_id"])
 		if not job_description:
 			raise ValueError(f"Job description with ID '{data['job_description_id']}' not found")
+
+		# check if the persona with same name already exists for the same job description
+		# existing_persona = self.repo.get_by_name_and_job_description(db, data["name"], data["job_description_id"])
+		# if existing_persona:
+			# raise ValueError(f"Persona with name '{data['name']}' already exists for job description '{data['job_description_id']}'")
 		
 		role_name = job_description.job_role.name if job_description.job_role else None
 		role_id = job_description.job_role.id if job_description.job_role else None

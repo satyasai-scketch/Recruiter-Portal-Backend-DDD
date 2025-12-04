@@ -273,6 +273,10 @@ Instructions:
             try:
                 extracted_data = json.loads(result_text)
                 
+                # replace spaces with '' in email
+                if extracted_data['email']:
+                    extracted_data['email'] = extracted_data['email'].replace(' ', '')
+                    
                 # Validate and clean the extracted data
                 result = {
                     'name': self._clean_name(extracted_data.get('name')),

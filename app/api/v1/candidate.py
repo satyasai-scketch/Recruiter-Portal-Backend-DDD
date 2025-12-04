@@ -1,6 +1,6 @@
 from typing import List, Dict, Optional
 
-from fastapi import APIRouter, Depends, File, UploadFile, Form, HTTPException, Query
+from fastapi import APIRouter, Depends, File, UploadFile, Form, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from app.api.deps import db_session, get_current_user
@@ -12,11 +12,21 @@ from app.schemas.candidate import (
 	CandidateRead, 
 	CandidateUploadResponse,
 	CandidateListResponse,
+	CandidateSearchRequest,
 	CandidateCVUpdate,
 	CandidateCVRead,
 	CandidateCVListResponse,
 	CandidateDeleteResponse,
-	CandidateCVDeleteResponse
+	CandidateCVDeleteResponse,
+	SelectCandidatesRequest,
+	SelectCandidatesResponse,
+	SelectedCandidatesListResponse,
+	CandidateSelectionItem,
+	CandidateInfo,
+	CandidateSelectionUpdate,
+	CandidateSelectionAuditLogRead,
+	CandidateSelectionAuditLogListResponse,
+	CandidateSelectionWithAuditLogsResponse
 )
 from app.schemas.score import (
 	ScorePayload, ScoreResponse, CandidateScoreRead, ScoreListResponse,
@@ -24,12 +34,16 @@ from app.schemas.score import (
 )
 from app.cqrs.handlers import UploadCVs, ScoreCandidate, handle_command, handle_query
 from app.cqrs.commands.upload_cv_file import UploadCVFile
-from app.cqrs.commands.candidate_commands import UpdateCandidate, UpdateCandidateCV, DeleteCandidate, DeleteCandidateCV
+from app.cqrs.commands.candidate_commands import UpdateCandidate, UpdateCandidateCV, DeleteCandidate, DeleteCandidateCV, SelectCandidates, UpdateCandidateSelection
 from app.cqrs.queries.candidate_queries import (
 	GetCandidate,
 	ListAllCandidates,
+	SearchCandidates,
+	CountSearchCandidates,
 	GetCandidateCV,
-	GetCandidateCVs
+	GetCandidateCVs,
+	ListSelectedCandidates,
+	GetCandidateSelection
 )
 from app.cqrs.queries.score_queries import (
 	GetCandidateScore,
@@ -37,7 +51,8 @@ from app.cqrs.queries.score_queries import (
 	ListScoresForCandidatePersona,
 	ListScoresForCVPersona,
 	ListLatestCandidateScoresPerPersona,
-	ListAllScores
+	ListAllScores,
+	ListScoresForPersona
 )
 from app.cqrs.commands.score_with_ai import ScoreCandidateWithAI
 import time
@@ -101,15 +116,82 @@ def _convert_candidate_model_to_read_schema(candidate_model, db: Session) -> Can
 	)
 
 
-def _convert_cv_model_to_read_schema(cv_model) -> CandidateCVRead:
-	"""Convert CandidateCVModel to CandidateCVRead schema format."""
+def _get_base_url_from_request(request: Request) -> str:
+	"""Extract base URL from request, handling various proxy headers.
+	
+	Args:
+		request: FastAPI Request object
+		
+	Returns:
+		Base URL string (e.g., "http://192.168.1.100:8000")
+	"""
+	# Try to get the host from various headers (for proxy/load balancer scenarios)
+	# X-Forwarded-Host takes precedence, then Host header, then fallback to URL hostname
+	forwarded_host = request.headers.get("X-Forwarded-Host")
+	host_header = request.headers.get("Host")
+	
+	if forwarded_host:
+		host = forwarded_host
+	elif host_header:
+		host = host_header
+	else:
+		host = str(request.url.hostname)
+	
+	# Get scheme (http/https)
+	scheme = request.headers.get("X-Forwarded-Proto") or request.url.scheme
+	
+	# If host already includes port (from headers), use it as is
+	if ":" in host:
+		return f"{scheme}://{host}"
+	
+	# Otherwise, use port from request URL if available
+	port = request.url.port
+	if port:
+		return f"{scheme}://{host}:{port}"
+	
+	return f"{scheme}://{host}"
+
+
+def _convert_cv_model_to_read_schema(cv_model, base_url: Optional[str] = None) -> CandidateCVRead:
+	"""Convert CandidateCVModel to CandidateCVRead schema format.
+	
+	Args:
+		cv_model: The CandidateCVModel instance to convert
+		base_url: Optional base URL to replace localhost in s3_url (e.g., "http://192.168.1.100:8000")
+	"""
+	s3_url = cv_model.s3_url
+	
+	# Replace localhost with actual server host if base_url is provided
+	if base_url and s3_url and "localhost" in s3_url:
+		from urllib.parse import urlparse, urlunparse
+		parsed = urlparse(s3_url)
+		base_parsed = urlparse(base_url)
+		
+		# Extract host and port from base_url
+		# base_parsed.netloc already includes hostname:port if port is present
+		new_netloc = base_parsed.netloc if base_parsed.netloc else base_parsed.hostname
+		
+		# If netloc doesn't include port but port is available, add it
+		if not base_parsed.netloc and base_parsed.port:
+			new_netloc = f"{base_parsed.hostname}:{base_parsed.port}"
+		
+		# Construct new URL with replaced host
+		s3_url = urlunparse((
+			parsed.scheme,  # Keep original scheme (http/https)
+			new_netloc,     # Use host from base_url
+			parsed.path,    # Keep original path
+			parsed.params,  # Keep original params
+			parsed.query,   # Keep original query
+			parsed.fragment # Keep original fragment
+		))
+	
 	return CandidateCVRead(
 		id=cv_model.id,
 		candidate_id=cv_model.candidate_id,
 		file_name=cv_model.file_name,
 		file_hash=cv_model.file_hash,
 		version=cv_model.version,
-		s3_url=cv_model.s3_url,
+		s3_url=s3_url,
 		file_size=cv_model.file_size,
 		mime_type=cv_model.mime_type,
 		status=cv_model.status,
@@ -186,15 +268,20 @@ def _convert_candidate_score_to_read_schema(score_model, db: Session = None) -> 
 	"""Convert CandidateScoreModel to CandidateScoreRead schema format."""
 	# Fetch candidate and CV information if db session is provided
 	candidate_name = None
+	email = None
 	file_name = None
 	persona_name = None
 	role_name = None
+	jd_id = None
+	jd_name = None
+	is_selected = 0
 	
 	if db:
 		try:
 			candidate = handle_query(db, GetCandidate(score_model.candidate_id))
 			cv = handle_query(db, GetCandidateCV(score_model.cv_id))
 			candidate_name = candidate.full_name if candidate else None
+			email = candidate.email if candidate else None
 			file_name = cv.file_name if cv else None
 			
 			# Fetch persona and role information
@@ -202,16 +289,47 @@ def _convert_candidate_score_to_read_schema(score_model, db: Session = None) -> 
 			persona_name = persona.name if persona else None
 			
 			if persona:
+				# Get job description ID
+				jd_id = persona.job_description_id
+				
 				# Try to get role name from persona's role_name field first
 				if persona.role_name:
 					role_name = persona.role_name
-				# If not available, get it from the job description's job role
-				elif persona.job_description_id:
+				
+				# Fetch job description to get JD name and role information (if needed)
+				if persona.job_description_id:
 					job_description = handle_query(db, GetJobDescription(persona.job_description_id))
-					if job_description and job_description.role_id:
-						job_role = handle_query(db, GetJobRole(job_description.role_id))
-						if job_role:
-							role_name = job_role.name
+					if job_description:
+						jd_name = job_description.title
+						
+						# If role_name not set from persona, get it from the job description's job role
+						if not role_name and job_description.role_id:
+							job_role = handle_query(db, GetJobRole(job_description.role_id))
+							if job_role:
+								role_name = job_role.name
+			
+			# Check if candidate is selected for this persona
+			from app.services.candidate_service import CandidateService
+			selection = CandidateService().selections.get_by_candidate_persona(db, score_model.candidate_id, score_model.persona_id)
+			if selection:
+				current_status = selection.status if selection else None
+				selection_id = selection.id if selection else None
+				selected_by = selection.selected_by if selection else None
+				selected_by_name = None
+				if selection.selector:
+					if selection.selector.first_name and selection.selector.last_name:
+						selected_by_name = f"{selection.selector.first_name} {selection.selector.last_name}".strip()
+					elif selection.selector.first_name:
+						selected_by_name = selection.selector.first_name
+					elif selection.selector.last_name:
+						selected_by_name = selection.selector.last_name
+					else:
+						selected_by_name = selection.selector.email
+			else:
+				current_status = None
+				selection_id = None
+				selected_by = None
+				selected_by_name = None
 		except Exception:
 			# If there's an error fetching the data, continue without it
 			pass
@@ -231,9 +349,16 @@ def _convert_candidate_score_to_read_schema(score_model, db: Session = None) -> 
 		scoring_version=score_model.scoring_version,
 		processing_time_ms=score_model.processing_time_ms,
 		candidate_name=candidate_name,
+		email=email,
 		file_name=file_name,
 		persona_name=persona_name,
 		role_name=role_name,
+		jd_id=jd_id,
+		jd_name=jd_name,
+		current_status=current_status,
+		selection_id=selection_id,
+		selected_by=selected_by,
+		selected_by_name=selected_by_name,
 		score_stages=[_convert_score_stage_to_read_schema(stage) for stage in score_model.score_stages],
 		categories=[_convert_score_category_to_read_schema(cat) for cat in score_model.categories],
 		insights=[_convert_score_insight_to_read_schema(insight) for insight in score_model.insights]
@@ -272,9 +397,261 @@ async def list_candidates(
 	)
 
 
+@router.post("/search", response_model=CandidateListResponse, summary="Search Candidates")
+async def search_candidates(
+	search_request: CandidateSearchRequest,
+	db: Session = Depends(db_session),
+	user=Depends(get_current_user)
+):
+	"""
+	Search candidates by a single query term that matches name, email, or phone number.
+	
+	- **query**: Search term to match against candidate name, email, or phone number (partial match, case-insensitive for name and email)
+	- **page**: Page number (default: 1)
+	- **size**: Page size (default: 10)
+	
+	The search automatically checks if the query term matches any of:
+	- Candidate name (partial match, case-insensitive)
+	- Candidate email (partial match, case-insensitive)
+	- Candidate phone number (partial match)
+	
+	The search uses OR logic - candidates matching any of the fields will be returned.
+	"""
+	# Validate that search query is provided and not empty
+	if not search_request.query or not search_request.query.strip():
+		raise HTTPException(
+			status_code=400,
+			detail="Search query parameter is required and cannot be empty"
+		)
+	
+	skip = (search_request.page - 1) * search_request.size
+	
+	# Build search criteria with single query term
+	search_criteria = {
+		'query': search_request.query.strip()
+	}
+	
+	# Get candidates and total count
+	candidates = handle_query(db, SearchCandidates(search_criteria, skip, search_request.size))
+	total = handle_query(db, CountSearchCandidates(search_criteria))
+	
+	# Convert to response format with all required fields
+	candidate_reads = [_convert_candidate_model_to_read_schema(candidate, db) for candidate in candidates]
+	
+	return CandidateListResponse(
+		candidates=candidate_reads,
+		total=total,
+		page=search_request.page,
+		size=search_request.size,
+		has_next=(skip + search_request.size) < total,
+		has_prev=search_request.page > 1
+	)
+
+
+@router.get("/selected", response_model=SelectedCandidatesListResponse, summary="Get Selected Candidates")
+async def get_selected_candidates(
+	persona_id: Optional[str] = Query(None, description="Filter by persona ID"),
+	job_description_id: Optional[str] = Query(None, alias="jd_id", description="Filter by job description ID"),
+	status: Optional[str] = Query(None, description="Filter by status (selected, interview_scheduled, interviewed, rejected, hired)"),
+	db: Session = Depends(db_session),
+	user: UserModel = Depends(get_current_user)
+):
+	"""
+	Get list of selected candidates with optional filtering.
+	
+	Access rules:
+	- Admin/Recruiter: Can see all selections
+	- Hiring Manager: Can only see selections for personas they have access to
+	
+	Filters:
+	- persona_id: Filter by specific persona
+	- job_description_id: Filter by job description
+	- status: Filter by selection status
+	"""
+	# If persona_id is provided, verify access
+	if persona_id:
+		persona = handle_query(db, GetPersona(persona_id))
+		if persona is None:
+			raise HTTPException(status_code=404, detail="Persona not found")
+		
+		if not can_access_jd(db, user, persona.job_description_id):
+			raise HTTPException(
+				status_code=403,
+				detail="Access denied. You do not have permission to view selections for this persona."
+			)
+	
+	# Get selected candidates
+	selections, total = handle_query(db, ListSelectedCandidates(
+		persona_id=persona_id,
+		job_description_id=job_description_id,
+		status=status,
+		skip=0,
+		limit=1000  # Large limit to get all, can add pagination later if needed
+	))
+	
+	# Filter selections based on user access if not already filtered by persona_id
+	filtered_selections = []
+	for selection in selections:
+		# Check if user has access to this persona's job description
+		if persona_id:
+			# Already verified access above
+			filtered_selections.append(selection)
+		else:
+			persona = handle_query(db, GetPersona(selection.persona_id))
+			if persona and can_access_jd(db, user, persona.job_description_id):
+				filtered_selections.append(selection)
+	
+	# Convert to response format
+	selection_items = []
+	for selection in filtered_selections:
+		try:
+			# Get candidate info
+			if not hasattr(selection, 'candidate') or selection.candidate is None:
+				# Try to get candidate_id from selection
+				candidate_id = getattr(selection, 'candidate_id', None)
+				if candidate_id:
+					candidate = handle_query(db, GetCandidate(candidate_id))
+					if not candidate:
+						continue
+				else:
+					continue
+			else:
+				candidate = selection.candidate
+			
+			candidate_info = CandidateInfo(
+				id=candidate.id,
+				full_name=candidate.full_name,
+				email=candidate.email,
+				phone=candidate.phone
+			)
+			
+			# Get persona name
+			persona_name = selection.persona.name if selection.persona else None
+			
+			# Get selector (created_by) name from relationship
+			selected_by_name = None
+			if selection.selector:
+				if selection.selector.first_name and selection.selector.last_name:
+					selected_by_name = f"{selection.selector.first_name} {selection.selector.last_name}".strip()
+				elif selection.selector.first_name:
+					selected_by_name = selection.selector.first_name
+				elif selection.selector.last_name:
+					selected_by_name = selection.selector.last_name
+				else:
+					selected_by_name = selection.selector.email
+			
+			selection_items.append(CandidateSelectionItem(
+				id=selection.id,
+				candidate=candidate_info,
+				persona_id=selection.persona_id,
+				persona_name=persona_name,
+				job_description_id=selection.job_description_id,
+				status=selection.status,
+				priority=selection.priority,
+				selection_notes=selection.selection_notes,
+				selected_by=selection.selected_by,
+				selected_by_name=selected_by_name,
+				created_at=selection.created_at
+			))
+		except Exception as e:
+			# Continue processing other selections instead of failing completely
+			continue
+	
+	return SelectedCandidatesListResponse(
+		selections=selection_items,
+		total=len(selection_items)
+	)
+
+
+@router.get("/scores", response_model=ScoreListResponse, summary="Get Candidate Scores by Persona")
+async def get_scores_by_persona(
+	persona_id: str = Query(..., description="Persona ID to filter scores"),
+	page: int = Query(1, ge=1, description="Page number"),
+	size: int = Query(10, ge=1, le=100, description="Page size"),
+	db: Session = Depends(db_session),
+	user: UserModel = Depends(get_current_user)
+):
+	"""
+	Get all candidate scores for a specific persona.
+	
+	This endpoint returns all scores across all candidates that were scored against the given persona.
+	Useful for seeing how all candidates perform against a specific persona.
+	
+	Access rules:
+	- Admin/Recruiter: Can access scores for any persona
+	- Hiring Manager: Can only access scores for personas they have access to
+	"""
+	# Check if persona exists and user has access
+	persona = handle_query(db, GetPersona(persona_id))
+	if persona is None:
+		raise HTTPException(status_code=404, detail="Persona not found")
+	
+	if not can_access_jd(db, user, persona.job_description_id):
+		raise HTTPException(
+			status_code=403,
+			detail="Access denied. You do not have permission to access scores for this persona."
+		)
+	
+	skip = (page - 1) * size
+	
+	# Get scores for this persona
+	scores, total = handle_query(db, ListScoresForPersona(persona_id, skip, size))
+	
+	# Convert to response format
+	score_reads = [_convert_candidate_score_to_read_schema(score, db) for score in scores]
+	
+	return ScoreListResponse(
+		scores=score_reads,
+		total=total,
+		page=page,
+		size=size,
+		has_next=(skip + size) < total,
+		has_prev=page > 1
+	)
+
+
+@router.get("/scores/{score_id}", response_model=CandidateScoreRead, summary="Get Candidate Score by ID")
+async def get_candidate_score(
+	score_id: str,
+	db: Session = Depends(db_session),
+	user: UserModel = Depends(get_current_user)
+):
+	"""
+	Get detailed scoring information for a specific score ID.
+	
+	Access rules:
+	- Admin/Recruiter: Can access any score
+	- Hiring Manager: Can only access scores for personas they have access to
+	"""
+	score = handle_query(db, GetCandidateScore(score_id))
+	
+	if not score:
+		raise HTTPException(status_code=404, detail="Score not found")
+	
+	# Check if the candidate still exists (to handle orphaned scores from deleted candidates)
+	candidate = handle_query(db, GetCandidate(score.candidate_id))
+	if not candidate:
+		raise HTTPException(status_code=404, detail="Score not found - associated candidate has been deleted")
+	
+	# Check if user has access to the persona associated with this score
+	persona = handle_query(db, GetPersona(score.persona_id))
+	if persona is None:
+		raise HTTPException(status_code=404, detail="Persona not found")
+	
+	if not can_access_jd(db, user, persona.job_description_id):
+		raise HTTPException(
+			status_code=403,
+			detail="Access denied. You do not have permission to access this score."
+		)
+	
+	# Convert to response format
+	return _convert_candidate_score_to_read_schema(score, db)
+
+
 @router.get("/{candidate_id}", response_model=CandidateRead, summary="Get Candidate by ID")
 async def get_candidate(
 	candidate_id: str,
+	request: Request,
 	db: Session = Depends(db_session),
 	user=Depends(get_current_user)
 ):
@@ -289,9 +666,12 @@ async def get_candidate(
 	# Load CVs for this candidate
 	cvs = handle_query(db, GetCandidateCVs(candidate_id))
 	
+	# Get base URL for replacing localhost in s3_url
+	base_url = _get_base_url_from_request(request)
+	
 	# Convert to response format with CVs included
 	candidate_read = _convert_candidate_model_to_read_schema(candidate, db)
-	candidate_read.cvs = [_convert_cv_model_to_read_schema(cv) for cv in cvs]
+	candidate_read.cvs = [_convert_cv_model_to_read_schema(cv, base_url) for cv in cvs]
 	
 	return candidate_read
 
@@ -299,6 +679,7 @@ async def get_candidate(
 @router.get("/{candidate_id}/cvs", response_model=CandidateCVListResponse, summary="Get Candidate CVs")
 async def get_candidate_cvs(
 	candidate_id: str,
+	request: Request,
 	db: Session = Depends(db_session),
 	user=Depends(get_current_user)
 ):
@@ -313,8 +694,11 @@ async def get_candidate_cvs(
 	# Get candidate CVs
 	cvs = handle_query(db, GetCandidateCVs(candidate_id))
 	
+	# Get base URL for replacing localhost in s3_url
+	base_url = _get_base_url_from_request(request)
+	
 	# Convert to response format
-	cv_reads = [_convert_cv_model_to_read_schema(cv) for cv in cvs]
+	cv_reads = [_convert_cv_model_to_read_schema(cv, base_url) for cv in cvs]
 	
 	return CandidateCVListResponse(
 		cvs=cv_reads,
@@ -326,6 +710,7 @@ async def get_candidate_cvs(
 @router.get("/cvs/{candidate_cv_id}", response_model=CandidateCVRead, summary="Get Candidate CV by ID")
 async def get_candidate_cv(
 	candidate_cv_id: str,
+	request: Request,
 	db: Session = Depends(db_session),
 	user=Depends(get_current_user)
 ):
@@ -337,13 +722,17 @@ async def get_candidate_cv(
 	if not cv:
 		raise HTTPException(status_code=404, detail="Candidate CV not found")
 	
-	return _convert_cv_model_to_read_schema(cv)
+	# Get base URL for replacing localhost in s3_url
+	base_url = _get_base_url_from_request(request)
+	
+	return _convert_cv_model_to_read_schema(cv, base_url)
 
 
 @router.patch("/{candidate_id}", response_model=CandidateRead, summary="Update Candidate")
 async def update_candidate(
 	candidate_id: str,
 	update_data: CandidateUpdate,
+	request: Request,
 	db: Session = Depends(db_session),
 	user=Depends(get_current_user)
 ):
@@ -367,9 +756,12 @@ async def update_candidate(
 	# Load CVs for this candidate
 	cvs = handle_query(db, GetCandidateCVs(candidate_id))
 	
+	# Get base URL for replacing localhost in s3_url
+	base_url = _get_base_url_from_request(request)
+	
 	# Convert to response format with CVs included
-	candidate_read = _convert_candidate_model_to_read_schema(updated_candidate)
-	candidate_read.cvs = [_convert_cv_model_to_read_schema(cv) for cv in cvs]
+	candidate_read = _convert_candidate_model_to_read_schema(updated_candidate, db)
+	candidate_read.cvs = [_convert_cv_model_to_read_schema(cv, base_url) for cv in cvs]
 	
 	return candidate_read
 
@@ -378,6 +770,7 @@ async def update_candidate(
 async def update_candidate_cv(
 	candidate_cv_id: str,
 	update_data: CandidateCVUpdate,
+	request: Request,
 	db: Session = Depends(db_session),
 	user=Depends(get_current_user)
 ):
@@ -398,7 +791,10 @@ async def update_candidate_cv(
 	if not updated_cv:
 		raise HTTPException(status_code=404, detail="Candidate CV not found")
 	
-	return _convert_cv_model_to_read_schema(updated_cv)
+	# Get base URL for replacing localhost in s3_url
+	base_url = _get_base_url_from_request(request)
+	
+	return _convert_cv_model_to_read_schema(updated_cv, base_url)
 
 
 @router.delete("/{candidate_id}", response_model=CandidateDeleteResponse, summary="Delete Candidate")
@@ -506,6 +902,8 @@ async def upload_cv_files(
 					is_new_candidate=False,
 					is_new_cv=False,
 					cv_text=None,
+					candidate_name=None,
+					email=None,
 					error="No filename provided"
 				))
 				continue
@@ -524,6 +922,8 @@ async def upload_cv_files(
 					is_new_candidate=False,
 					is_new_cv=False,
 					cv_text=None,
+					candidate_name=None,
+					email=None,
 					error="File size exceeds 10MB limit"
 				))
 				continue
@@ -551,6 +951,8 @@ async def upload_cv_files(
 				is_new_candidate=result.get("is_new_candidate", False),
 				is_new_cv=result.get("is_new_cv", False),
 				cv_text=result.get("cv_text"),
+				candidate_name=result.get("candidate_name"),
+				email=result.get("email"),
 				error=result.get("error")
 			)
 			
@@ -569,6 +971,8 @@ async def upload_cv_files(
 				is_new_candidate=False,
 				is_new_cv=False,
 				cv_text=None,
+				candidate_name=None,
+				email=None,
 				error=f"Unexpected error: {str(e)}"
 			))
 	
@@ -648,9 +1052,28 @@ async def score_candidate(
 				if job_role:
 					role_name = job_role.name
 	
-	# Extract candidate name and file name
+	# Extract candidate name, email, and file name
 	candidate_name = candidate.full_name if candidate else None
+	email = candidate.email if candidate else None
 	file_name = cv.file_name if cv else None
+	
+	# Get selection information
+	from app.services.candidate_service import CandidateService
+	selection = CandidateService().selections.get_by_candidate_persona(db, body.candidate_id, body.persona_id)
+	is_selected = 1 if selection else 0
+	selection_id = selection.id if selection else None
+	current_status = selection.status if selection else None
+	selected_by = selection.selected_by if selection else None
+	selected_by_name = None
+	if selection and selection.selector:
+		if selection.selector.first_name and selection.selector.last_name:
+			selected_by_name = f"{selection.selector.first_name} {selection.selector.last_name}".strip()
+		elif selection.selector.first_name:
+			selected_by_name = selection.selector.first_name
+		elif selection.selector.last_name:
+			selected_by_name = selection.selector.last_name
+		else:
+			selected_by_name = selection.selector.email
 	
 	return ScoreResponse(
 		score_id=score.id,
@@ -661,49 +1084,16 @@ async def score_candidate(
 		pipeline_stage_reached=score.pipeline_stage_reached,
 		scored_at=score.scored_at,
 		candidate_name=candidate_name,
+		email=email,
 		file_name=file_name,
 		persona_name=persona_name,
-		role_name=role_name
+		role_name=role_name,
+		is_selected=is_selected,
+		current_status=current_status,
+		selection_id=selection_id,
+		selected_by=selected_by,
+		selected_by_name=selected_by_name
 	)
-
-
-@router.get("/scores/{score_id}", response_model=CandidateScoreRead, summary="Get Candidate Score by ID")
-async def get_candidate_score(
-	score_id: str,
-	db: Session = Depends(db_session),
-	user: UserModel = Depends(get_current_user)
-):
-	"""
-	Get detailed scoring information for a specific score ID.
-	
-	Access rules:
-	- Admin/Recruiter: Can access any score
-	- Hiring Manager: Can only access scores for personas they have access to
-	"""
-	score = handle_query(db, GetCandidateScore(score_id))
-	
-	if not score:
-		raise HTTPException(status_code=404, detail="Score not found")
-	
-	# Check if the candidate still exists (to handle orphaned scores from deleted candidates)
-	candidate = handle_query(db, GetCandidate(score.candidate_id))
-	if not candidate:
-		raise HTTPException(status_code=404, detail="Score not found - associated candidate has been deleted")
-	
-	# Check if user has access to the persona associated with this score
-	persona = handle_query(db, GetPersona(score.persona_id))
-	if persona is None:
-		raise HTTPException(status_code=404, detail="Persona not found")
-	
-	if not can_access_jd(db, user, persona.job_description_id):
-		raise HTTPException(
-			status_code=403,
-			detail="Access denied. You do not have permission to access this score."
-		)
-	
-	# Convert to response format
-	return _convert_candidate_score_to_read_schema(score, db)
-
 
 
 @router.post("/score-with-ai", response_model=ScoreResponse, summary="Score candidate with AI")
@@ -755,6 +1145,38 @@ async def score_candidate_with_ai(
                 # This prevents duplicate AI scoring for the same CV-persona combination
                 existing_score = existing_scores[0]
                 
+                # Ensure selection exists with "evaluated" status for existing scores too
+                from app.services.candidate_service import CandidateService
+                from app.services.candidate_selection_status_service import CandidateSelectionStatusService
+                
+                evaluated_status = CandidateSelectionStatusService().get_by_code(db, "evaluated")
+                if evaluated_status:
+                    selection = CandidateService().selections.get_by_candidate_persona(db, candidate_id, persona_id)
+                    
+                    if selection:
+                        # Update to "evaluated" if not already set
+                        if selection.status != "evaluated":
+                            from app.cqrs.commands.candidate_commands import UpdateCandidateSelection
+                            handle_command(db, UpdateCandidateSelection(
+                                selection_id=selection.id,
+                                updated_by=user.id,
+                                status="evaluated",
+                                change_notes="Status updated to 'evaluated' after AI scoring"
+                            ))
+                            # Refresh selection to get updated data with relationships
+                            selection = CandidateService().selections.get_by_candidate_persona(db, candidate_id, persona_id)
+                    else:
+                        # Create new selection with "evaluated" status
+                        handle_command(db, SelectCandidates(
+                            candidate_ids=[candidate_id],
+                            persona_id=persona_id,
+                            job_description_id=persona.job_description_id,
+                            selected_by=user.id,
+                            status="evaluated"
+                        ))
+                        # Get the newly created selection with relationships loaded
+                        selection = CandidateService().selections.get_by_candidate_persona(db, candidate_id, persona_id)
+                
                 # Fetch candidate and CV information for the response
                 candidate = handle_query(db, GetCandidate(candidate_id))
                 cv = handle_query(db, GetCandidateCV(cv_id))
@@ -776,9 +1198,27 @@ async def score_candidate_with_ai(
                             if job_role:
                                 role_name = job_role.name
                 
-                # Extract candidate name and file name
+                # Extract candidate name, email, and file name
                 candidate_name = candidate.full_name if candidate else None
+                email = candidate.email if candidate else None
                 file_name = cv.file_name if cv else None
+                
+                # Get selection information (refresh after potential update)
+                selection = CandidateService().selections.get_by_candidate_persona(db, candidate_id, persona_id)
+                is_selected = 1 if selection else 0
+                selection_id = selection.id if selection else None
+                current_status = selection.status if selection else None
+                selected_by = selection.selected_by if selection else None
+                selected_by_name = None
+                if selection and selection.selector:
+                    if selection.selector.first_name and selection.selector.last_name:
+                        selected_by_name = f"{selection.selector.first_name} {selection.selector.last_name}".strip()
+                    elif selection.selector.first_name:
+                        selected_by_name = selection.selector.first_name
+                    elif selection.selector.last_name:
+                        selected_by_name = selection.selector.last_name
+                    else:
+                        selected_by_name = selection.selector.email
                 
                 return ScoreResponse(
                     score_id=existing_score.id,
@@ -789,9 +1229,15 @@ async def score_candidate_with_ai(
                     pipeline_stage_reached=existing_score.pipeline_stage_reached,
 					scored_at=existing_score.scored_at,
                     candidate_name=candidate_name,
+                    email=email,
                     file_name=file_name,
                     persona_name=persona_name,
-                    role_name=role_name
+                    role_name=role_name,
+                    is_selected=is_selected,
+                    current_status=current_status,
+                    selection_id=selection_id,
+                    selected_by=selected_by,
+                    selected_by_name=selected_by_name
                 )
         
         # No existing score found, proceed with AI scoring
@@ -815,6 +1261,43 @@ async def score_candidate_with_ai(
             processing_time_ms=processing_time_ms
         ))
         
+        # Create or update selection with "evaluated" status after scoring
+        from app.services.candidate_service import CandidateService
+        from app.services.candidate_selection_status_service import CandidateSelectionStatusService
+        
+        # Check if "evaluated" status exists
+        evaluated_status = CandidateSelectionStatusService().get_by_code(db, "evaluated")
+        if evaluated_status:
+            # Check if selection already exists
+            selection = CandidateService().selections.get_by_candidate_persona(db, candidate_id, persona_id)
+            
+            if selection:
+                # Update existing selection to "evaluated" status if it's not already in a more advanced state
+                # Only update if current status is "evaluated" or earlier (to preserve more advanced statuses)
+                # For now, we'll always update to "evaluated" when scoring happens
+                if selection.status != "evaluated":
+                    # Use the update_selection method which handles audit logging
+                    from app.cqrs.commands.candidate_commands import UpdateCandidateSelection
+                    handle_command(db, UpdateCandidateSelection(
+                        selection_id=selection.id,
+                        updated_by=user.id,
+                        status="evaluated",
+                        change_notes="Status updated to 'evaluated' after AI scoring"
+                    ))
+                    # Refresh selection to get updated data with relationships
+                    selection = CandidateService().selections.get_by_candidate_persona(db, candidate_id, persona_id)
+            else:
+                # Create new selection with "evaluated" status
+                handle_command(db, SelectCandidates(
+                    candidate_ids=[candidate_id],
+                    persona_id=persona_id,
+                    job_description_id=persona.job_description_id,
+                    selected_by=user.id,
+                    status="evaluated"
+                ))
+                # Get the newly created selection with relationships loaded
+                selection = CandidateService().selections.get_by_candidate_persona(db, candidate_id, persona_id)
+        
         # Fetch candidate and CV information for the response
         candidate = handle_query(db, GetCandidate(candidate_id))
         cv = handle_query(db, GetCandidateCV(cv_id))
@@ -836,9 +1319,27 @@ async def score_candidate_with_ai(
                     if job_role:
                         role_name = job_role.name
         
-        # Extract candidate name and file name
+        # Extract candidate name, email, and file name
         candidate_name = candidate.full_name if candidate else None
+        email = candidate.email if candidate else None
         file_name = cv.file_name if cv else None
+        
+        # Get selection information (refresh after potential create/update)
+        selection = CandidateService().selections.get_by_candidate_persona(db, candidate_id, persona_id)
+        is_selected = 1 if selection else 0
+        selection_id = selection.id if selection else None
+        current_status = selection.status if selection else None
+        selected_by = selection.selected_by if selection else None
+        selected_by_name = None
+        if selection and selection.selector:
+            if selection.selector.first_name and selection.selector.last_name:
+                selected_by_name = f"{selection.selector.first_name} {selection.selector.last_name}".strip()
+            elif selection.selector.first_name:
+                selected_by_name = selection.selector.first_name
+            elif selection.selector.last_name:
+                selected_by_name = selection.selector.last_name
+            else:
+                selected_by_name = selection.selector.email
         
         return ScoreResponse(
             score_id=score.id,
@@ -848,14 +1349,22 @@ async def score_candidate_with_ai(
             final_decision=score.final_decision,
             pipeline_stage_reached=score.pipeline_stage_reached,
             candidate_name=candidate_name,
+            email=email,
             file_name=file_name,
             persona_name=persona_name,
             role_name=role_name,
-			scored_at=score.scored_at
+			scored_at=score.scored_at,
+            is_selected=is_selected,
+            current_status=current_status,
+            selection_id=selection_id,
+            selected_by=selected_by,
+            selected_by_name=selected_by_name
         )
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/{candidate_id}/scores", response_model=ScoreListResponse, summary="Get Candidate Scores")
 async def get_candidate_scores(
 	candidate_id: str,
@@ -908,6 +1417,423 @@ async def get_candidate_scores(
 		size=size,
 		has_next=(skip + size) < total,
 		has_prev=page > 1
+	)
+
+
+@router.post("/select", response_model=SelectCandidatesResponse, summary="Select Candidates for Interview")
+async def select_candidates(
+	request: SelectCandidatesRequest,
+	db: Session = Depends(db_session),
+	user: UserModel = Depends(get_current_user)
+):
+	"""
+	Select multiple candidates for interview.
+	
+	Access rules:
+	- Admin/Recruiter: Can select candidates for any persona
+	- Hiring Manager: Can only select candidates for personas they have access to
+	
+	This endpoint allows bulk selection of candidates. If a candidate is already
+	selected for the same persona, the selection will be updated instead of creating a duplicate.
+	"""
+	# Validate that persona exists and user has access
+	persona = handle_query(db, GetPersona(request.persona_id))
+	if persona is None:
+		raise HTTPException(status_code=404, detail="Persona not found")
+	
+	# Check access control
+	if not can_access_jd(db, user, persona.job_description_id):
+		raise HTTPException(
+			status_code=403,
+			detail="Access denied. You do not have permission to select candidates for this persona."
+		)
+	
+	# Validate that job_description_id matches persona's job_description_id
+	if persona.job_description_id != request.job_description_id:
+		raise HTTPException(
+			status_code=400,
+			detail="Job description ID does not match the persona's job description"
+		)
+	
+	# Validate all candidates exist
+	for candidate_id in request.candidate_ids:
+		candidate = handle_query(db, GetCandidate(candidate_id))
+		if not candidate:
+			raise HTTPException(
+				status_code=404,
+				detail=f"Candidate not found: {candidate_id}"
+			)
+	
+	# Validate status if provided
+	status_code = request.status or 'evaluated'
+	if request.status:
+		from app.services.candidate_selection_status_service import CandidateSelectionStatusService
+		status_model = CandidateSelectionStatusService().get_by_code(db, request.status)
+		if not status_model:
+			raise HTTPException(
+				status_code=400,
+				detail=f"Invalid status code: '{request.status}'. Status must exist in the database."
+			)
+	
+	# Select candidates using command
+	selections = handle_command(db, SelectCandidates(
+		candidate_ids=request.candidate_ids,
+		persona_id=request.persona_id,
+		job_description_id=request.job_description_id,
+		selected_by=user.id,
+		selection_notes=request.selection_notes,
+		priority=request.priority,
+		status=status_code
+	))
+	
+	# Convert to response format
+	selection_items = []
+	for selection in selections:
+		# Get candidate info
+		candidate = selection.candidate
+		candidate_info = CandidateInfo(
+			id=candidate.id,
+			full_name=candidate.full_name,
+			email=candidate.email,
+			phone=candidate.phone
+		)
+		
+		# Get persona name
+		persona_name = selection.persona.name if selection.persona else None
+		
+		# Get selector (created_by) name from relationship
+		selected_by_name = None
+		if selection.selector:
+			if selection.selector.first_name and selection.selector.last_name:
+				selected_by_name = f"{selection.selector.first_name} {selection.selector.last_name}".strip()
+			elif selection.selector.first_name:
+				selected_by_name = selection.selector.first_name
+			elif selection.selector.last_name:
+				selected_by_name = selection.selector.last_name
+			else:
+				selected_by_name = selection.selector.email
+		
+		selection_items.append(CandidateSelectionItem(
+			id=selection.id,
+			candidate=candidate_info,
+			persona_id=selection.persona_id,
+			persona_name=persona_name,
+			job_description_id=selection.job_description_id,
+			status=selection.status,
+			priority=selection.priority,
+			selection_notes=selection.selection_notes,
+			selected_by=selection.selected_by,
+			selected_by_name=selected_by_name,
+			created_at=selection.created_at
+		))
+	
+	return SelectCandidatesResponse(
+		selected_count=len(selection_items),
+		selections=selection_items
+	)
+
+
+@router.patch("/selections/{selection_id}", response_model=CandidateSelectionItem, summary="Update Candidate Selection")
+async def update_candidate_selection(
+	selection_id: str,
+	update_data: CandidateSelectionUpdate,
+	db: Session = Depends(db_session),
+	user: UserModel = Depends(get_current_user)
+):
+	"""
+	Update a candidate selection (status, priority, notes).
+	
+	Access rules:
+	- Admin/Recruiter: Can update any selection
+	- Hiring Manager: Can only update selections for personas they have access to
+	
+	This endpoint logs all changes to the selection audit log.
+	"""
+	from app.services.candidate_service import CandidateService
+	from app.cqrs.queries.candidate_queries import GetCandidateSelection
+	
+	# Get the selection to check access
+	selection = handle_query(db, GetCandidateSelection(selection_id))
+	if not selection:
+		raise HTTPException(status_code=404, detail="Selection not found")
+	
+	# Check access control
+	persona = handle_query(db, GetPersona(selection.persona_id))
+	if persona is None:
+		raise HTTPException(status_code=404, detail="Persona not found")
+	
+	if not can_access_jd(db, user, persona.job_description_id):
+		raise HTTPException(
+			status_code=403,
+			detail="Access denied. You do not have permission to update this selection."
+		)
+	
+	# Validate status if provided - check against database statuses
+	if update_data.status:
+		from app.services.candidate_selection_status_service import CandidateSelectionStatusService
+		status_model = CandidateSelectionStatusService().get_by_code(db, update_data.status)
+		if not status_model:
+			raise HTTPException(
+				status_code=400,
+				detail=f"Invalid status code: '{update_data.status}'. Status must exist in the database."
+			)
+	
+	# Validate priority if provided
+	if update_data.priority and update_data.priority not in ['high', 'medium', 'low']:
+		raise HTTPException(
+			status_code=400,
+			detail=f"Invalid priority. Must be one of: 'high', 'medium', 'low'"
+		)
+	
+	# Convert Pydantic model to dict, excluding None values
+	update_dict = {k: v for k, v in update_data.model_dump().items() if v is not None}
+	
+	if not update_dict:
+		raise HTTPException(status_code=400, detail="No fields provided for update")
+	
+	# Update selection using CQRS (this will log changes automatically)
+	updated_selection = handle_command(db, UpdateCandidateSelection(
+		selection_id=selection_id,
+		updated_by=user.id,
+		status=update_dict.get('status'),
+		priority=update_dict.get('priority'),
+		selection_notes=update_dict.get('selection_notes'),
+		change_notes=update_dict.get('change_notes')
+	))
+	
+	# Get candidate info
+	candidate = updated_selection.candidate
+	candidate_info = CandidateInfo(
+		id=candidate.id,
+		full_name=candidate.full_name,
+		email=candidate.email,
+		phone=candidate.phone
+	)
+	
+	# Get persona name
+	persona_name = updated_selection.persona.name if updated_selection.persona else None
+	
+	# Get selector (created_by) name from relationship
+	selected_by_name = None
+	if updated_selection.selector:
+		if updated_selection.selector.first_name and updated_selection.selector.last_name:
+			selected_by_name = f"{updated_selection.selector.first_name} {updated_selection.selector.last_name}".strip()
+		elif updated_selection.selector.first_name:
+			selected_by_name = updated_selection.selector.first_name
+		elif updated_selection.selector.last_name:
+			selected_by_name = updated_selection.selector.last_name
+		else:
+			selected_by_name = updated_selection.selector.email
+	
+	return CandidateSelectionItem(
+		id=updated_selection.id,
+		candidate=candidate_info,
+		persona_id=updated_selection.persona_id,
+		persona_name=persona_name,
+		job_description_id=updated_selection.job_description_id,
+		status=updated_selection.status,
+		priority=updated_selection.priority,
+		selection_notes=updated_selection.selection_notes,
+		selected_by=updated_selection.selected_by,
+		selected_by_name=selected_by_name,
+		created_at=updated_selection.created_at
+	)
+
+
+@router.get("/selections/{selection_id}/audit-logs", response_model=CandidateSelectionAuditLogListResponse, summary="Get Selection Audit Logs")
+async def get_selection_audit_logs(
+	selection_id: str,
+	page: int = Query(1, ge=1, description="Page number"),
+	size: int = Query(10, ge=1, le=100, description="Page size"),
+	db: Session = Depends(db_session),
+	user: UserModel = Depends(get_current_user)
+):
+	"""
+	Get audit logs for a candidate selection.
+	
+	This endpoint returns a complete history of all changes made to a selection,
+	including who made the change, when, and what changed.
+	
+	Access rules:
+	- Admin/Recruiter: Can access audit logs for any selection
+	- Hiring Manager: Can only access audit logs for selections they have access to
+	"""
+	from app.services.candidate_service import CandidateService
+	from app.cqrs.queries.candidate_queries import GetCandidateSelection
+	
+	# Get the selection to check access
+	selection = handle_query(db, GetCandidateSelection(selection_id))
+	if not selection:
+		raise HTTPException(status_code=404, detail="Selection not found")
+	
+	# Check access control
+	persona = handle_query(db, GetPersona(selection.persona_id))
+	if persona is None:
+		raise HTTPException(status_code=404, detail="Persona not found")
+	
+	if not can_access_jd(db, user, persona.job_description_id):
+		raise HTTPException(
+			status_code=403,
+			detail="Access denied. You do not have permission to view audit logs for this selection."
+		)
+	
+	skip = (page - 1) * size
+	
+	# Get audit logs
+	audit_logs, total = CandidateService().get_selection_audit_logs(db, selection_id, skip, size)
+	
+	# Convert to response format
+	log_reads = []
+	for log in audit_logs:
+		# Get changer name from relationship
+		changed_by_name = None
+		if log.changer:
+			if log.changer.first_name and log.changer.last_name:
+				changed_by_name = f"{log.changer.first_name} {log.changer.last_name}".strip()
+			elif log.changer.first_name:
+				changed_by_name = log.changer.first_name
+			elif log.changer.last_name:
+				changed_by_name = log.changer.last_name
+			else:
+				changed_by_name = log.changer.email
+		
+		log_reads.append(CandidateSelectionAuditLogRead(
+			id=log.id,
+			selection_id=log.selection_id,
+			action=log.action,
+			changed_by=log.changed_by,
+			changed_by_name=changed_by_name,
+			field_name=log.field_name,
+			old_value=log.old_value,
+			new_value=log.new_value,
+			change_notes=log.change_notes,
+			created_at=log.created_at
+		))
+	
+	return CandidateSelectionAuditLogListResponse(
+		logs=log_reads,
+		total=total,
+		page=page,
+		size=size,
+		has_next=(skip + size) < total,
+		has_prev=page > 1
+	)
+
+
+@router.get("/{candidate_id}/selections/{persona_id}", response_model=CandidateSelectionWithAuditLogsResponse, summary="Get Candidate Selection by Candidate and Persona")
+async def get_candidate_selection_by_persona(
+	candidate_id: str,
+	persona_id: str,
+	db: Session = Depends(db_session),
+	user: UserModel = Depends(get_current_user)
+):
+	"""
+	Get a candidate selection by candidate_id and persona_id, including audit logs.
+	
+	This endpoint returns the selection details along with the complete audit log history,
+	showing all changes made to the selection over time.
+	
+	Access rules:
+	- Admin/Recruiter: Can access any selection
+	- Hiring Manager: Can only access selections for personas they have access to
+	"""
+	from app.services.candidate_service import CandidateService
+	
+	# First check if candidate exists
+	candidate = handle_query(db, GetCandidate(candidate_id))
+	if not candidate:
+		raise HTTPException(status_code=404, detail="Candidate not found")
+	
+	# Check if persona exists and user has access
+	persona = handle_query(db, GetPersona(persona_id))
+	if persona is None:
+		raise HTTPException(status_code=404, detail="Persona not found")
+	
+	if not can_access_jd(db, user, persona.job_description_id):
+		raise HTTPException(
+			status_code=403,
+			detail="Access denied. You do not have permission to view this selection."
+		)
+	
+	# Get the selection
+	selection = CandidateService().get_selection_by_candidate_persona(db, candidate_id, persona_id)
+	if not selection:
+		raise HTTPException(
+			status_code=404,
+			detail=f"Selection not found for candidate {candidate_id} and persona {persona_id}"
+		)
+	
+	# Get audit logs (get all logs, no pagination for this endpoint since it's a single selection view)
+	audit_logs, total_logs = CandidateService().get_selection_audit_logs(db, selection.id, skip=0, limit=1000)
+	
+	# Convert selection to response format
+	candidate_info = CandidateInfo(
+		id=selection.candidate.id,
+		full_name=selection.candidate.full_name,
+		email=selection.candidate.email,
+		phone=selection.candidate.phone
+	)
+	
+	persona_name = selection.persona.name if selection.persona else None
+	
+	# Get selector (created_by) name from relationship
+	selected_by_name = None
+	if selection.selector:
+		if selection.selector.first_name and selection.selector.last_name:
+			selected_by_name = f"{selection.selector.first_name} {selection.selector.last_name}".strip()
+		elif selection.selector.first_name:
+			selected_by_name = selection.selector.first_name
+		elif selection.selector.last_name:
+			selected_by_name = selection.selector.last_name
+		else:
+			selected_by_name = selection.selector.email
+	
+	selection_item = CandidateSelectionItem(
+		id=selection.id,
+		candidate=candidate_info,
+		persona_id=selection.persona_id,
+		persona_name=persona_name,
+		job_description_id=selection.job_description_id,
+		status=selection.status,
+		priority=selection.priority,
+		selection_notes=selection.selection_notes,
+		selected_by=selection.selected_by,
+		selected_by_name=selected_by_name,
+		created_at=selection.created_at
+	)
+	
+	# Convert audit logs to response format
+	log_reads = []
+	for log in audit_logs:
+		# Get changer name from relationship
+		changed_by_name = None
+		if log.changer:
+			if log.changer.first_name and log.changer.last_name:
+				changed_by_name = f"{log.changer.first_name} {log.changer.last_name}".strip()
+			elif log.changer.first_name:
+				changed_by_name = log.changer.first_name
+			elif log.changer.last_name:
+				changed_by_name = log.changer.last_name
+			else:
+				changed_by_name = log.changer.email
+		
+		log_reads.append(CandidateSelectionAuditLogRead(
+			id=log.id,
+			selection_id=log.selection_id,
+			action=log.action,
+			changed_by=log.changed_by,
+			changed_by_name=changed_by_name,
+			field_name=log.field_name,
+			old_value=log.old_value,
+			new_value=log.new_value,
+			change_notes=log.change_notes,
+			created_at=log.created_at
+		))
+	
+	return CandidateSelectionWithAuditLogsResponse(
+		selection=selection_item,
+		audit_logs=log_reads,
+		total_logs=total_logs
 	)
 
 

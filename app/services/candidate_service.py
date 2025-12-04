@@ -5,9 +5,9 @@ from uuid import uuid4
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from app.db.models.candidate import CandidateModel, CandidateCVModel
+from app.db.models.candidate import CandidateModel, CandidateCVModel, CandidateSelectionModel, CandidateSelectionAuditLogModel
 from app.db.models.score import CandidateScoreModel, ScoreStageModel, ScoreCategoryModel, ScoreSubcategoryModel, ScoreInsightModel
-from app.repositories.candidate_repo import SQLAlchemyCandidateRepository
+from app.repositories.candidate_repo import SQLAlchemyCandidateRepository, SQLAlchemyCandidateSelectionRepository, SQLAlchemyCandidateSelectionAuditLogRepository
 from app.repositories.candidate_cv_repo import SQLAlchemyCandidateCVRepository
 from app.repositories.score_repo import SQLAlchemyScoreRepository
 from app.domain.candidate import services as cand_domain_services
@@ -33,10 +33,14 @@ class CandidateService:
 		candidates: Optional[SQLAlchemyCandidateRepository] = None,
 		candidate_cvs: Optional[SQLAlchemyCandidateCVRepository] = None,
 		scores: Optional[SQLAlchemyScoreRepository] = None,
+		selections: Optional[SQLAlchemyCandidateSelectionRepository] = None,
+		selection_audit_logs: Optional[SQLAlchemyCandidateSelectionAuditLogRepository] = None,
 	):
 		self.candidates = candidates or SQLAlchemyCandidateRepository()
 		self.candidate_cvs = candidate_cvs or SQLAlchemyCandidateCVRepository()
 		self.scores = scores or SQLAlchemyScoreRepository()
+		self.selections = selections or SQLAlchemyCandidateSelectionRepository()
+		self.selection_audit_logs = selection_audit_logs or SQLAlchemyCandidateSelectionAuditLogRepository()
 		self.cv_scoring_service = CVScoringService(api_key=settings.OPENAI_API_KEY)
 	def upload_cv(self, 
 	             db: Session, 
@@ -75,6 +79,8 @@ class CandidateService:
 			"is_new_candidate": False,
 			"is_new_cv": False,
 			"cv_text": None,
+			"candidate_name": None,
+			"email": None,
 			"error": None
 		}
 		
@@ -100,6 +106,11 @@ class CandidateService:
 				result["is_new_candidate"] = False
 				result["is_new_cv"] = False
 				result["cv_text"] = existing_cv.cv_text  # Include existing CV text
+				# Get candidate info for duplicate CV
+				candidate = self.candidates.get(db, existing_cv.candidate_id)
+				if candidate:
+					result["candidate_name"] = candidate.full_name
+					result["email"] = candidate.email
 				return result
 			
 			# Step 4: Extract baseline info from file content
@@ -139,6 +150,8 @@ class CandidateService:
 			candidate = self._find_or_create_candidate(db, baseline_info, user_id)
 			result["candidate_id"] = candidate.id
 			result["is_new_candidate"] = (candidate.created_at == candidate.updated_at)
+			result["candidate_name"] = candidate.full_name
+			result["email"] = candidate.email
 			
 			# Step 6: Get next version for this candidate
 			version = self.candidate_cvs.get_next_version(db, candidate.id)
@@ -424,6 +437,14 @@ class CandidateService:
 		"""Count total candidates."""
 		return self.candidates.count(db)
 	
+	def search(self, db: Session, search_criteria: Dict[str, Any], skip: int = 0, limit: int = 100) -> List[CandidateModel]:
+		"""Search candidates based on criteria."""
+		return list(self.candidates.search(db, search_criteria, skip, limit))
+	
+	def count_search(self, db: Session, search_criteria: Dict[str, Any]) -> int:
+		"""Count candidates matching search criteria."""
+		return self.candidates.count_search(db, search_criteria)
+	
 	def get_personas_for_candidate(self, db: Session, candidate_id: str) -> List[dict]:
 		"""Get distinct personas evaluated against a candidate."""
 		return self.candidates.get_personas_for_candidate(db, candidate_id)
@@ -503,6 +524,12 @@ class CandidateService:
 	def list_all_scores(self, db: Session, skip: int = 0, limit: int = 100) -> List[CandidateScoreModel]:
 		"""List all scores with pagination."""
 		return list(self.scores.list_all_scores(db, skip, limit))
+
+	def list_scores_for_persona(self, db: Session, persona_id: str, skip: int = 0, limit: int = 100) -> Tuple[List[CandidateScoreModel], int]:
+		"""List all scores for a specific persona (across all candidates) with pagination."""
+		scores = list(self.scores.list_scores_for_persona(db, persona_id, skip, limit))
+		total = self.scores.count_scores_for_persona(db, persona_id)
+		return scores, total
 
 	def delete_candidate(self, db: Session, candidate_id: str) -> bool:
 		"""Delete a candidate and all associated CVs and scores."""
@@ -611,3 +638,376 @@ class CandidateService:
 		except Exception as e:
 			db.rollback()
 			raise e
+	
+	def select_candidates(
+		self,
+		db: Session,
+		candidate_ids: List[str],
+		persona_id: str,
+		job_description_id: str,
+		selected_by: str,
+		selection_notes: Optional[str] = None,
+		priority: Optional[str] = None,
+		status: Optional[str] = None
+	) -> List[CandidateSelectionModel]:
+		"""
+		Select multiple candidates for interview.
+		
+		Args:
+			db: Database session
+			candidate_ids: List of candidate IDs to select
+			persona_id: Persona ID
+			job_description_id: Job description ID
+			selected_by: User ID who is selecting
+			selection_notes: Optional notes
+			priority: Optional priority ('high', 'medium', 'low')
+			status: Optional status code (e.g., 'selected', 'evaluated'). Defaults to 'selected' if not provided.
+			
+		Returns:
+			List of created selection models
+		"""
+		# Default status to 'selected' if not provided
+		status_code = status or 'selected'
+		
+		# Validate status exists in database
+		from app.services.candidate_selection_status_service import CandidateSelectionStatusService
+		status_model = CandidateSelectionStatusService().get_by_code(db, status_code)
+		if not status_model:
+			raise ValueError(f"Invalid status code: '{status_code}'. Status must exist in the database.")
+		
+		selections = []
+		
+		for candidate_id in candidate_ids:
+			# Check if selection already exists
+			existing = self.selections.get_by_candidate_persona(db, candidate_id, persona_id)
+			
+			if existing:
+				# Update existing selection
+				existing.selection_notes = selection_notes or existing.selection_notes
+				existing.priority = priority or existing.priority
+				existing.status = status_code  # Update status
+				selections.append(self.selections.update(db, existing))
+			else:
+				# Create new selection
+				selection = CandidateSelectionModel(
+					id=str(uuid4()),
+					candidate_id=candidate_id,
+					persona_id=persona_id,
+					job_description_id=job_description_id,
+					selected_by=selected_by,
+					selection_notes=selection_notes,
+					priority=priority,
+					status=status_code
+				)
+				selections.append(self.selections.create(db, selection))
+		
+		return selections
+	
+	def _log_selection_change(
+		self,
+		db: Session,
+		selection_id: str,
+		action: str,
+		changed_by: str,
+		field_name: Optional[str] = None,
+		old_value: Optional[str] = None,
+		new_value: Optional[str] = None,
+		change_notes: Optional[str] = None
+	) -> CandidateSelectionAuditLogModel:
+		"""
+		Log a change to a candidate selection.
+		
+		Args:
+			db: Database session
+			selection_id: ID of the selection being changed
+			action: Type of action ('created', 'updated', 'status_changed', 'notes_updated', 'priority_updated')
+			changed_by: User ID who made the change
+			field_name: Name of the field that changed (if applicable)
+			old_value: Previous value (if applicable)
+			new_value: New value (if applicable)
+			change_notes: Optional notes about the change
+			
+		Returns:
+			Created audit log entry
+		"""
+		# Convert values to strings for storage
+		old_val_str = str(old_value) if old_value is not None else None
+		new_val_str = str(new_value) if new_value is not None else None
+		
+		audit_log = CandidateSelectionAuditLogModel(
+			id=str(uuid4()),
+			selection_id=selection_id,
+			action=action,
+			changed_by=changed_by,
+			field_name=field_name,
+			old_value=old_val_str,
+			new_value=new_val_str,
+			change_notes=change_notes
+		)
+		
+		return self.selection_audit_logs.create(db, audit_log)
+	
+	def select_candidates(
+		self,
+		db: Session,
+		candidate_ids: List[str],
+		persona_id: str,
+		job_description_id: str,
+		selected_by: str,
+		selection_notes: Optional[str] = None,
+		priority: Optional[str] = None,
+		status: Optional[str] = None
+	) -> List[CandidateSelectionModel]:
+		"""
+		Select multiple candidates for interview.
+		
+		Args:
+			db: Database session
+			candidate_ids: List of candidate IDs to select
+			persona_id: Persona ID
+			job_description_id: Job description ID
+			selected_by: User ID who is selecting
+			selection_notes: Optional notes
+			priority: Optional priority ('high', 'medium', 'low')
+			status: Optional status code (e.g., 'selected', 'evaluated'). Defaults to 'selected' if not provided.
+			
+		Returns:
+			List of created selection models
+		"""
+		# Default status to 'selected' if not provided
+		status_code = status or 'selected'
+		
+		# Validate status exists in database
+		from app.services.candidate_selection_status_service import CandidateSelectionStatusService
+		status_model = CandidateSelectionStatusService().get_by_code(db, status_code)
+		if not status_model:
+			raise ValueError(f"Invalid status code: '{status_code}'. Status must exist in the database.")
+		
+		selections = []
+		
+		for candidate_id in candidate_ids:
+			# Check if selection already exists
+			existing = self.selections.get_by_candidate_persona(db, candidate_id, persona_id)
+			
+			if existing:
+				# Track changes for update
+				changes = []
+				
+				# Update existing selection
+				if selection_notes is not None and selection_notes != existing.selection_notes:
+					changes.append(('selection_notes', existing.selection_notes, selection_notes))
+					existing.selection_notes = selection_notes
+				
+				if priority is not None and priority != existing.priority:
+					changes.append(('priority', existing.priority, priority))
+					existing.priority = priority
+				
+				old_status = existing.status
+				if existing.status != status_code:
+					changes.append(('status', old_status, status_code))
+					existing.status = status_code
+				
+				updated_selection = self.selections.update(db, existing)
+				
+				# Log all changes
+				if changes:
+					for field_name, old_val, new_val in changes:
+						action = f"{field_name}_updated" if field_name != 'status' else 'status_changed'
+						self._log_selection_change(
+							db,
+							updated_selection.id,
+							action,
+							selected_by,
+							field_name=field_name,
+							old_value=old_val,
+							new_value=new_val
+						)
+				else:
+					# Log general update if no specific fields changed
+					self._log_selection_change(
+						db,
+						updated_selection.id,
+						'updated',
+						selected_by
+					)
+				
+				selections.append(updated_selection)
+			else:
+				# Create new selection
+				selection = CandidateSelectionModel(
+					id=str(uuid4()),
+					candidate_id=candidate_id,
+					persona_id=persona_id,
+					job_description_id=job_description_id,
+					selected_by=selected_by,
+					selection_notes=selection_notes,
+					priority=priority,
+					status=status_code
+				)
+				created_selection = self.selections.create(db, selection)
+				
+				# Log creation
+				self._log_selection_change(
+					db,
+					created_selection.id,
+					'created',
+					selected_by,
+					change_notes=f"Candidate selected for persona {persona_id}"
+				)
+				
+				# Log status change (from null to status_code)
+				self._log_selection_change(
+					db,
+					created_selection.id,
+					'status_changed',
+					selected_by,
+					field_name='status',
+					old_value=None,
+					new_value=status_code,
+					change_notes=f"Status set to '{status_code}' on creation"
+				)
+				
+				selections.append(created_selection)
+		
+		return selections
+	
+	def update_selection(
+		self,
+		db: Session,
+		selection_id: str,
+		updated_by: str,
+		status: Optional[str] = None,
+		priority: Optional[str] = None,
+		selection_notes: Optional[str] = None,
+		change_notes: Optional[str] = None
+	) -> CandidateSelectionModel:
+		"""
+		Update a candidate selection and log all changes.
+		
+		Args:
+			db: Database session
+			selection_id: ID of the selection to update
+			updated_by: User ID who is making the update
+			status: New status (if provided)
+			priority: New priority (if provided)
+			selection_notes: New selection notes (if provided)
+			change_notes: Optional notes about the change
+			
+		Returns:
+			Updated selection model
+		"""
+		selection = self.selections.get(db, selection_id)
+		if not selection:
+			raise ValueError(f"Selection not found: {selection_id}")
+		
+		# Track all changes
+		changes = []
+		
+		if status is not None and status != selection.status:
+			changes.append(('status', selection.status, status))
+			selection.status = status
+		
+		if priority is not None and priority != selection.priority:
+			changes.append(('priority', selection.priority, priority))
+			selection.priority = priority
+		
+		if selection_notes is not None and selection_notes != selection.selection_notes:
+			changes.append(('selection_notes', selection.selection_notes, selection_notes))
+			selection.selection_notes = selection_notes
+		
+		if not changes:
+			# No changes made, return as-is
+			return selection
+		
+		# Update the selection
+		updated_selection = self.selections.update(db, selection)
+		
+		# Log all changes
+		for field_name, old_val, new_val in changes:
+			action = f"{field_name}_updated" if field_name != 'status' else 'status_changed'
+			self._log_selection_change(
+				db,
+				updated_selection.id,
+				action,
+				updated_by,
+				field_name=field_name,
+				old_value=old_val,
+				new_value=new_val,
+				change_notes=change_notes
+			)
+		
+		return updated_selection
+	
+	def get_selection_audit_logs(
+		self,
+		db: Session,
+		selection_id: str,
+		skip: int = 0,
+		limit: int = 100
+	) -> Tuple[List[CandidateSelectionAuditLogModel], int]:
+		"""
+		Get audit logs for a candidate selection.
+		
+		Args:
+			db: Database session
+			selection_id: ID of the selection
+			skip: Number of records to skip
+			limit: Maximum number of records to return
+			
+		Returns:
+			Tuple of (list of audit logs, total count)
+		"""
+		logs = self.selection_audit_logs.get_by_selection_id(db, selection_id, skip, limit)
+		total = self.selection_audit_logs.count_by_selection_id(db, selection_id)
+		return list(logs), total
+	
+	def get_selection(
+		self,
+		db: Session,
+		selection_id: str
+	) -> Optional[CandidateSelectionModel]:
+		"""
+		Get a candidate selection by ID.
+		
+		Returns:
+			Selection model or None if not found
+		"""
+		return self.selections.get(db, selection_id)
+	
+	def get_selection_by_candidate_persona(
+		self,
+		db: Session,
+		candidate_id: str,
+		persona_id: str
+	) -> Optional[CandidateSelectionModel]:
+		"""
+		Get a candidate selection by candidate_id and persona_id.
+		
+		Returns:
+			Selection model or None if not found
+		"""
+		return self.selections.get_by_candidate_persona(db, candidate_id, persona_id)
+	
+	def list_selected_candidates(
+		self,
+		db: Session,
+		persona_id: Optional[str] = None,
+		job_description_id: Optional[str] = None,
+		status: Optional[str] = None,
+		skip: int = 0,
+		limit: int = 100
+	) -> Tuple[List[CandidateSelectionModel], int]:
+		"""
+		List selected candidates with optional filtering.
+		
+		Returns:
+			Tuple of (list of selections, total count)
+		"""
+		return self.selections.list_selections(
+			db,
+			persona_id=persona_id,
+			job_description_id=job_description_id,
+			status=status,
+			skip=skip,
+			limit=limit
+		)
