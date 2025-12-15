@@ -5,7 +5,8 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
-    func
+    func,
+    Index,
 )
 from sqlalchemy.dialects.sqlite import JSON
 from sqlalchemy.orm import relationship
@@ -13,6 +14,11 @@ from app.db.base import Base
 
 class JobDescriptionModel(Base):
     __tablename__ = "job_descriptions"
+    __table_args__ = (
+        Index("idx_jd_role_id", "role_id"),
+        Index("idx_jd_created_by", "created_by"),
+        Index("idx_jd_created_at", "created_at"),
+    )
 
     id = Column(String, primary_key=True)
     title = Column(String, nullable=False)

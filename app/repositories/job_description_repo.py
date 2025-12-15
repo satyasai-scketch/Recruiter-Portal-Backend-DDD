@@ -8,6 +8,7 @@ import time
 
 from app.db.models.job_description import JobDescriptionModel
 from app.db.models.persona import PersonaModel
+from app.db.models.jd_hiring_manager import JDHiringManagerMappingModel
 from app.db.models.user import UserModel
 from app.core.logger import logger
 from app.core.authorization import get_jd_access_filter
@@ -92,8 +93,19 @@ class SQLAlchemyJobDescriptionRepository(JobDescriptionRepository):
 				joinedload(JobDescriptionModel.creator),
 				joinedload(JobDescriptionModel.updater),
 				# Use selectinload for one-to-many relationships to avoid cartesian product
-				# This loads personas in a separate query with IN clause, much faster
-				selectinload(JobDescriptionModel.personas),
+				# Defer heavy persona text fields; load creator/updater and hiring managers
+				selectinload(JobDescriptionModel.personas)
+					.defer(PersonaModel.persona_notes)
+					.defer(PersonaModel.weights)
+					.defer(PersonaModel.intervals)
+					.joinedload(PersonaModel.creator),
+				selectinload(JobDescriptionModel.personas)
+					.defer(PersonaModel.persona_notes)
+					.defer(PersonaModel.weights)
+					.defer(PersonaModel.intervals)
+					.joinedload(PersonaModel.updater),
+				# Load hiring manager mappings and linked users
+				selectinload(JobDescriptionModel.hiring_manager_mappings).joinedload(JDHiringManagerMappingModel.hiring_manager),
 			)
 			.order_by(JobDescriptionModel.created_at.desc())
 			.offset(skip)
@@ -137,14 +149,34 @@ class SQLAlchemyJobDescriptionRepository(JobDescriptionRepository):
 				joinedload(JobDescriptionModel.creator),
 				joinedload(JobDescriptionModel.updater),
 				# Use selectinload for one-to-many relationships
-				selectinload(JobDescriptionModel.personas),
+				selectinload(JobDescriptionModel.personas)
+					.defer(PersonaModel.persona_notes)
+					.defer(PersonaModel.weights)
+					.defer(PersonaModel.intervals)
+					.joinedload(PersonaModel.creator),
+				selectinload(JobDescriptionModel.personas)
+					.defer(PersonaModel.persona_notes)
+					.defer(PersonaModel.weights)
+					.defer(PersonaModel.intervals)
+					.joinedload(PersonaModel.updater),
+				selectinload(JobDescriptionModel.hiring_manager_mappings).joinedload(JDHiringManagerMappingModel.hiring_manager),
 			)
 		else:
 			query = query.options(
 				joinedload(JobDescriptionModel.job_role),
 				joinedload(JobDescriptionModel.creator),
 				joinedload(JobDescriptionModel.updater),
-				selectinload(JobDescriptionModel.personas),
+				selectinload(JobDescriptionModel.personas)
+					.defer(PersonaModel.persona_notes)
+					.defer(PersonaModel.weights)
+					.defer(PersonaModel.intervals)
+					.joinedload(PersonaModel.creator),
+				selectinload(JobDescriptionModel.personas)
+					.defer(PersonaModel.persona_notes)
+					.defer(PersonaModel.weights)
+					.defer(PersonaModel.intervals)
+					.joinedload(PersonaModel.updater),
+				selectinload(JobDescriptionModel.hiring_manager_mappings).joinedload(JDHiringManagerMappingModel.hiring_manager),
 			)
 		
 		return query.order_by(JobDescriptionModel.created_at.desc()).offset(skip).limit(limit).all()
@@ -183,7 +215,17 @@ class SQLAlchemyJobDescriptionRepository(JobDescriptionRepository):
 				joinedload(JobDescriptionModel.job_role),
 				joinedload(JobDescriptionModel.creator),
 				joinedload(JobDescriptionModel.updater),
-				selectinload(JobDescriptionModel.personas),
+				selectinload(JobDescriptionModel.personas)
+					.defer(PersonaModel.persona_notes)
+					.defer(PersonaModel.weights)
+					.defer(PersonaModel.intervals)
+					.joinedload(PersonaModel.creator),
+				selectinload(JobDescriptionModel.personas)
+					.defer(PersonaModel.persona_notes)
+					.defer(PersonaModel.weights)
+					.defer(PersonaModel.intervals)
+					.joinedload(PersonaModel.updater),
+				selectinload(JobDescriptionModel.hiring_manager_mappings).joinedload(JDHiringManagerMappingModel.hiring_manager),
 			)
 		)
 		
