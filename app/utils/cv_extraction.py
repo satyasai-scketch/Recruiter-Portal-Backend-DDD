@@ -229,7 +229,7 @@ class CVExtractor:
 Extract the following information from this CV/resume text. Return ONLY a JSON object with the exact structure shown below. Do not include any other text or explanation.
 
 CV Text:
-{text[:2000]}  # Limit text to avoid token limits
+{text} 
 
 Required JSON format:
 {{

@@ -32,6 +32,10 @@ class PersonaRepository:
 	def get_by_job_description(self, db: Session, jd_id: str) -> Sequence[PersonaModel]:
 		raise NotImplementedError
 
+	def get_by_name_and_job_description(self, db: Session, name: str, jd_id: str) -> Optional[PersonaModel]:
+		"""Find a persona by name within a specific job description."""
+		raise NotImplementedError
+
 	# Category-level CRUD
 	def add_category(self, db: Session, category: PersonaCategoryModel) -> PersonaCategoryModel:
 		raise NotImplementedError
@@ -112,6 +116,17 @@ class SQLAlchemyPersonaRepository(PersonaRepository):
 
 	def get_by_job_description(self, db: Session, jd_id: str) -> Sequence[PersonaModel]:
 		return self.list_by_jd(db, jd_id)
+
+
+	def get_by_name_and_job_description(self, db: Session, name: str, jd_id: str) -> Optional[PersonaModel]:
+		return (
+			db.query(PersonaModel)
+			.filter(
+				func.lower(PersonaModel.name) == func.lower(name),
+				PersonaModel.job_description_id == jd_id,
+			)
+			.first()
+		)
 
 	def list_all(self, db: Session, skip: int = 0, limit: int = 100) -> Sequence[PersonaModel]:
 		"""List all personas with eagerly loaded relationships for list view."""

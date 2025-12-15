@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime
 from app.api.deps import db_session, get_current_user
@@ -96,8 +96,11 @@ async def create_persona(
 	db: Session = Depends(db_session),
 	current_user: UserModel = Depends(get_current_user)
 ):
-	# Always use nested creation for comprehensive persona data
-	model = handle_command(db, CreatePersona(payload.model_dump(), current_user.id))
+	try:
+		# Always use nested creation for comprehensive persona data
+		model = handle_command(db, CreatePersona(payload.model_dump(), current_user.id))
+	except ValueError as exc:
+		raise HTTPException(status_code=400, detail=str(exc))
 	# Fetch eagerly to return nested
 	model = handle_query(db, GetPersona(model.id))
 	return _convert_persona_model_to_read(model, db)
