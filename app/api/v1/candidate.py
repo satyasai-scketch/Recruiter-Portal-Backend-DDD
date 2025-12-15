@@ -6,6 +6,10 @@ from sqlalchemy.orm import Session
 from app.api.deps import db_session, get_current_user
 from app.core.authorization import can_access_jd
 from app.db.models.user import UserModel
+from app.db.models.candidate import CandidateModel, CandidateCVModel, CandidateSelectionModel
+from app.db.models.persona import PersonaModel
+from app.db.models.job_description import JobDescriptionModel
+from app.db.models.job_role import JobRoleModel
 from app.schemas.candidate import (
 	CandidateCreate, 
 	CandidateUpdate,
@@ -61,6 +65,52 @@ from app.cqrs.queries.jd_queries import GetJobDescription
 from app.cqrs.queries.job_role_queries import GetJobRole
 
 router = APIRouter()
+
+
+def _prefetch_score_context(db: Session, scores: List) -> Dict:
+	"""Bulk load related entities for a list of scores to avoid N+1 queries."""
+	if not scores:
+		return {"candidates": {}, "cvs": {}, "personas": {}, "job_descriptions": {}, "job_roles": {}, "selections": {}}
+	
+	candidate_ids = {s.candidate_id for s in scores if getattr(s, "candidate_id", None)}
+	cv_ids = {s.cv_id for s in scores if getattr(s, "cv_id", None)}
+	persona_ids = {s.persona_id for s in scores if getattr(s, "persona_id", None)}
+	
+	candidates = {c.id: c for c in db.query(CandidateModel).filter(CandidateModel.id.in_(candidate_ids)).all()} if candidate_ids else {}
+	cvs = {c.id: c for c in db.query(CandidateCVModel).filter(CandidateCVModel.id.in_(cv_ids)).all()} if cv_ids else {}
+	personas = {
+		p.id: p for p in db.query(PersonaModel)
+		.filter(PersonaModel.id.in_(persona_ids)).all()
+	} if persona_ids else {}
+	
+	# Job descriptions (for JD title and role lookup)
+	jd_ids = {p.job_description_id for p in personas.values() if getattr(p, "job_description_id", None)}
+	job_descriptions = {
+		j.id: j for j in db.query(JobDescriptionModel)
+		.filter(JobDescriptionModel.id.in_(jd_ids)).all()
+	} if jd_ids else {}
+	
+	# Roles (fallback if persona.role_name missing)
+	role_ids = {jd.role_id for jd in job_descriptions.values() if getattr(jd, "role_id", None)}
+	job_roles = {r.id: r for r in db.query(JobRoleModel).filter(JobRoleModel.id.in_(role_ids)).all()} if role_ids else {}
+	
+	# Selections keyed by (candidate_id, persona_id)
+	selections = {}
+	if candidate_ids and persona_ids:
+		for sel in db.query(CandidateSelectionModel).filter(
+			CandidateSelectionModel.candidate_id.in_(candidate_ids),
+			CandidateSelectionModel.persona_id.in_(persona_ids)
+		).all():
+			selections[(sel.candidate_id, sel.persona_id)] = sel
+	
+	return {
+		"candidates": candidates,
+		"cvs": cvs,
+		"personas": personas,
+		"job_descriptions": job_descriptions,
+		"job_roles": job_roles,
+		"selections": selections,
+	}
 
 
 def _convert_candidate_model_to_read_schema(candidate_model, db: Session) -> CandidateRead:
@@ -264,75 +314,82 @@ def _convert_score_insight_to_read_schema(insight_model) -> ScoreInsightRead:
 	)
 
 
-def _convert_candidate_score_to_read_schema(score_model, db: Session = None) -> CandidateScoreRead:
-	"""Convert CandidateScoreModel to CandidateScoreRead schema format."""
-	# Fetch candidate and CV information if db session is provided
-	candidate_name = None
-	email = None
-	file_name = None
-	persona_name = None
+def _convert_candidate_score_to_read_schema(score_model, db: Session = None, ctx: Dict = None) -> CandidateScoreRead:
+	"""Convert CandidateScoreModel to CandidateScoreRead schema format with optional prefetch context."""
+	ctx = ctx or {}
+	candidates = ctx.get("candidates", {})
+	cvs = ctx.get("cvs", {})
+	personas = ctx.get("personas", {})
+	job_descriptions = ctx.get("job_descriptions", {})
+	job_roles = ctx.get("job_roles", {})
+	selections = ctx.get("selections", {})
+
+	candidate = candidates.get(score_model.candidate_id)
+	cv = cvs.get(score_model.cv_id)
+	persona = personas.get(score_model.persona_id)
+	job_description = job_descriptions.get(persona.job_description_id) if persona else None
+
+	# Fallback to queries if context not provided
+	if db:
+		if candidate is None:
+			candidate = handle_query(db, GetCandidate(score_model.candidate_id))
+		if cv is None:
+			cv = handle_query(db, GetCandidateCV(score_model.cv_id))
+		if persona is None:
+			persona = handle_query(db, GetPersona(score_model.persona_id))
+			if persona:
+				job_description = handle_query(db, GetJobDescription(persona.job_description_id)) if persona.job_description_id else None
+		if job_description is None and persona and persona.job_description_id:
+			job_description = handle_query(db, GetJobDescription(persona.job_description_id))
+
+	candidate_name = candidate.full_name if candidate else None
+	email = candidate.email if candidate else None
+	file_name = cv.file_name if cv else None
+
+	persona_name = persona.name if persona else None
 	role_name = None
 	jd_id = None
 	jd_name = None
-	is_selected = 0
+
+	if persona:
+		jd_id = persona.job_description_id
+		# Prefer persona.role_name if present
+		if persona.role_name:
+			role_name = persona.role_name
 	
-	if db:
-		try:
-			candidate = handle_query(db, GetCandidate(score_model.candidate_id))
-			cv = handle_query(db, GetCandidateCV(score_model.cv_id))
-			candidate_name = candidate.full_name if candidate else None
-			email = candidate.email if candidate else None
-			file_name = cv.file_name if cv else None
-			
-			# Fetch persona and role information
-			persona = handle_query(db, GetPersona(score_model.persona_id))
-			persona_name = persona.name if persona else None
-			
-			if persona:
-				# Get job description ID
-				jd_id = persona.job_description_id
-				
-				# Try to get role name from persona's role_name field first
-				if persona.role_name:
-					role_name = persona.role_name
-				
-				# Fetch job description to get JD name and role information (if needed)
-				if persona.job_description_id:
-					job_description = handle_query(db, GetJobDescription(persona.job_description_id))
-					if job_description:
-						jd_name = job_description.title
-						
-						# If role_name not set from persona, get it from the job description's job role
-						if not role_name and job_description.role_id:
-							job_role = handle_query(db, GetJobRole(job_description.role_id))
-							if job_role:
-								role_name = job_role.name
-			
-			# Check if candidate is selected for this persona
-			from app.services.candidate_service import CandidateService
-			selection = CandidateService().selections.get_by_candidate_persona(db, score_model.candidate_id, score_model.persona_id)
-			if selection:
-				current_status = selection.status if selection else None
-				selection_id = selection.id if selection else None
-				selected_by = selection.selected_by if selection else None
-				selected_by_name = None
-				if selection.selector:
-					if selection.selector.first_name and selection.selector.last_name:
-						selected_by_name = f"{selection.selector.first_name} {selection.selector.last_name}".strip()
-					elif selection.selector.first_name:
-						selected_by_name = selection.selector.first_name
-					elif selection.selector.last_name:
-						selected_by_name = selection.selector.last_name
-					else:
-						selected_by_name = selection.selector.email
+	if job_description:
+		jd_name = job_description.title
+		if not role_name and job_description.role_id:
+			role = job_roles.get(job_description.role_id)
+			if role is None and db:
+				role = handle_query(db, GetJobRole(job_description.role_id))
+			role_name = role.name if role else role_name
+
+	# Selection info
+	selection = selections.get((score_model.candidate_id, score_model.persona_id))
+	if selection is None and db:
+		from app.services.candidate_service import CandidateService
+		selection = CandidateService().selections.get_by_candidate_persona(db, score_model.candidate_id, score_model.persona_id)
+
+	if selection:
+		current_status = selection.status
+		selection_id = selection.id
+		selected_by = selection.selected_by
+		selected_by_name = None
+		if selection.selector:
+			if selection.selector.first_name and selection.selector.last_name:
+				selected_by_name = f"{selection.selector.first_name} {selection.selector.last_name}".strip()
+			elif selection.selector.first_name:
+				selected_by_name = selection.selector.first_name
+			elif selection.selector.last_name:
+				selected_by_name = selection.selector.last_name
 			else:
-				current_status = None
-				selection_id = None
-				selected_by = None
-				selected_by_name = None
-		except Exception:
-			# If there's an error fetching the data, continue without it
-			pass
+				selected_by_name = selection.selector.email
+	else:
+		current_status = None
+		selection_id = None
+		selected_by = None
+		selected_by_name = None
 	
 	return CandidateScoreRead(
 		id=score_model.id,
@@ -597,8 +654,11 @@ async def get_scores_by_persona(
 	# Get scores for this persona
 	scores, total = handle_query(db, ListScoresForPersona(persona_id, skip, size))
 	
+	# Prefetch related entities to avoid N+1 queries
+	ctx = _prefetch_score_context(db, scores)
+	
 	# Convert to response format
-	score_reads = [_convert_candidate_score_to_read_schema(score, db) for score in scores]
+	score_reads = [_convert_candidate_score_to_read_schema(score, db, ctx) for score in scores]
 	
 	return ScoreListResponse(
 		scores=score_reads,
@@ -1397,15 +1457,23 @@ async def get_candidate_scores(
 	else:
 		scores = handle_query(db, ListCandidateScores(candidate_id, skip, size))
 	
+	# Prefetch related entities (personas, candidates, cvs, selections)
+	ctx = _prefetch_score_context(db, scores)
+	persona_map = ctx.get("personas", {})
+	
 	# Filter scores based on user access to personas
 	accessible_scores = []
 	for score in scores:
-		persona = handle_query(db, GetPersona(score.persona_id))
+		persona = persona_map.get(score.persona_id)
+		if persona is None:
+			persona = handle_query(db, GetPersona(score.persona_id))
+			if persona:
+				persona_map[score.persona_id] = persona
 		if persona and can_access_jd(db, user, persona.job_description_id):
 			accessible_scores.append(score)
 	
 	# Convert to response format
-	score_reads = [_convert_candidate_score_to_read_schema(score, db) for score in accessible_scores]
+	score_reads = [_convert_candidate_score_to_read_schema(score, db, ctx) for score in accessible_scores]
 	
 	# Get total count
 	total = len(score_reads)
@@ -1872,8 +1940,11 @@ async def get_candidate_scores_for_persona(
 	skip = (page - 1) * size
 	scores = handle_query(db, ListScoresForCandidatePersona(candidate_id, persona_id, skip, size))
 	
+	# Prefetch related entities to avoid N+1 queries
+	ctx = _prefetch_score_context(db, scores)
+	
 	# Convert to response format
-	score_reads = [_convert_candidate_score_to_read_schema(score, db) for score in scores]
+	score_reads = [_convert_candidate_score_to_read_schema(score, db, ctx) for score in scores]
 	
 	# Get total count
 	total = len(score_reads)

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime
 from app.api.deps import db_session, get_current_user
@@ -30,7 +30,7 @@ from app.cqrs.queries.persona_warning_queries import GetWarningByEntity, ListWar
 router = APIRouter()
 
 
-def _convert_persona_model_to_read(model: PersonaModel, db: Session) -> PersonaRead:
+def _convert_persona_model_to_read(model: PersonaModel, db: Session, candidate_counts: dict | None = None) -> PersonaRead:
 	"""Convert PersonaModel to PersonaRead with all required fields."""
 	# Get JD name from relationship
 	jd_name = None
@@ -63,9 +63,13 @@ def _convert_persona_model_to_read(model: PersonaModel, db: Session) -> PersonaR
 		else:
 			updated_by_name = model.updater.email
 	
-	# Count candidates evaluated against this persona
-	persona_service = PersonaService()
-	candidate_count = persona_service.count_candidates_for_persona(db, model.id)
+	# Count candidates evaluated against this persona (prefer precomputed map)
+	candidate_count = None
+	if candidate_counts is not None:
+		candidate_count = candidate_counts.get(model.id)
+	if candidate_count is None:
+		persona_service = PersonaService()
+		candidate_count = persona_service.count_candidates_for_persona(db, model.id)
 	
 	# Build PersonaRead dict
 	persona_dict = {
@@ -96,8 +100,11 @@ async def create_persona(
 	db: Session = Depends(db_session),
 	current_user: UserModel = Depends(get_current_user)
 ):
-	# Always use nested creation for comprehensive persona data
-	model = handle_command(db, CreatePersona(payload.model_dump(), current_user.id))
+	try:
+		# Always use nested creation for comprehensive persona data
+		model = handle_command(db, CreatePersona(payload.model_dump(), current_user.id))
+	except ValueError as exc:
+		raise HTTPException(status_code=400, detail=str(exc))
 	# Fetch eagerly to return nested
 	model = handle_query(db, GetPersona(model.id))
 	return _convert_persona_model_to_read(model, db)
@@ -152,9 +159,10 @@ async def get_all_personas(
 	persona_service = PersonaService()
 	models = persona_service.list_all(db, skip, size, user)
 	total = persona_service.count(db, user)
+	candidate_counts = persona_service.count_candidates_for_personas(db, [m.id for m in models])
 	
 	# Convert to response format with all required fields
-	persona_reads = [_convert_persona_model_to_read(m, db) for m in models]
+	persona_reads = [_convert_persona_model_to_read(m, db, candidate_counts) for m in models]
 	
 	return PersonaListResponse(
 		personas=persona_reads,
@@ -220,7 +228,9 @@ async def list_personas_by_jd(
 	- Hiring Manager: Can only access personas for JDs they created or are assigned to
 	"""
 	models = handle_query(db, ListPersonasByJobDescription(jd_id))
-	return [_convert_persona_model_to_read(m, db) for m in models]
+	persona_service = PersonaService()
+	candidate_counts = persona_service.count_candidates_for_personas(db, [m.id for m in models])
+	return [_convert_persona_model_to_read(m, db, candidate_counts) for m in models]
 
 
 @router.get("/by-role/{role_id}", response_model=list[PersonaRead], summary="List personas for a Job Role")
@@ -255,7 +265,9 @@ async def list_personas_by_role(
 		if can_access_jd(db, user, model.job_description_id):
 			accessible_models.append(model)
 	
-	return [_convert_persona_model_to_read(m, db) for m in accessible_models]
+	persona_service = PersonaService()
+	candidate_counts = persona_service.count_candidates_for_personas(db, [m.id for m in accessible_models])
+	return [_convert_persona_model_to_read(m, db, candidate_counts) for m in accessible_models]
 
 
 @router.patch("/{persona_id}", response_model=PersonaRead, summary="Update persona with change tracking")
