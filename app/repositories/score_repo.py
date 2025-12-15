@@ -53,6 +53,7 @@ class SQLAlchemyScoreRepository(ScoreRepository):
 		return (
 			db.query(CandidateScoreModel)
 			.options(
+				selectinload(CandidateScoreModel.cv),
 				selectinload(CandidateScoreModel.score_stages),
 				selectinload(CandidateScoreModel.categories).selectinload(ScoreCategoryModel.subcategories),
 				selectinload(CandidateScoreModel.insights)
@@ -65,6 +66,7 @@ class SQLAlchemyScoreRepository(ScoreRepository):
 		return (
 			db.query(CandidateScoreModel)
 			.options(
+				selectinload(CandidateScoreModel.cv),
 				selectinload(CandidateScoreModel.score_stages),
 				selectinload(CandidateScoreModel.categories).selectinload(ScoreCategoryModel.subcategories),
 				selectinload(CandidateScoreModel.insights)
@@ -81,6 +83,7 @@ class SQLAlchemyScoreRepository(ScoreRepository):
 		return (
 			db.query(CandidateScoreModel)
 			.options(
+				selectinload(CandidateScoreModel.cv),
 				selectinload(CandidateScoreModel.score_stages),
 				selectinload(CandidateScoreModel.categories).selectinload(ScoreCategoryModel.subcategories),
 				selectinload(CandidateScoreModel.insights)
@@ -97,6 +100,7 @@ class SQLAlchemyScoreRepository(ScoreRepository):
 		return (
 			db.query(CandidateScoreModel)
 			.options(
+				selectinload(CandidateScoreModel.cv),
 				selectinload(CandidateScoreModel.score_stages),
 				selectinload(CandidateScoreModel.categories).selectinload(ScoreCategoryModel.subcategories),
 				selectinload(CandidateScoreModel.insights)
@@ -127,6 +131,7 @@ class SQLAlchemyScoreRepository(ScoreRepository):
 		return (
 			db.query(CandidateScoreModel)
 			.options(
+				selectinload(CandidateScoreModel.cv),
 				selectinload(CandidateScoreModel.score_stages),
 				selectinload(CandidateScoreModel.categories).selectinload(ScoreCategoryModel.subcategories),
 				selectinload(CandidateScoreModel.insights)
@@ -147,6 +152,7 @@ class SQLAlchemyScoreRepository(ScoreRepository):
 		return (
 			db.query(CandidateScoreModel)
 			.options(
+				selectinload(CandidateScoreModel.cv),
 				selectinload(CandidateScoreModel.score_stages),
 				selectinload(CandidateScoreModel.categories).selectinload(ScoreCategoryModel.subcategories),
 				selectinload(CandidateScoreModel.insights)
@@ -162,6 +168,7 @@ class SQLAlchemyScoreRepository(ScoreRepository):
 		return (
 			db.query(CandidateScoreModel)
 			.options(
+				selectinload(CandidateScoreModel.cv),
 				selectinload(CandidateScoreModel.score_stages),
 				selectinload(CandidateScoreModel.categories).selectinload(ScoreCategoryModel.subcategories),
 				selectinload(CandidateScoreModel.insights)
