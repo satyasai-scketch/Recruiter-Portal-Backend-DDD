@@ -59,6 +59,10 @@ class PersonaService:
 		"""Count distinct candidates evaluated against a persona."""
 		return self.repo.count_candidates_for_persona(db, persona_id)
 	
+	def count_candidates_for_personas(self, db: Session, persona_ids: list[str]) -> dict[str, int]:
+		"""Count distinct candidates for multiple personas in one query."""
+		return self.repo.count_candidates_for_personas(db, persona_ids)
+	
 	def get_change_logs(self, db: Session, persona_id: str) -> List[PersonaChangeLogModel]:
 		"""Get all change logs for a persona, ordered by most recent first."""
 		return self.repo.get_change_logs(db, persona_id)

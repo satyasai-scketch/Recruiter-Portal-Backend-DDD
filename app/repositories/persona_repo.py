@@ -138,7 +138,9 @@ class SQLAlchemyPersonaRepository(PersonaRepository):
 				# Load creator for created_by_name
 				joinedload(PersonaModel.creator),
 				# Load updater for updated_by_name
-				joinedload(PersonaModel.updater)
+				joinedload(PersonaModel.updater),
+				# Load categories to avoid N+1 in list views
+				selectinload(PersonaModel.categories),
 			)
 			.order_by(PersonaModel.created_at.desc())
 			.offset(skip)
@@ -166,7 +168,8 @@ class SQLAlchemyPersonaRepository(PersonaRepository):
 			.options(
 				joinedload(PersonaModel.job_description),
 				joinedload(PersonaModel.creator),
-				joinedload(PersonaModel.updater)
+				joinedload(PersonaModel.updater),
+				selectinload(PersonaModel.categories),
 			)
 		)
 		
@@ -252,6 +255,21 @@ class SQLAlchemyPersonaRepository(PersonaRepository):
 			.scalar()
 		)
 		return result or 0
+
+	def count_candidates_for_personas(self, db: Session, persona_ids: Sequence[str]) -> dict[str, int]:
+		"""Count distinct candidates for multiple personas in one query."""
+		if not persona_ids:
+			return {}
+		rows = (
+			db.query(
+				CandidateScoreModel.persona_id,
+				func.count(func.distinct(CandidateScoreModel.candidate_id))
+			)
+			.filter(CandidateScoreModel.persona_id.in_(persona_ids))
+			.group_by(CandidateScoreModel.persona_id)
+			.all()
+		)
+		return {pid: cnt for pid, cnt in rows}
 
 	def add_category(self, db: Session, category: PersonaCategoryModel) -> PersonaCategoryModel:
 		db.add(category)
