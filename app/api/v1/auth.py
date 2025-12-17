@@ -148,6 +148,9 @@ async def get_all_users(
 ):
 	"""Get all users with pagination."""
 	try:
+		if current_user.role.name.lower() != "admin":
+			raise HTTPException(status_code=403,detail="You are not authorized to access this resource")
+		
 		users = handle_query(db, ListAllUsers(skip=skip, limit=limit))
 		return [
 			UserRead(
