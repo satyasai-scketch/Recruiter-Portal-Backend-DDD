@@ -32,11 +32,19 @@ class PersonaService:
 		self.repo = repo or SQLAlchemyPersonaRepository()
 		self.level_repo = level_repo or SQLAlchemyPersonaLevelRepository()
 		self.jd_repo = jd_repo or SQLAlchemyJobDescriptionRepository()
-		# Add persona generator
-		self.persona_generator = OpenAIPersonaGeneratorV2(
+		# lazy-load persona generator
+		self._persona_generator = None
+
+	@property
+	def persona_generator(self):
+		"""Lazy-load persona generator only when needed"""
+		if self._persona_generator is None:
+			self._persona_generator = OpenAIPersonaGeneratorV2(
 			api_key=settings.OPENAI_API_KEY,
 			model=getattr(settings, "PERSONA_GENERATION_MODEL", "gpt-4o")
 		)
+		return self._persona_generator
+	
 	def get_persona(self, db: Session, persona_id: str) -> PersonaModel:
 		return self.repo.get(db, persona_id)
 	

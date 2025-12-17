@@ -41,7 +41,16 @@ class CandidateService:
 		self.scores = scores or SQLAlchemyScoreRepository()
 		self.selections = selections or SQLAlchemyCandidateSelectionRepository()
 		self.selection_audit_logs = selection_audit_logs or SQLAlchemyCandidateSelectionAuditLogRepository()
-		self.cv_scoring_service = CVScoringService(api_key=settings.OPENAI_API_KEY)
+		# lazy load CV scoring service
+		self._cv_scoring_service = None
+
+	@property
+	def cv_scoring_service(self):
+		"""Lazy-load CV scoring service only when needed"""
+		if self._cv_scoring_service is None:
+			self._cv_scoring_service = CVScoringService(api_key=settings.OPENAI_API_KEY)
+		return self._cv_scoring_service
+	
 	def upload_cv(self, 
 	             db: Session, 
 	             file_bytes: bytes, 

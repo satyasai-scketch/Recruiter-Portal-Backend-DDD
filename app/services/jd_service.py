@@ -24,8 +24,16 @@ class JDService:
 
     def __init__(self):
         self.repo = SQLAlchemyJobDescriptionRepository()
-        self.company_repo = CompanyRepository()  # Add this
-        self.refinement_service = JDRefinementService()
+        self.company_repo = CompanyRepository()
+        # lazy load the refinement_service
+        self._refinement_service = None
+    
+    @property
+    def refinement_service(self):
+        """Lazy-load reinement service only when needed"""
+        if self._refinement_service is None:
+            self._refinement_service = JDRefinementService()
+        return self._refinement_service
 
     def list_by_creator(self, db: Session, user_id: str) -> Sequence[JobDescriptionModel]:
         return self.repo.list_by_creator(db, user_id)
