@@ -94,16 +94,13 @@ class SQLAlchemyJobDescriptionRepository(JobDescriptionRepository):
 				joinedload(JobDescriptionModel.updater),
 				# Use selectinload for one-to-many relationships to avoid cartesian product
 				# Defer heavy persona text fields; load creator/updater and hiring managers
-				selectinload(JobDescriptionModel.personas)
-					.defer(PersonaModel.persona_notes)
-					.defer(PersonaModel.weights)
-					.defer(PersonaModel.intervals)
-					.joinedload(PersonaModel.creator),
-				selectinload(JobDescriptionModel.personas)
-					.defer(PersonaModel.persona_notes)
-					.defer(PersonaModel.weights)
-					.defer(PersonaModel.intervals)
-					.joinedload(PersonaModel.updater),
+				selectinload(JobDescriptionModel.personas).options(
+					defer(PersonaModel.persona_notes),
+					defer(PersonaModel.weights),
+					defer(PersonaModel.intervals),
+					joinedload(PersonaModel.creator),
+					joinedload(PersonaModel.updater),
+				),
 				# Load hiring manager mappings and linked users
 				selectinload(JobDescriptionModel.hiring_manager_mappings).joinedload(JDHiringManagerMappingModel.hiring_manager),
 			)
@@ -149,16 +146,13 @@ class SQLAlchemyJobDescriptionRepository(JobDescriptionRepository):
 				joinedload(JobDescriptionModel.creator),
 				joinedload(JobDescriptionModel.updater),
 				# Use selectinload for one-to-many relationships
-				selectinload(JobDescriptionModel.personas)
-					.defer(PersonaModel.persona_notes)
-					.defer(PersonaModel.weights)
-					.defer(PersonaModel.intervals)
-					.joinedload(PersonaModel.creator),
-				selectinload(JobDescriptionModel.personas)
-					.defer(PersonaModel.persona_notes)
-					.defer(PersonaModel.weights)
-					.defer(PersonaModel.intervals)
-					.joinedload(PersonaModel.updater),
+				selectinload(JobDescriptionModel.personas).options(
+					defer(PersonaModel.persona_notes),
+					defer(PersonaModel.weights),
+					defer(PersonaModel.intervals),
+					joinedload(PersonaModel.creator),
+					joinedload(PersonaModel.updater),
+				),
 				selectinload(JobDescriptionModel.hiring_manager_mappings).joinedload(JDHiringManagerMappingModel.hiring_manager),
 			)
 		else:
@@ -166,16 +160,13 @@ class SQLAlchemyJobDescriptionRepository(JobDescriptionRepository):
 				joinedload(JobDescriptionModel.job_role),
 				joinedload(JobDescriptionModel.creator),
 				joinedload(JobDescriptionModel.updater),
-				selectinload(JobDescriptionModel.personas)
-					.defer(PersonaModel.persona_notes)
-					.defer(PersonaModel.weights)
-					.defer(PersonaModel.intervals)
-					.joinedload(PersonaModel.creator),
-				selectinload(JobDescriptionModel.personas)
-					.defer(PersonaModel.persona_notes)
-					.defer(PersonaModel.weights)
-					.defer(PersonaModel.intervals)
-					.joinedload(PersonaModel.updater),
+				selectinload(JobDescriptionModel.personas).options(
+					defer(PersonaModel.persona_notes),
+					defer(PersonaModel.weights),
+					defer(PersonaModel.intervals),
+					joinedload(PersonaModel.creator),
+					joinedload(PersonaModel.updater),
+				),
 				selectinload(JobDescriptionModel.hiring_manager_mappings).joinedload(JDHiringManagerMappingModel.hiring_manager),
 			)
 		
@@ -215,16 +206,13 @@ class SQLAlchemyJobDescriptionRepository(JobDescriptionRepository):
 				joinedload(JobDescriptionModel.job_role),
 				joinedload(JobDescriptionModel.creator),
 				joinedload(JobDescriptionModel.updater),
-				selectinload(JobDescriptionModel.personas)
-					.defer(PersonaModel.persona_notes)
-					.defer(PersonaModel.weights)
-					.defer(PersonaModel.intervals)
-					.joinedload(PersonaModel.creator),
-				selectinload(JobDescriptionModel.personas)
-					.defer(PersonaModel.persona_notes)
-					.defer(PersonaModel.weights)
-					.defer(PersonaModel.intervals)
-					.joinedload(PersonaModel.updater),
+				selectinload(JobDescriptionModel.personas).options(
+					defer(PersonaModel.persona_notes),
+					defer(PersonaModel.weights),
+					defer(PersonaModel.intervals),
+					joinedload(PersonaModel.creator),
+					joinedload(PersonaModel.updater),
+				),
 				selectinload(JobDescriptionModel.hiring_manager_mappings).joinedload(JDHiringManagerMappingModel.hiring_manager),
 			)
 		)
