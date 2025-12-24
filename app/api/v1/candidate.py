@@ -882,8 +882,8 @@ async def upload_cv_files(
 	if not files:
 		raise HTTPException(status_code=400, detail="No files provided")
 	
-	if len(files) > 10:  # Reasonable limit
-		raise HTTPException(status_code=400, detail="Too many files. Maximum 10 files per request.")
+	if len(files) > 50:  # Reasonable limit
+		raise HTTPException(status_code=400, detail="Too many files. Maximum 50 files per request.")
 	
 	results = []
 	
