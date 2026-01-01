@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, ConfigDict
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 from datetime import datetime
 
 
@@ -118,6 +118,26 @@ class PersonaRead(BaseModel):
 
 	model_config = ConfigDict(from_attributes=True)
 
+class PersonaReadv3(BaseModel):
+	id: str
+	job_description_id: str
+	jd_name: Optional[str] = None  # JD title/name from job_description relationship
+	name: str
+	role_name: Optional[str] = None
+	role_id : Optional[str] = None
+	created_at: datetime
+	created_by: Optional[str] = None
+	created_by_name: Optional[str] = None  # Full name from creator relationship
+	updated_at: Optional[datetime] = None
+	updated_by: Optional[str] = None
+	updated_by_name: Optional[str] = None  # Full name from updater relationship
+	is_active: str = "true"  # String for SQLite compatibility
+	candidate_count: int = 0  # Number of candidates evaluated against this persona
+	categories: List[PersonaCategorySchema] = []
+	persona_notes: Optional[str] = None
+	v3_metadata: Optional[Dict[str, Any]] = None
+
+	model_config = ConfigDict(from_attributes=True)
 
 # Persona Level Schemas
 class PersonaLevelCreate(BaseModel):
