@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db, get_current_user
+from app.api.deps import get_db, get_current_user, get_mfa_user
 from app.schemas.mfa import (
     MFASetupResponse, MFAVerifyRequest, MFAVerifyResponse,
     MFALoginRequest, MFALoginResponse, MFADisableRequest, MFADisableResponse,
@@ -181,7 +181,7 @@ async def disable_email_otp(
 async def send_email_otp(
     request: EmailOTPSendRequest,
     db: Session = Depends(get_db),
-    current_user: UserModel = Depends(get_current_user)
+    current_user: UserModel = Depends(get_mfa_user)
 ):
     """Send Email OTP to the current user."""
     try:
