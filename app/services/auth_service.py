@@ -89,7 +89,6 @@ class AuthService:
 		# Check if MFA is enabled and required (system-level check)
 		mfa_required = False
 		mfa_token = None
-		
 		if settings.mfa_enabled:
 			mfa_service = MFAService()
 			mfa_status = mfa_service.get_mfa_status(db, user.id)
@@ -97,7 +96,7 @@ class AuthService:
 			if mfa_status["system_enabled"] and mfa_status["enabled"]:
 				mfa_required = True
 				# Create temporary MFA token (short-lived)
-				mfa_token = create_access_token(subject=user.id, expires_minutes=5)
+				mfa_token = create_access_token(subject=user.id, expires_minutes=5, token_type='mfa')
 		
 		if mfa_required:
 			return {
@@ -109,7 +108,7 @@ class AuthService:
 			}
 		else:
 			return {
-				"access_token": create_access_token(subject=user.id),
+				"access_token": create_access_token(subject=user.id, token_type='access'),
 				"token_type": "bearer",
 				"user": user,
 				"mfa_required": False,
@@ -137,7 +136,7 @@ class AuthService:
 			raise ValueError("Invalid MFA code")
 		
 		# Return final access token
-		return create_access_token(subject=user_id)
+		return create_access_token(subject=user_id, token_type='access')
 	
 	def forgot_password(self, db: Session, email: str) -> bool:
 		"""Initiate password reset process."""

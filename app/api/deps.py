@@ -42,6 +42,13 @@ def get_current_user(
 	payload = decode_token(credentials.credentials)
 	if not payload or "sub" not in payload:
 		raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+	
+	if payload.get("token_type") != "access":
+		raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access token required"
+        )
+	
 	user = SQLAlchemyUserRepository().get_by_id(db, payload["sub"])
 	if not user or not user.is_active:
 		raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Inactive user")
@@ -50,6 +57,46 @@ def get_current_user(
 	request_user_id.set(user.id)
 	
 	return user
+
+
+def get_mfa_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: Session = Depends(get_db),
+):
+    if credentials is None or credentials.scheme.lower() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
+
+    payload = decode_token(credentials.credentials)
+
+    if not payload or "sub" not in payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
+        )
+
+    # ENFORCE MFA TOKEN
+    if payload.get("token_type") != "mfa":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="MFA token required"
+        )
+
+    user = SQLAlchemyUserRepository().get_by_id(db, payload["sub"])
+
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Inactive user"
+        )
+
+    # Optional: context for tracing (safe here)
+    request_user_id.set(user.id)
+
+    return user
+
 
 
 def require_roles(*required_roles: str):
