@@ -62,13 +62,13 @@ class AuthService:
 		created_user = self.users.create(db, user)
 		
 		# Auto-enable MFA for new users if system MFA is enabled
-		if settings.mfa_enabled:
-			try:
-				mfa_service = MFAService()
-				mfa_service.auto_enable_mfa_for_user(db, created_user.id)
-			except Exception as e:
-				# Log error but don't fail signup
-				print(f"Failed to auto-enable MFA for new user: {e}")
+		# if settings.mfa_enabled:
+		# 	try:
+		# 		mfa_service = MFAService()
+		# 		mfa_service.auto_enable_mfa_for_user(db, created_user.id)
+		# 	except Exception as e:
+		# 		# Log error but don't fail signup
+		# 		print(f"Failed to auto-enable MFA for new user: {e}")
 		
 		# Send welcome email
 		try:

@@ -11,22 +11,11 @@ class MFAModel(Base):
     id = Column(String, primary_key=True)
     user_id = Column(String, ForeignKey("users.id"), nullable=False, unique=True)
     
-    # TOTP Configuration
-    totp_secret = Column(String, nullable=True)  # Base32 encoded secret
-    totp_enabled = Column(Boolean, nullable=False, default=False)
-    totp_verified = Column(Boolean, nullable=False, default=False)
     
     # Email OTP Configuration
     email_otp_enabled = Column(Boolean, nullable=False, default=False)
     email_otp_verified = Column(Boolean, nullable=False, default=False)
     
-    # Backup codes (stored as JSON string)
-    backup_codes = Column(Text, nullable=True)  # JSON array of hashed backup codes
-    backup_codes_generated = Column(Boolean, nullable=False, default=False)
-    
-    # Recovery information
-    recovery_email = Column(String, nullable=True)
-    recovery_phone = Column(String, nullable=True)
     
     # Audit fields
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -36,18 +25,6 @@ class MFAModel(Base):
     user = relationship("UserModel", back_populates="mfa")
 
 
-class MFABackupCodeModel(Base):
-    """Model for tracking used backup codes."""
-    __tablename__ = "mfa_backup_codes"
-
-    id = Column(String, primary_key=True)
-    user_id = Column(String, ForeignKey("users.id"), nullable=False)
-    code_hash = Column(String, nullable=False)  # Hashed backup code
-    used_at = Column(DateTime(timezone=True), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    
-    # Relationship
-    user = relationship("UserModel")
 
 
 class MFAEmailOTPModel(Base):
