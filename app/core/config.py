@@ -122,6 +122,7 @@ class Settings(BaseSettings):
 	LANGSMITH_ENDPOINT: str = ""
 	LANGSMITH_API_KEY: str =""
 	LANGSMITH_PROJECT: str = ""
+	PINECONE_V3_INDEX_NAME: str = "jd-persona-templates"
 	class Config:
 		env_file = ".env"
 		env_file_encoding = "utf-8"
